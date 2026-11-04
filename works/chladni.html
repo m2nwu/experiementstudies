@@ -1,0 +1,1021 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P15 · CHLADNI — Key Prints</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=Victor+Mono:ital,wght@0,300..700;1,300..700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sand:#D8CBB0; --plate:#5E615E; --ink:#161614;
+  --ink2:rgba(22,22,20,.62); --ink3:rgba(22,22,20,.28); --ink4:rgba(22,22,20,.12);
+  --sans:'Schibsted Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --mono:'Victor Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--sand);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden;min-height:100vh}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.mono{font-family:var(--mono)}
+.cap{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+#app{display:grid;grid-template-columns:300px minmax(0,1fr) 330px;grid-template-rows:auto 1fr auto;
+  grid-template-areas:"meta meta meta" "left center right" "hint hint hint";column-gap:30px;height:100vh;padding:14px 28px 0}
+#meta{grid-area:meta;display:flex;justify-content:space-between;align-items:baseline;padding-bottom:10px;border-bottom:1px solid var(--ink);gap:12px;flex-wrap:wrap}
+#meta .r{display:flex;gap:16px;align-items:center}
+#meta button{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--ink);padding:3px 8px}
+#meta button[aria-pressed=true]{background:var(--ink);color:var(--sand)}
+#left{grid-area:left;overflow-y:auto;overflow-x:hidden;padding:16px 4px 16px 0;scrollbar-width:thin}
+#center{grid-area:center;display:flex;flex-direction:column;align-items:flex-start;padding-top:36px;min-width:0}
+#right{grid-area:right;overflow-y:auto;overflow-x:hidden;padding:16px 0 16px 2px;scrollbar-width:thin}
+#hint{grid-area:hint;border-top:1px solid var(--ink);display:flex;justify-content:space-between;gap:16px;padding:8px 0 10px;align-items:center}
+#hint .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--ink)}
+#hint .k b{font-weight:600}
+#sound{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;white-space:nowrap}
+
+.brand{font-family:var(--mono);font-size:10.5px;line-height:1.5;letter-spacing:.04em;color:var(--ink2)}
+.brand em{font-style:italic;color:var(--ink)}
+h1{font-weight:850;font-size:46px;line-height:.92;letter-spacing:-.035em;margin:10px 0 8px}
+h1 span{display:block;font-weight:400;font-style:italic;letter-spacing:-.02em;font-size:.52em;line-height:1.1;margin-top:6px}
+.lede{font-size:13.5px;line-height:1.38;max-width:34ch;margin-bottom:12px}
+.lede b{font-weight:700}
+
+.card{border:1px solid var(--ink);margin-bottom:12px}
+.card>header{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--ink);color:var(--sand)}
+.card>header button{color:var(--sand);font-family:var(--mono);font-size:10.5px}
+.xrow{display:grid;grid-template-columns:80px 1fr;border-top:1px solid var(--ink3);padding:5px 8px;gap:6px}
+.xrow:first-of-type{border-top:0}
+.xrow dt{font-family:var(--mono);font-size:10px;letter-spacing:.08em;font-weight:600;padding-top:1px}
+.xrow dd{font-size:12px;line-height:1.32}
+.xrow dd i{font-family:var(--mono);font-style:italic;font-size:11.5px}
+#xbtn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ink);padding:4px 8px;margin-top:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+#xbtn .sw{width:30px;height:14px;border:1px solid var(--ink);position:relative}
+#xbtn .sw::after{content:"";position:absolute;top:1px;left:1px;width:12px;height:10px;background:var(--ink);transition:left .12s}
+#xbtn[aria-pressed=true] .sw::after{left:15px}
+.obsb{display:flex;gap:4px;margin-top:2px;flex-wrap:wrap}
+.obsb button{border:1px solid var(--ink);padding:4px 7px;font-family:var(--mono);font-size:10px;letter-spacing:.06em}
+.obsb button:active{background:var(--ink);color:var(--sand)}
+#obslog{font-family:var(--mono);font-size:10px;line-height:1.45;margin-top:6px;color:var(--ink2);max-height:58px;overflow:auto}
+.card.collapsed .xbody{display:none}
+
+#protocol{width:100%;margin-top:10px}
+#protocol h3{margin-bottom:4px}
+#protocol ol{list-style:none;counter-reset:p;display:grid;grid-template-columns:repeat(8,1fr);border:1px solid var(--ink)}
+#protocol li{display:flex;gap:5px;align-items:baseline;padding:5px 6px;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink2);white-space:nowrap;overflow:hidden}
+#protocol li+li{border-left:1px solid var(--ink)}
+#protocol li::before{counter-increment:p;content:counter(p,decimal-leading-zero);font-size:9.5px}
+#protocol li.done{background:var(--ink);color:var(--sand)}
+#protocol li.done::after{content:"\2713";margin-left:auto}
+#protocol li.now{color:var(--ink);font-weight:700;box-shadow:inset 0 -3px 0 var(--ink)}
+#protocol h3,.sec h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;font-weight:600;text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+#protocol h3 span,.sec h3 span{font-weight:400;color:var(--ink2)}
+
+/* center */
+#stage{display:flex;gap:16px;align-items:stretch;width:100%}
+#plateWrap{position:relative;width:min(calc(100% - 186px),calc(100vh - 412px),560px);aspect-ratio:1;flex:none;touch-action:none;cursor:crosshair}
+#plate{width:100%;height:100%;display:block}
+#plateFrame{position:absolute;inset:-7px;border:1px solid var(--ink);pointer-events:none}
+.plateCap{position:absolute;left:-7px;top:-24px;font-family:var(--mono);font-size:10px;letter-spacing:.08em}
+.plateCap2{position:absolute;right:-7px;top:-24px;font-family:var(--mono);font-size:10px;letter-spacing:.08em}
+#notch{position:absolute;width:14px;height:14px;pointer-events:none}
+#notch::before{content:"";position:absolute;inset:0;border:2px solid var(--ink);background:var(--sand);transform:rotate(45deg)}
+#side{display:flex;flex-direction:column;gap:10px;min-width:0;flex:0 0 170px;min-height:0}
+#tune{border:1px solid var(--ink);padding:7px 8px;user-select:none}
+#tune .row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+#tune .v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em}
+#tune button{border:1px solid var(--ink);width:26px;height:24px;font-family:var(--mono);font-size:14px}
+#tune .scale{position:relative;height:16px;margin-top:6px;border-bottom:1px solid var(--ink)}
+#tune .scale i{position:absolute;bottom:0;width:1px;background:var(--ink)}
+#tune .scale b{position:absolute;bottom:-4px;width:3px;height:20px;background:var(--ink);margin-left:-1px}
+#why{font-size:12px;line-height:1.36;border-left:3px solid var(--ink);padding:2px 0 2px 9px;min-height:76px;flex:1 1 0;overflow:hidden}
+#why .t{font-family:var(--mono);font-size:10px;letter-spacing:.08em;display:block;margin-bottom:3px;color:var(--ink2)}
+#why .old{color:var(--ink2);font-size:11.5px;margin-top:6px;display:block}
+#pattern{border:1px solid var(--ink);padding:7px 8px}
+#patternC{width:100%;max-width:96px;aspect-ratio:1;display:block;margin:4px auto 2px}
+#rosetta{display:grid;grid-template-columns:1fr 1.1fr;gap:0;border:1px solid var(--ink);margin-top:12px;width:100%}
+#rosetta>div{padding:5px 9px;min-width:0}
+#rosetta>div+div{border-left:1px solid var(--ink)}
+#staff{width:100%;height:58px;display:block}
+#table{font-family:var(--mono);font-size:10px;line-height:1.42}
+#table .r{display:flex;justify-content:space-between;gap:6px;border-bottom:1px dotted var(--ink3)}
+#table .r span:last-child{font-weight:600;text-align:right}
+#piano{position:relative;height:80px;margin-top:10px;width:100%;user-select:none;touch-action:manipulation}
+.wk,.bk{position:absolute;top:0;border:1px solid var(--ink);display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:4px;font-family:var(--mono);font-size:10px;cursor:pointer}
+.wk{height:80px;background:var(--sand)}
+.bk{height:50px;background:var(--ink);color:var(--sand);z-index:2}
+.wk.on{background:var(--plate);color:var(--sand)}
+.bk.on{background:var(--plate)}
+.wk canvas,.bk canvas{width:22px;height:22px;margin-bottom:auto;margin-top:5px;border-radius:50%;opacity:0}
+.wk.got canvas,.bk.got canvas{opacity:1}
+.wk .n{font-size:9px;opacity:.7}
+
+/* right */
+.sec{margin-bottom:11px}
+.ms{display:grid;grid-template-columns:1fr auto;align-items:baseline;border-top:1px solid var(--ink3);padding:4px 0;gap:1px 8px}
+.ms .l{font-family:var(--mono);font-size:10px;letter-spacing:.07em}
+.ms .v{font-family:var(--mono);font-size:15px;font-weight:600;text-align:right;white-space:nowrap}
+.ms .d{grid-column:1/3;font-size:10.5px;line-height:1.25;color:var(--ink2)}
+.bar{grid-column:1/3;height:5px;border:1px solid var(--ink);position:relative;margin:2px 0}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);width:0}
+.bar.two{height:auto;border:0;display:grid;grid-template-columns:30px 1fr 36px;gap:3px 6px;align-items:center;font-family:var(--mono);font-size:10px}
+.bar.two .b{height:6px;border:1px solid var(--ink);position:relative}
+.bar.two .b i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.bar.two .b.off i{background:var(--plate)}
+#shapes .row{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--ink)}
+#shapes button{padding:6px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--mono);font-size:10px;letter-spacing:.06em}
+#shapes button+button{border-left:1px solid var(--ink)}
+#shapes button[aria-pressed=true]{background:var(--ink);color:var(--sand)}
+#shapes svg{width:22px;height:22px}
+#labels .grid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px 3px;min-height:54px;max-height:106px;overflow-y:auto;border:1px dashed var(--ink3);padding:5px;scrollbar-width:thin}
+#labels .grid:empty::before{content:"No prints yet. Double-click the plate.";font-size:11.5px;color:var(--ink2);grid-column:1/7;align-self:center;font-style:italic}
+.lab{display:flex;flex-direction:column;align-items:center;gap:1px;cursor:grab;touch-action:none;user-select:none}
+.lab img{width:100%;max-width:40px;aspect-ratio:1;border-radius:50%;display:block;pointer-events:none}
+.lab span{font-family:var(--mono);font-size:9px;letter-spacing:.02em;white-space:nowrap}
+.lab.hl img{outline:2px solid var(--ink);outline-offset:1px}
+.lab.new img{animation:pop .35s steps(4)}
+@keyframes pop{0%{transform:scale(.3)}100%{transform:scale(1)}}
+#discRow{display:flex;gap:10px;align-items:center}
+#disc{width:164px;height:164px;flex:none;touch-action:none;display:block}
+#discInfo{font-size:11.5px;line-height:1.35}
+#discInfo .play{display:inline-block;border:1px solid var(--ink);padding:4px 8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;margin-top:6px}
+#discInfo .play[aria-pressed=true]{background:var(--ink);color:var(--sand)}
+
+/* overlays */
+#trace{position:fixed;inset:0;pointer-events:none;z-index:40}
+#tags{position:fixed;inset:0;pointer-events:none;z-index:41;display:none}
+body.inspect #tags{display:block}
+.tag{position:absolute;min-width:18px;height:16px;padding:0 3px;background:var(--ink);color:var(--sand);font-family:var(--mono);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}
+body.inspect [data-anat]{outline:1px dashed var(--ink2);outline-offset:2px}
+body.inspect [data-anat].hov{outline:2px solid var(--ink)}
+#acard{position:fixed;z-index:60;width:300px;background:var(--sand);border:1.5px solid var(--ink);display:none;pointer-events:none;font-size:12px;line-height:1.35}
+#acard h4{background:var(--ink);color:var(--sand);font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:5px 8px;font-weight:600}
+#acard div{display:grid;grid-template-columns:76px 1fr;gap:6px;padding:5px 8px;border-top:1px solid var(--ink3)}
+#acard div:first-of-type{border-top:0}
+#acard b{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;font-weight:600;padding-top:1px}
+#acard i{font-family:var(--mono);font-size:11px}
+#coach{position:fixed;z-index:50;max-width:250px;background:var(--ink);color:var(--sand);padding:8px 26px 8px 10px;font-size:12.5px;line-height:1.35;display:none}
+#coach .s{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;display:block;margin-bottom:2px;opacity:.75}
+#coach .x{position:absolute;right:4px;top:3px;color:var(--sand);font-family:var(--mono);font-size:12px;padding:2px 4px}
+#coach::after{content:"";position:absolute;width:10px;height:10px;background:var(--ink);transform:rotate(45deg)}
+#coach.up::after{top:-5px;left:20px}
+#coach.down::after{bottom:-5px;left:20px}
+#coach.left::after{left:-5px;top:14px}
+#ghost{position:fixed;z-index:70;width:54px;height:54px;border-radius:50%;pointer-events:none;display:none;outline:2px solid var(--ink)}
+#start{position:fixed;inset:0;z-index:90;background:var(--sand);display:flex;align-items:center;justify-content:flex-start;padding:5vh 8vw;overflow:auto}
+#start .in{max-width:1120px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:56px;align-items:center}
+#start h2{font-size:clamp(48px,7vw,104px);font-weight:900;letter-spacing:-.045em;line-height:.85}
+#start h2 span{display:block;font-weight:400;font-style:italic;font-size:.42em;letter-spacing:-.03em;line-height:1.05;margin-top:8px}
+#start ol{list-style:none;margin:22px 0 22px;border-top:1px solid var(--ink)}
+#start li{display:grid;grid-template-columns:30px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--ink);font-size:15px;line-height:1.35}
+#start li b{font-family:var(--mono);font-size:11px;padding-top:3px}
+#start li em{font-family:var(--mono);font-style:normal;font-weight:600;font-size:12.5px;letter-spacing:.03em}
+#go{background:var(--ink);color:var(--sand);padding:14px 20px;font-family:var(--mono);font-size:13px;letter-spacing:.08em;font-weight:600}
+#start .note{font-family:var(--mono);font-size:10.5px;line-height:1.5;color:var(--ink2);margin-top:14px;max-width:60ch}
+#startPlate{width:100%;aspect-ratio:1;display:block}
+#spec{position:fixed;z-index:80;right:24px;top:52px;width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 110px);overflow:auto;background:var(--sand);border:1.5px solid var(--ink);padding:14px 16px;display:none;font-size:12.5px;line-height:1.42}
+#spec.open{display:block}
+#spec h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;margin:12px 0 4px;font-weight:600}
+#spec h5:first-child{margin-top:0}
+#spec code{font-family:var(--mono);font-size:11.5px}
+#fallback{display:none;border:2px solid var(--ink);padding:10px;margin:10px 0;font-size:13px}
+.vis-touch{display:none}
+body.touch .vis-touch{display:inline}
+body.touch .vis-mouse{display:none}
+
+@media (min-width:1021px){html,body{height:100%;overflow:hidden}}
+@media (max-width:1180px) and (min-width:1021px){
+  #app{grid-template-columns:270px minmax(0,1fr) 300px;column-gap:20px;padding:12px 18px 0}
+  h1{font-size:40px}
+  #plateWrap{width:min(100%,calc(100vh - 412px),560px)}
+  #side{display:none}
+}
+@media (max-width:1020px){
+  #app{display:flex;flex-direction:column;height:auto;padding:10px 16px 0}
+  #left{display:contents}
+  #right{overflow:visible;padding:8px 0;order:5}
+  #meta{order:0}.brand{order:1;margin-top:10px}h1{order:2}.lede{order:3}#fallback{order:3}
+  #center{order:4;padding-top:30px}
+  #xcard{order:6}
+  #protocol ol{grid-template-columns:repeat(4,1fr)}
+  #protocol li:nth-child(5){border-left:0}
+  #protocol li:nth-child(n+5){border-top:1px solid var(--ink)}
+  #hint{order:8;position:sticky;bottom:0;background:var(--sand);flex-wrap:wrap;gap:4px;z-index:5}
+  #plateWrap{width:min(calc(100% - 14px),560px);margin-left:7px}
+  #why{flex:1 1 220px;min-height:0}
+  #side{display:flex;max-width:none;flex-direction:row;flex-wrap:wrap}
+  #stage{flex-direction:column}
+  #side>*{flex:1 1 160px}
+  #pattern{display:none}
+  h1{font-size:44px}
+  .lede{max-width:none}
+  #start .in{grid-template-columns:1fr}
+  #startPlate{max-width:220px}
+  #acard{width:min(300px,calc(100vw - 20px))}
+}
+@media (max-width:480px){
+  h1{font-size:40px}
+  #rosetta{grid-template-columns:1fr}
+  #rosetta>div+div{border-left:0;border-top:1px solid var(--ink)}
+  #disc{width:170px;height:170px}
+  #labels .grid{grid-template-columns:repeat(5,1fr)}
+  #start{padding:24px 16px}
+  #start li{font-size:14px}
+  #meta .r{gap:8px}
+}
+</style>
+</head>
+<body>
+<noscript><p style="padding:20px;font-family:monospace">P15 CHLADNI needs JavaScript to vibrate the plate. Concept: every note shakes a steel plate into its own sand figure; the figure is printed as the record label.</p></noscript>
+
+<div id="app">
+  <header id="meta" data-anat="meta">
+    <span class="cap">P15 · CHLADNI · LINEAGE: C029 + C072 + C039 · INTENSITY 9</span>
+    <span class="r">
+      <button id="inspectBtn" aria-pressed="false" data-anat="inspect">What does this do? (I)</button>
+      <button id="specBtn" aria-pressed="false" data-anat="specbtn">Spec</button>
+    </span>
+  </header>
+
+  <aside id="left">
+    <div class="brand" data-anat="brand">STILLGROUND PRESS · SGP-015<br><em>Tamsin Vael &amp; the Halde Bowing Trio — "Twelve Keys, One Plate"</em></div>
+    <h1 data-anat="thesis">Same key,<br>same mark.<span>Sound, printed in sand.</span></h1>
+    <p class="lede">Each note shakes a steel plate. Sand runs off the parts that move and piles up on the lines that stay still. <b>That figure is printed as the record's centre label</b> — read the key before you hear it.</p>
+    <div id="fallback"></div>
+
+    <section class="card" id="xcard" data-anat="card">
+      <header><span class="cap">Experiment card</span><button id="xcollapse" aria-expanded="true">— collapse</button></header>
+      <dl class="xbody">
+        <div class="xrow"><dt>HYPOTHESIS</dt><dd>If a song's notes are printed as Chladni patterns, the same key always prints the same label — sound becomes a readable physical mark.</dd></div>
+        <div class="xrow"><dt>VARIABLE</dt><dd>The note driving the plate: keys <b>A–K</b> or the keyboard <i>[3]</i>; fine-tune with wheel or <b>↑↓</b> <i>[4]</i>. Second variable: where you bow (drag on the plate <i>[1]</i>).</dd></div>
+        <div class="xrow"><dt>CONTROL</dt><dd>Plain text labels (note name only) and a plain harmonic chime. Same notes, same printing, no figure.
+          <br><button id="xbtn" aria-pressed="true" data-anat="xtoggle"><span class="sw"></span><span id="xlbl">EXPERIMENT ON</span> · X</button></dd></div>
+        <div class="xrow"><dt>MEASURE</dt><dd>Same-key match <i>[13]</i> and at-a-glance difference <i>[14]</i>, ON vs OFF side by side. Live in the right column.</dd></div>
+        <div class="xrow" data-anat="obs"><dt>OBSERVATION</dt><dd>Can you tell keys apart by their labels?
+          <div class="obsb"><button data-v="WORKS">WORKS</button><button data-v="DOESN'T">DOESN'T</button><button data-v="NOT SURE">NOT SURE</button></div>
+          <div id="obslog"></div></dd></div>
+      </dl>
+    </section>
+
+  </aside>
+
+  <main id="center">
+    <div id="stage">
+      <div id="plateWrap" data-anat="plate">
+        <span class="plateCap" id="plateCap">STEEL PLATE 240 × 240 MM · IDEALISED</span>
+        <span class="plateCap2" id="plateCap2">C4</span>
+        <canvas id="plate" width="480" height="480" aria-label="Vibrating plate with sand figure"></canvas>
+        <div id="plateFrame"></div>
+        <div id="notch" data-anat="notch"></div>
+      </div>
+      <div id="side">
+        <div id="tune" data-anat="tune">
+          <div class="cap">Fine tune · wheel / ↑↓</div>
+          <div class="row"><button id="tdn" aria-label="tune down">−</button><span class="v" id="tuneV">±0¢</span><button id="tup" aria-label="tune up">+</button></div>
+          <div class="scale" id="tuneScale"></div>
+          <div class="cap" style="margin-top:6px;text-transform:none;letter-spacing:.02em" id="tuneHz">261.63 Hz</div>
+        </div>
+        <div id="pattern" data-anat="pattern">
+          <div class="cap">Label preview</div>
+          <canvas id="patternC" width="120" height="120"></canvas>
+          <div class="cap" style="text-align:center" id="patternCap">SGP-015 · C4</div>
+        </div>
+        <div id="why" data-anat="why"><span class="t">WHAT JUST HAPPENED</span><span id="whyNow">Waiting for the first note.</span><span class="old" id="whyOld"></span></div>
+      </div>
+    </div>
+    <div id="rosetta">
+      <div data-anat="staff"><div class="cap">Rosetta 1 · staff</div><svg id="staff" viewBox="0 0 260 62" preserveAspectRatio="xMinYMid meet"></svg></div>
+      <div data-anat="table"><div class="cap" style="margin-bottom:3px">Rosetta 3 · frequency table</div><div id="table"></div></div>
+    </div>
+    <div id="piano" data-anat="keyboard"></div>
+    <section id="protocol" data-anat="protocol">
+      <h3>Protocol · the test, step by step <span id="protoCount">0 / 8</span></h3>
+      <ol id="protoList"></ol>
+    </section>
+  </main>
+
+  <aside id="right">
+    <section class="sec" id="measure">
+      <h3>Measure <span>live</span></h3>
+      <div class="ms" data-anat="m-freq"><span class="l">FREQUENCY · NOTE</span><span class="v" id="mFreq">—</span><span class="d" id="mFreqD">The note driving the plate.</span></div>
+      <div class="ms" data-anat="m-mode"><span class="l">PLATE MODE</span><span class="v" id="mMode">—</span><span class="d" id="mModeD">Nearest standing wave the plate can hold.</span></div>
+      <div class="ms" data-anat="m-res"><span class="l">RESONANCE</span><span class="v" id="mRes">—</span><div class="bar"><i id="bRes"></i></div><span class="d">100% = one clean mode, sharp figure. Detune → blur.</span></div>
+      <div class="ms" data-anat="m-node"><span class="l">NODAL LINE LENGTH</span><span class="v" id="mNode">—</span><span class="d">Still lines where sand can rest (240 mm plate).</span></div>
+      <div class="ms" data-anat="m-match"><span class="l">SAME-KEY MATCH</span><span class="v" id="mMatch">—</span><div class="bar"><i id="bMatch"></i></div><span class="d" id="mMatchD">Print a key, then play it again.</span></div>
+      <div class="ms" data-anat="m-glance"><span class="l">AT-A-GLANCE DIFFERENCE</span><span class="v" id="mGlance">—</span>
+        <div class="bar two"><span>ON</span><span class="b"><i id="bgOn" style="width:0"></i></span><span id="gOn">—</span><span>OFF</span><span class="b off"><i id="bgOff" style="width:0"></i></span><span id="gOff">—</span></div>
+        <span class="d">Labels blurred to 12 × 12 px, as on a spinning record.</span></div>
+      <div class="ms" data-anat="m-distinct"><span class="l">DISTINCT PRINTS / OCTAVE</span><span class="v" id="mDist">—</span><span class="d" id="mDistD">Can this plate give all 13 keys a different mark?</span></div>
+    </section>
+
+    <section class="sec" id="shapes" data-anat="shapes">
+      <h3>Plate shape <span>1 · 2 · 3</span></h3>
+      <div class="row">
+        <button data-s="square" aria-pressed="true"><svg viewBox="0 0 22 22"><rect x="2" y="2" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>1 SQUARE</button>
+        <button data-s="round" aria-pressed="false"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>2 ROUND</button>
+        <button data-s="violin" aria-pressed="false"><svg viewBox="0 0 22 22"><path d="M11 1.5c3 0 4.6 2 4.6 4.4 0 1.6-1.4 2.8-1.4 4 0 1.1 2.4 2 2.4 5 0 3-2.6 5.6-5.6 5.6S5.4 17.9 5.4 14.9c0-3 2.4-3.9 2.4-5 0-1.2-1.4-2.4-1.4-4C6.4 3.5 8 1.5 11 1.5z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>3 VIOLIN</button>
+      </div>
+    </section>
+
+    <section class="sec" id="labels" data-anat="labels">
+      <h3>Printed labels <span id="labCount">0</span></h3>
+      <div class="grid" id="labGrid"></div>
+    </section>
+
+    <section class="sec" id="discSec">
+      <h3>Music-box disc <span>drop labels · Space</span></h3>
+      <div id="discRow">
+        <svg id="disc" viewBox="0 0 200 200" data-anat="disc"></svg>
+        <div id="discInfo"><span id="discTxt">Drag labels onto the 8 slots. The comb (top) reads each print and rings it. Click a slot to clear.</span><br><button class="play" id="discPlay" aria-pressed="false" data-anat="discplay">▶ PLAY · SPACE</button></div>
+      </div>
+    </section>
+  </aside>
+
+  <footer id="hint" data-anat="hint">
+    <span class="k vis-mouse"><b>A–K</b> notes · <b>wheel / ↑↓</b> fine-tune · <b>drag</b> plate = bow · <b>click</b> = sprinkle sand · <b>hold</b> = damp · <b>double-click</b> = print · <b>drag label → disc</b> · <b>hover label</b> = compare · <b>Space</b> stop/play · <b>M</b> mute · <b>X</b> experiment · <b>I</b> inspect · <b>1–3</b> plate</span>
+    <span class="k vis-touch"><b>tap keys</b> = notes · <b>drag</b> plate = bow · <b>tap</b> = sprinkle · <b>hold</b> = damp · <b>double-tap</b> = print · <b>drag label → disc</b> · <b>± </b>fine-tune</span>
+    <span id="sound" data-anat="sound">SOUND · OFF</span>
+  </footer>
+</div>
+
+<canvas id="trace"></canvas>
+<div id="tags"></div>
+<div id="acard"></div>
+<div id="coach"><span class="s" id="coachS">STEP</span><span id="coachT"></span><button class="x" id="coachX" aria-label="dismiss">×</button></div>
+<img id="ghost" alt="">
+
+<div id="spec">
+  <h5>TYPEFACES</h5>
+  <p><b>Schibsted Grotesk</b> — a grotesk drawn for a newspaper house: it carries the "printing press" side of the work (headline, label names). Weight 850 for the thesis, italic 400 for the claim underneath — hierarchy by weight and posture, not size alone.<br><b>Victor Mono</b> — every number the plate produces (Hz, mode, cents, match). Its cursive italic is used for lab-notebook annotations, so measured values and human notes read as two different hands.</p>
+  <h5>MAPPING RULES</h5>
+  <p><code>note f → λ = λ0 · f / 261.63 Hz</code> → the plate rings in the mode whose eigenvalue λ is nearest (square λ = m² + n², λ0 = 50; round λ = j′ₙₛ², λ0 = 81; violin λ = (m/0.62)² + n², λ0 = 45).<br>
+  Square figure <code>u = cos φ·[cos mπx cos nπy + cos nπx cos mπy] + sin φ·[… − …]</code>; φ comes from the bow point (keys drive the corner notch, φ = 0).<br>
+  Round figure <code>u = Jₙ(j′ r)·cos n(θ − θbow)</code> (free-edge membrane modes).<br>
+  Violin = rectangle modes warped to the outline: a rough approximation.<br>
+  Sand density <code>D → exp(−(u / w)²)</code>, relaxing at rate 6 · amplitude · resonance; w narrows 0.55 → 0.05 in ~1 s (sand gathering). No particles: the sand is one density field.<br>
+  Detune: resonance weight <code>1 / (1 + ((λt − λi) / γ)²)</code> over the two nearest modes (0.004 · λ).</p>
+  <h5>SOUND</h5>
+  <p>Every strike is a bell whose partials are the plate's own eigenvalue ratios (square ×1, ×1.25, ×2.25, ×2.5, ×3.25, ×4; round and violin differ), so each plate has its own metal. Dragging bows the plate: band-passed friction noise on the same partials. Control mode swaps in a plain harmonic chime (×1, ×2, ×3).</p>
+  <h5>MOTION</h5>
+  <p>Sand formation ≈ 0.6–1.2 s · trace pulses 380 ms · disc 5.6 s per turn (0.7 s per slot) · strike decay 3.2 s / (1 + 0.5k) · damp choke 80 ms.</p>
+  <h5>HONESTY</h5>
+  <p>This is an idealised mathematical model, not a measured plate. Real free-edge plates have different mode shapes and frequencies; here one octave is scaled onto the plate's modes, and the keys drive an ideal transducer. The figures are exact solutions of the model, not photographs.</p>
+</div>
+
+<div id="start" data-anat="start">
+  <div class="in">
+    <div>
+      <div class="cap">P15 · CHLADNI · STILLGROUND PRESS SGP-015 · A DESIGN EXPERIMENT</div>
+      <h2>Same key,<br>same mark.<span>Can a song's key be printed as a physical figure?</span></h2>
+      <ol>
+        <li><b>01</b><span><em class="vis-mouse">PRESS A KEY (A–K)</em><em class="vis-touch">TAP A KEY</em> — the plate rings; sand leaves the moving parts and settles on the still lines.</span></li>
+        <li><b>02</b><span><em class="vis-mouse">DOUBLE-CLICK THE PLATE</em><em class="vis-touch">DOUBLE-TAP THE PLATE</em> — print that figure as a record label. Print the same key twice: do they match?</span></li>
+        <li><b>03</b><span><em>DRAG LABELS ONTO THE DISC</em>, then <em class="vis-mouse">SPACE</em><em class="vis-touch">▶</em> — the music-box disc plays your prints back. Press <em>X</em> to compare with plain text labels.</span></li>
+      </ol>
+      <button id="go">START · SOUND ON</button>
+      <p class="note">An idealised mathematical model of a vibrating plate — not a real one. Inharmonic bells, moderate volume. Space stops all sound · M mutes.</p>
+    </div>
+    <figure style="margin:0"><canvas id="startPlate" width="300" height="300"></canvas><figcaption class="cap" id="startCap" style="margin-top:8px;line-height:1.5;text-transform:none;letter-spacing:.02em">G4 on the square plate. Every key has its own figure.</figcaption></figure>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const fail=(msg)=>{const f=$('#fallback');if(f){f.style.display='block';f.textContent='The plate could not start ('+msg+'). The concept: each note shakes a plate into its own sand figure, and that figure becomes the record label.';}};
+window.addEventListener('error',e=>{fail(e.message||'error');});
+try{
+const isTouch=matchMedia('(pointer:coarse)').matches;
+if(isTouch)document.body.classList.add('touch');
+
+/* ---------- constants ---------- */
+const NOTES=['C4','C#4','D4','D#4','E4','F4','F#4','G4','G#4','A4','A#4','B4','C5'];
+const KEYS='awsedftgyhujk';
+const BLACK=[1,3,6,8,10];
+const DIAT=[0,0,1,1,2,3,3,4,4,5,5,6,7]; // staff step
+const SHARP=[0,1,0,1,0,0,1,0,1,0,1,0,0];
+const fNote=i=>261.6256*Math.pow(2,i/12);
+const COL={sand:[0xD8,0xCB,0xB0],plate:[0x5E,0x61,0x5E],ink:[0x16,0x16,0x14]};
+const abgr=(c,k=1)=>(255<<24)|(Math.round(c[2]*k)<<16)|(Math.round(c[1]*k)<<8)|Math.round(c[0]*k);
+const mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const G=240, R=480, N=G*G, NR=R*R;
+
+/* ---------- Bessel ---------- */
+function J(n,x){ // integral form, Simpson
+  if(n<0) return (n%2?-1:1)*J(-n,x);
+  const S=48,h=Math.PI/S;let s=0;
+  for(let k=0;k<=S;k++){const t=k*h,w=(k===0||k===S)?1:(k%2?4:2);s+=w*Math.cos(n*t-x*Math.sin(t));}
+  return s*h/3/Math.PI;
+}
+const Jp=(n,x)=>n===0?-J(1,x):(J(n-1,x)-J(n+1,x))/2;
+function zerosJp(n,max){const z=[];let x0=0.3,y0=Jp(n,x0);for(let x=0.32;x<max;x+=0.02){const y=Jp(n,x);if(y0*y<0){let a=x-0.02,b=x;for(let i=0;i<28;i++){const m=(a+b)/2;if(Jp(n,a)*Jp(n,m)<=0)b=m;else a=m;}z.push((a+b)/2);}y0=y;}return z;}
+
+/* ---------- plate geometry ---------- */
+const hw=y=>{const e1=(y-0.28)/0.24,e2=(y-0.71)/0.27;const a=e1*e1<1?0.30*Math.sqrt(1-e1*e1):0,b=e2*e2<1?0.35*Math.sqrt(1-e2*e2):0;return Math.max(a,b)-0.035*Math.exp(-Math.pow((y-0.5)/0.05,2));};
+const GEO={};
+function buildGeo(){
+  for(const s of ['square','round','violin']){
+    const mask=new Uint8Array(N),A=new Float32Array(N),B=new Float32Array(N);
+    for(let j=0;j<G;j++)for(let i=0;i<G;i++){
+      const x=(i+0.5)/G,y=(j+0.5)/G,k=j*G+i;
+      if(s==='square'){const m0=0.02;if(x>m0&&x<1-m0&&y>m0&&y<1-m0){mask[k]=1;A[k]=(x-m0)/(1-2*m0);B[k]=(y-m0)/(1-2*m0);}}
+      else if(s==='round'){const dx=x-0.5,dy=y-0.5,r=Math.hypot(dx,dy)/0.48;if(r<=1){mask[k]=1;A[k]=r;B[k]=Math.atan2(dy,dx);}}
+      else{if(y>0.04&&y<0.98){const h=hw(y);if(h>0.01&&Math.abs(x-0.5)<h){mask[k]=1;A[k]=((x-0.5)/h+1)/2;B[k]=(y-0.04)/0.94;}}}
+    }
+    GEO[s]={mask,A,B};
+  }
+}
+/* ---------- mode lists ---------- */
+const MODES={},LAM0={square:50,round:81,violin:45},RATIOS={},MAP={};
+function buildModes(){
+  let L=[];
+  for(let m=1;m<=13;m++)for(let n=0;n<m;n++)L.push({m,n,lam:m*m+n*n});
+  L.sort((a,b)=>a.lam-b.lam||(a.m-a.n)-(b.m-b.n));
+  MODES.square=L.filter((o,i)=>i===0||o.lam!==L[i-1].lam);
+  L=[];
+  for(let n=0;n<=15;n++){const z=zerosJp(n,17);z.forEach((j,s)=>L.push({m:n,n:s+1,j,lam:j*j}));}
+  L.sort((a,b)=>a.lam-b.lam);MODES.round=L;
+  L=[];
+  for(let m=1;m<=9;m++)for(let n=1;n<=14;n++)L.push({m,n,lam:(m/0.62)*(m/0.62)+n*n});
+  L.sort((a,b)=>a.lam-b.lam);
+  MODES.violin=L.filter((o,i)=>i===0||Math.abs(o.lam-L[i-1].lam)>1e-6);
+  for(const s in MODES){
+    const M=MODES[s];const b=M[1].lam;RATIOS[s]=M.slice(1,7).map(o=>o.lam/b);
+    MAP[s]=NOTES.map((_,i)=>{const t=LAM0[s]*Math.pow(2,i/12);let best=0,bd=1e9;M.forEach((o,k)=>{const d=Math.abs(Math.log(o.lam/t));if(d<bd){bd=d;best=k;}});return best;});
+  }
+}
+/* ---------- mode fields ---------- */
+const cache={};
+function cosTab(m){const key='c'+m;if(cache[key])return cache[key];const g=GEO.square,t=new Float32Array(G);for(let i=0;i<G;i++){const x=Math.min(1,Math.max(0,((i+0.5)/G-0.02)/0.96));t[i]=Math.cos(m*Math.PI*x);}return cache[key]=t;}
+function sqSA(mi){const key='sq'+mi;if(cache[key])return cache[key];const {m,n}=MODES.square[mi];const cm=cosTab(m),cn=cosTab(n),S=new Float32Array(N),A=new Float32Array(N);
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){const k=j*G+i,a=cm[i]*cn[j],b=cn[i]*cm[j];S[k]=a+b;A[k]=a-b;}return cache[key]={S,A};}
+function radTab(mi){const key='rd'+mi;if(cache[key])return cache[key];const {m,j}=MODES.round[mi];const T=new Float32Array(513);for(let k=0;k<=512;k++)T[k]=J(m,j*k/512);return cache[key]=T;}
+function vlU(mi){const key='vl'+mi;if(cache[key])return cache[key];const {m,n}=MODES.violin[mi];const g=GEO.violin,U=new Float32Array(N);
+  for(let k=0;k<N;k++)if(g.mask[k])U[k]=Math.cos(m*Math.PI*g.A[k])*Math.cos(n*Math.PI*g.B[k]);return cache[key]=U;}
+function modeInto(out,shape,mi,bow,w){
+  const g=GEO[shape];
+  if(shape==='square'){const {S,A}=sqSA(mi),c=Math.cos(bow.phi)*w,s=Math.sin(bow.phi)*w;for(let k=0;k<N;k++)out[k]+=c*S[k]+s*A[k];}
+  else if(shape==='round'){const T=radTab(mi),n=MODES.round[mi].m,th=bow.th;
+    let mx=0;for(let k=0;k<=512;k++)mx=Math.max(mx,Math.abs(T[k]));const sc=w/(mx||1);
+    for(let k=0;k<N;k++)if(g.mask[k]){const r=g.A[k]*512,i0=r|0,f=r-i0;const v=T[i0]+(T[Math.min(512,i0+1)]-T[i0])*f;out[k]+=sc*v*Math.cos(n*(g.B[k]-th));}}
+  else{const U=vlU(mi);for(let k=0;k<N;k++)out[k]+=w*U[k];}
+}
+function modeAt(shape,mi,bow,x,y){ // value at plate point (for bow coupling / phi)
+  const i=Math.max(0,Math.min(G-1,(x*G)|0)),j=Math.max(0,Math.min(G-1,(y*G)|0)),k=j*G+i;const g=GEO[shape];if(!g.mask[k])return null;
+  if(shape==='square'){const {S,A}=sqSA(mi);return {S:S[k],A:A[k]};}
+  if(shape==='round'){const T=radTab(mi);let mx=0;for(let q=0;q<=512;q+=4)mx=Math.max(mx,Math.abs(T[q]));return {R:T[Math.round(g.A[k]*512)]/(mx||1),th:g.B[k]};}
+  return {U:vlU(mi)[k]};
+}
+
+/* ---------- state ---------- */
+const st={shape:'square',note:0,cents:0,exp:true,amp:0,res:1,age:9,bowing:false,bowIn:0,damp:false,
+  bow:{phi:0,th:-Math.PI/2},modeA:0,modeB:0,wA:1,wB:0,nodal:0,muted:false,started:false,demo:false,
+  labels:[],slots:new Array(8).fill(null),discOn:false,discAng:0,hoverLab:null,bowPt:null,dampPt:null,
+  steps:{},lastUser:0,repeatOK:false,xToggled:0};
+const U=new Float32Array(N),D=new Float32Array(N),T=new Float32Array(N);
+const HASH=new Float32Array(NR),HASH2=new Float32Array(NR);
+{let s=1234567;const r=()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return (s>>>0)/4294967296;};for(let i=0;i<NR;i++){HASH[i]=r();HASH2[i]=r();}}
+const LUT=new Float32Array(257);for(let i=0;i<=256;i++){const x=i/64;LUT[i]=Math.exp(-x*x);}
+
+function curModeIdx(){return MAP[st.shape][st.note];}
+function computeU(){
+  const M=MODES[st.shape],base=curModeIdx(),lt=M[base].lam*Math.pow(2,st.cents/1200);
+  // two nearest modes to lt
+  let a=0,da=1e9;M.forEach((o,k)=>{const d=Math.abs(o.lam-lt);if(d<da){da=d;a=k;}});
+  let b=a+(M[a].lam<lt?1:-1);if(b<0)b=1;if(b>=M.length)b=M.length-2;
+  const gam=0.004*lt,wa=1/(1+Math.pow((lt-M[a].lam)/gam,2)),wb=1/(1+Math.pow((lt-M[b].lam)/gam,2));
+  st.modeA=a;st.modeB=b;st.wA=wa/(wa+wb);st.wB=wb/(wa+wb);st.res=Math.max(wa,wb);
+  U.fill(0);modeInto(U,st.shape,a,st.bow,st.wA);if(st.wB>0.02)modeInto(U,st.shape,b,st.bow,st.wB);
+  const g=GEO[st.shape].mask;let mx=0;for(let k=0;k<N;k++)if(g[k]){const v=Math.abs(U[k]);if(v>mx)mx=v;}
+  const sc=1/(mx||1);for(let k=0;k<N;k++)U[k]=g[k]?U[k]*sc:0;
+  // nodal length: sign changes on grid edges
+  let e=0;for(let j=0;j<G-1;j++)for(let i=0;i<G-1;i++){const k=j*G+i;if(!g[k])continue;if(g[k+1]&&U[k]*U[k+1]<0)e++;if(g[k+G]&&U[k]*U[k+G]<0)e++;}
+  st.nodal=e*(240/G)*Math.PI/4;
+}
+function resetSand(){const g=GEO[st.shape].mask;for(let k=0;k<N;k++){const i=k%G,j=(k/G)|0;D[k]=g[k]?0.28+0.3*HASH[(j*2)*R+i*2]:0;}}
+
+/* ---------- audio ---------- */
+let AC=null,bus,master,comp,voices=[],bowV=null;
+function makeIR(sec){const len=Math.floor(AC.sampleRate*sec),b=AC.createBuffer(2,len,AC.sampleRate);for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<len;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2)*(i<200?i/200:1);}}return b;}
+function initAudio(){
+  if(AC)return;const C=window.AudioContext||window.webkitAudioContext;if(!C)return;AC=new C();
+  comp=AC.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=12;comp.ratio.value=5;comp.attack.value=0.004;comp.release.value=0.25;
+  master=AC.createGain();master.gain.value=0.5;bus=AC.createGain();
+  const conv=AC.createConvolver();conv.buffer=makeIR(2.8);const wet=AC.createGain();wet.gain.value=0.26;
+  bus.connect(comp);bus.connect(conv);conv.connect(wet);wet.connect(comp);comp.connect(master);master.connect(AC.destination);
+}
+function env(g,t,peak,att,tau){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+att);g.gain.setTargetAtTime(0,t+att,tau);}
+function strike(f,vel,shape,exp){
+  if(!AC)return;const t=AC.currentTime+0.005;const out=AC.createGain();out.gain.value=1;out.connect(bus);
+  const nodes=[];
+  if(exp){
+    const r=RATIOS[shape];
+    r.forEach((q,k)=>{for(const det of k<2?[1,1.0021]:[1]){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f*q*det;
+      env(g,t,vel*0.2/(1+k*0.65)/(det>1?1.6:1),0.002,3.2/(1+k*0.5)/(shape==='round'?0.8:1));o.connect(g);g.connect(out);o.start(t);o.stop(t+9);nodes.push(o);}});
+    const h=AC.createOscillator(),hg=AC.createGain();h.frequency.value=f*0.5;env(hg,t,vel*0.06,0.03,2.5);h.connect(hg);hg.connect(out);h.start(t);h.stop(t+9);nodes.push(h);
+    // mallet
+    const nb=AC.createBuffer(1,Math.floor(AC.sampleRate*0.04),AC.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=(Math.random()*2-1)*(1-i/nd.length);
+    const ns=AC.createBufferSource();ns.buffer=nb;const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f*r[3];bp.Q.value=3;const ng=AC.createGain();ng.gain.value=vel*0.25;ns.connect(bp);bp.connect(ng);ng.connect(out);ns.start(t);
+  }else{
+    [1,2,3].forEach((q,k)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=k?'sine':'triangle';o.frequency.value=f*q;env(g,t,vel*0.16/(1+k),0.004,0.55/(1+k*0.3));o.connect(g);g.connect(out);o.start(t);o.stop(t+4);nodes.push(o);});
+  }
+  const v={out,nodes,t};voices.push(v);if(voices.length>24){const o=voices.shift();try{o.out.disconnect();}catch(e){}}
+  setTimeout(()=>{const i=voices.indexOf(v);if(i>=0)voices.splice(i,1);},9500);
+}
+function choke(fast){if(!AC)return;const t=AC.currentTime;voices.forEach(v=>{v.out.gain.cancelScheduledValues(t);v.out.gain.setTargetAtTime(0,t,fast?0.02:0.06);});voices=[];}
+function sandHiss(){if(!AC)return;const t=AC.currentTime,nb=AC.createBuffer(1,Math.floor(AC.sampleRate*0.35),AC.sampleRate),d=nb.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=(Math.random()<0.08?(Math.random()*2-1):0)*(1-i/d.length);
+  const s=AC.createBufferSource();s.buffer=nb;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=3500;const g=AC.createGain();g.gain.value=0.35;s.connect(hp);hp.connect(g);g.connect(bus);s.start(t);}
+function bowStart(){
+  if(!AC||bowV)return;const f=fNote(st.note)*Math.pow(2,st.cents/1200),t=AC.currentTime;const out=AC.createGain();out.gain.value=0;out.connect(bus);const parts=[];
+  const r=st.exp?RATIOS[st.shape].slice(0,4):[1,2,3,4];
+  const nb=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;
+  const ns=AC.createBufferSource();ns.buffer=nb;ns.loop=true;ns.start(t);
+  r.forEach((q,k)=>{
+    const o=AC.createOscillator();o.type=st.exp?'sine':'sawtooth';o.frequency.value=f*q;const g=AC.createGain();g.gain.value=(st.exp?0.12:0.03)/(1+k);
+    const lfo=AC.createOscillator(),lg=AC.createGain();lfo.frequency.value=3+k*1.7;lg.gain.value=0.03/(1+k);lfo.connect(lg);lg.connect(g.gain);lfo.start(t);
+    o.connect(g);g.connect(out);o.start(t);
+    if(st.exp){const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f*q;bp.Q.value=60;const ng=AC.createGain();ng.gain.value=0.9/(1+k);ns.connect(bp);bp.connect(ng);ng.connect(out);}
+    parts.push(o,lfo);
+  });
+  parts.push(ns);bowV={out,parts};
+}
+function bowLevel(x){if(bowV&&AC)bowV.out.gain.setTargetAtTime(Math.min(1,x)*0.9,AC.currentTime,0.05);}
+function bowEnd(){if(!bowV||!AC)return;const v=bowV;bowV=null;const t=AC.currentTime;v.out.gain.cancelScheduledValues(t);v.out.gain.setTargetAtTime(0,t,st.damp?0.03:0.25);v.parts.forEach(p=>{try{p.stop(t+1.6);}catch(e){}});}
+function setMute(m){st.muted=m;if(master&&AC)master.gain.setTargetAtTime(m?0:0.5,AC.currentTime,0.03);updSound();}
+function updSound(){const s=$('#sound');s.textContent=!AC?'SOUND · OFF':st.muted?'SOUND · MUTED (M)':st.discOn?'SOUND · DISC PLAYING (SPACE = STOP)':'SOUND · ON · SPACE = STOP';}
+
+/* ---------- plate render ---------- */
+const pc=$('#plate'),px=pc.getContext('2d');if(!px)throw new Error('no 2D canvas');
+const img=px.createImageData(R,R),buf=new Uint32Array(img.data.buffer);
+const C_SAND=abgr(COL.sand),C_SAND2=abgr(mix(COL.sand,COL.ink,0.16)),C_SAND3=abgr(mix(COL.sand,COL.plate,0.35));
+const C_PL=[abgr(COL.plate),abgr(COL.plate,0.96),abgr(COL.plate,1.035),abgr(COL.plate,0.92)];
+function renderPlate(){
+  const g=GEO[st.shape].mask;
+  if(!st.exp){renderControl();return;}
+  const jit=st.amp>0.05,off=jit?((Math.random()*NR)|0):0,ja=Math.min(1,st.amp*1.4);
+  for(let y=0;y<R;y++){const row=(y>>1)*G;for(let x=0;x<R;x++){const p=y*R+x,c=row+(x>>1);
+    if(!g[c]){buf[p]=0;continue;}
+    let d=D[c];const au=Math.abs(U[c]);let h=HASH[p];
+    if(jit&&au>0.3){h=HASH[(p+off)%NR];d*=1-0.55*ja*au;}
+    if(h<d){const h2=HASH2[p];buf[p]=h2<0.18?C_SAND2:h2<0.26?C_SAND3:C_SAND;}
+    else buf[p]=C_PL[(HASH2[p]*4)|0];
+  }}
+  px.putImageData(img,0,0);
+  drawPlateOverlay();
+}
+function plateOutline(ctx,S,shape){
+  ctx.beginPath();
+  if(shape==='square'){ctx.rect(S*0.02,S*0.02,S*0.96,S*0.96);}
+  else if(shape==='round'){ctx.arc(S/2,S/2,S*0.48,0,Math.PI*2);}
+  else{const pts=[];for(let i=0;i<=80;i++){const y=0.04+0.94*i/80;pts.push([0.5+hw(y),y]);}for(let i=80;i>=0;i--){const y=0.04+0.94*i/80;pts.push([0.5-hw(y),y]);}pts.forEach((p,i)=>i?ctx.lineTo(p[0]*S,p[1]*S):ctx.moveTo(p[0]*S,p[1]*S));ctx.closePath();}
+}
+function drawPlateOverlay(){
+  px.save();px.strokeStyle='#161614';px.lineWidth=2;plateOutline(px,R,st.shape);px.stroke();
+  if(st.hoverLab&&st.hoverLab.exp){ // ghost compare: draw label's figure as ink rings
+    const L=st.hoverLab,n=48;px.fillStyle='rgba(22,22,20,.55)';
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++){const v=L.v48[j*n+i];if(v>0.42){px.fillRect((0.02+0.96*i/n)*R,(0.02+0.96*j/n)*R,R/n*0.6,R/n*0.6);}}
+  }
+  if(st.bowPt){const [x,y]=st.bowPt;px.strokeStyle='#161614';px.lineWidth=3;px.beginPath();px.moveTo(x*R-18,y*R+10);px.lineTo(x*R+18,y*R-10);px.stroke();px.lineWidth=1;px.beginPath();px.arc(x*R,y*R,8+st.bowIn*14,0,7);px.stroke();}
+  if(st.dampPt){const [x,y]=st.dampPt;px.fillStyle='rgba(22,22,20,.85)';px.beginPath();px.arc(x*R,y*R,16,0,7);px.fill();px.strokeStyle='#161614';px.lineWidth=1;px.beginPath();px.arc(x*R,y*R,26,0,7);px.stroke();}
+  px.restore();
+}
+function renderControl(){
+  px.clearRect(0,0,R,R);px.fillStyle='#5E615E';px.fillRect(0,0,R,R);
+  px.fillStyle='#D8CBB0';px.beginPath();px.arc(R/2,R/2,R*0.44,0,7);px.fill();
+  px.fillStyle='#5E615E';px.beginPath();px.arc(R/2,R/2,R*0.022,0,7);px.fill();
+  px.fillStyle='#161614';px.textAlign='center';px.textBaseline='alphabetic';
+  px.font='600 15px "Victor Mono", monospace';px.fillText('STILLGROUND PRESS · SGP-015',R/2,R*0.22);
+  px.font='850 120px "Schibsted Grotesk", Arial, sans-serif';px.fillText(NOTES[st.note].replace('#','♯'),R/2,R*0.62);
+  px.font='500 18px "Victor Mono", monospace';px.fillText((fNote(st.note)*Math.pow(2,st.cents/1200)).toFixed(1)+' HZ'+(st.cents?(' '+(st.cents>0?'+':'')+st.cents+'¢'):''),R/2,R*0.74);
+  px.font='italic 400 13px "Victor Mono", monospace';px.fillText('control: text label, no figure',R/2,R*0.82);
+  if(st.bowPt){const [x,y]=st.bowPt;px.strokeStyle='#161614';px.lineWidth=3;px.beginPath();px.moveTo(x*R-18,y*R+10);px.lineTo(x*R+18,y*R-10);px.stroke();}
+  if(st.dampPt){const [x,y]=st.dampPt;px.fillStyle='rgba(22,22,20,.85)';px.beginPath();px.arc(x*R,y*R,16,0,7);px.fill();}
+}
+function stepSand(dt){
+  const g=GEO[st.shape].mask,w=0.05+0.5*Math.exp(-st.age/0.42),k=1-Math.exp(-dt*6*Math.min(1,st.amp*1.3)*(0.25+0.75*st.res));
+  if(k<1e-4)return;const iw=64/w,rs=0.7+0.3*st.res;
+  for(let c=0;c<N;c++){if(!g[c])continue;let q=Math.abs(U[c])*iw;q=q>256?256:q;const t=LUT[q|0]*rs+0.015;D[c]+=k*(t-D[c]);}
+}
+function sprinkle(x,y){
+  const g=GEO[st.shape].mask,cx=x*G,cy=y*G,rad=G*0.2;
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){const k=j*G+i;if(!g[k])continue;const d=Math.hypot(i-cx,j-cy)/rad;const f=d<1?(1-d*d):0;const n=0.35+0.5*HASH2[(j*2)*R+i*2];D[k]=D[k]*(1-f*0.85)+n*f*0.85+0.04;}
+}
+
+/* ---------- label raster / compare ---------- */
+function vecFromD(){const n=48,v=new Float32Array(n*n);for(let j=0;j<n;j++)for(let i=0;i<n;i++){const x=(i+0.5)/n,y=(j+0.5)/n;if(Math.hypot(x-0.5,y-0.5)>0.48)continue;const c=((y*G)|0)*G+((x*G)|0);v[j*n+i]=D[c];}return v;}
+const tcan=document.createElement('canvas');tcan.width=tcan.height=48;const tctx=tcan.getContext('2d');
+function textLabelVec(note){tctx.fillStyle='#fff';tctx.fillRect(0,0,48,48);tctx.fillStyle='#000';tctx.textAlign='center';
+  tctx.font='850 20px "Schibsted Grotesk",Arial,sans-serif';tctx.fillText(NOTES[note],24,30);tctx.font='500 5px monospace';tctx.fillText('SGP-015',24,12);tctx.fillText(fNote(note).toFixed(1)+' HZ',24,37);
+  const d=tctx.getImageData(0,0,48,48).data,v=new Float32Array(48*48);for(let i=0;i<v.length;i++){const x=(i%48+0.5)/48,y=((i/48|0)+0.5)/48;v[i]=Math.hypot(x-0.5,y-0.5)>0.48?0:1-d[i*4]/255;}return v;}
+function pool12(v){const o=new Float32Array(144);for(let j=0;j<48;j++)for(let i=0;i<48;i++)o[((j/4)|0)*12+((i/4)|0)]+=v[j*48+i]/16;return o;}
+function corr(a,b){const n=a.length;let ma=0,mb=0;for(let i=0;i<n;i++){ma+=a[i];mb+=b[i];}ma/=n;mb/=n;let s=0,sa=0,sb=0;for(let i=0;i<n;i++){const x=a[i]-ma,y=b[i]-mb;s+=x*y;sa+=x*x;sb+=y*y;}return sa&&sb?s/Math.sqrt(sa*sb):1;}
+function labelImage(L,size){
+  const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');const im=x.createImageData(size,size),b=new Uint32Array(im.data.buffer);
+  const S=abgr(COL.sand),I=abgr(COL.ink),P=abgr(COL.plate);
+  for(let j=0;j<size;j++)for(let i=0;i<size;i++){const u=(i+0.5)/size,v=(j+0.5)/size,r=Math.hypot(u-0.5,v-0.5);const p=j*size+i;
+    if(r>0.5){b[p]=0;continue;}
+    if(r<0.035){b[p]=P;continue;}
+    if(L.exp){const c2=((Math.min(0.999,v)*G)|0)*G+((Math.min(0.999,u)*G)|0);const h=HASH[(j*R+i*3)%NR];b[p]=(L.D[c2]*1.08>h&&r<0.48)?I:S;}
+    else b[p]=S;}
+  x.putImageData(im,0,0);
+  x.strokeStyle='#161614';x.lineWidth=Math.max(1,size/90);x.beginPath();x.arc(size/2,size/2,size*0.48,0,7);x.stroke();
+  if(!L.exp){x.fillStyle='#161614';x.textAlign='center';x.font='850 '+(size*0.3)+'px "Schibsted Grotesk",Arial,sans-serif';x.fillText(NOTES[L.note],size/2,size*0.6);
+    x.font='500 '+(size*0.075)+'px "Victor Mono",monospace';x.fillText('SGP-015',size/2,size*0.24);x.fillText(fNote(L.note).toFixed(1)+' HZ',size/2,size*0.74);}
+  else{x.save();x.strokeStyle='rgba(22,22,20,.6)';x.lineWidth=1;x.translate(size*0.5,size*0.5);x.scale(0.96,0.96);x.translate(-size*0.5,-size*0.5);plateOutline(x,size,L.shape);x.stroke();x.restore();}
+  return c;
+}
+
+/* ---------- UI: piano, staff, table ---------- */
+const piano=$('#piano');const keyEls=[];
+function buildPiano(){
+  piano.innerHTML='';const whites=NOTES.map((n,i)=>i).filter(i=>!BLACK.includes(i));const W=100/whites.length;
+  whites.forEach((ni,k)=>{const d=document.createElement('div');d.className='wk';d.style.left=(k*W)+'%';d.style.width='calc('+W+'% + 1px)';d.dataset.n=ni;d.innerHTML='<canvas width="44" height="44"></canvas><span>'+KEYS[ni].toUpperCase()+'</span><span class="n">'+NOTES[ni]+'</span>';piano.appendChild(d);keyEls[ni]=d;});
+  BLACK.forEach(ni=>{const left=whites.indexOf(ni-1);const d=document.createElement('div');d.className='bk';d.style.left='calc('+((left+1)*W)+'% - '+(W*0.3)+'%)';d.style.width=(W*0.6)+'%';d.dataset.n=ni;d.innerHTML='<canvas width="44" height="44"></canvas><span>'+KEYS[ni].toUpperCase()+'</span>';piano.appendChild(d);keyEls[ni]=d;});
+  piano.querySelectorAll('[data-n]').forEach(el=>{el.addEventListener('pointerdown',e=>{e.preventDefault();play(+el.dataset.n,{src:'keyboard',user:true});});});
+}
+function updKeyThumbs(){
+  keyEls.forEach((el,ni)=>{const L=[...st.labels].reverse().find(l=>l.note===ni&&l.shape===st.shape&&l.exp);const c=el.querySelector('canvas');
+    if(L){el.classList.add('got');const x=c.getContext('2d');x.clearRect(0,0,44,44);x.drawImage(L.img,0,0,44,44);}else el.classList.remove('got');});
+}
+function drawStaff(){
+  const s=$('#staff'),top=10,gap=8;let h='';
+  for(let i=0;i<5;i++)h+='<line x1="4" x2="256" y1="'+(top+i*gap)+'" y2="'+(top+i*gap)+'" stroke="#161614" stroke-width="1"/>';
+  h+='<text x="6" y="'+(top+gap*2+4)+'" font-family="Victor Mono,monospace" font-size="9" fill="#161614">TREBLE</text>';
+  const st0=DIAT[st.note],y=top+4*gap-(st0-2)*gap/2,x=150;
+  if(st0===0)h+='<line x1="'+(x-13)+'" x2="'+(x+13)+'" y1="'+(y)+'" y2="'+y+'" stroke="#161614"/>';
+  if(SHARP[st.note])h+='<text x="'+(x-24)+'" y="'+(y+5)+'" font-family="Schibsted Grotesk,Arial" font-weight="700" font-size="15" fill="#161614">#</text>';
+  h+='<ellipse cx="'+x+'" cy="'+y+'" rx="6.6" ry="4.6" transform="rotate(-20 '+x+' '+y+')" fill="#161614"/>';
+  h+='<line x1="'+(x+6)+'" x2="'+(x+6)+'" y1="'+y+'" y2="'+(y-26)+'" stroke="#161614" stroke-width="1.4"/>';
+  h+='<text x="200" y="'+(top+gap*2+4)+'" font-family="Schibsted Grotesk,Arial" font-weight="800" font-size="17" fill="#161614">'+NOTES[st.note]+'</text>';
+  s.innerHTML=h;
+}
+function modeName(shape,mi){const o=MODES[shape][mi];return shape==='round'?o.m+'⌀ · '+(o.n-1)+'○':o.m+' · '+o.n;}
+function modeHz(shape,mi){return 261.6256*MODES[shape][mi].lam/LAM0[shape];}
+function updTable(){
+  const f=fNote(st.note)*Math.pow(2,st.cents/1200),mi=st.modeA,mh=modeHz(st.shape,mi),off=1200*Math.log2(mh/f);
+  const rows=[['NOTE',NOTES[st.note]+(st.cents?(' '+(st.cents>0?'+':'')+st.cents+'¢'):'')],['DRIVE',f.toFixed(2)+' Hz'],['MODE '+(st.shape==='round'?'(⌀,○)':'(m,n)'),modeName(st.shape,mi)],['λ (EIGENVALUE)',MODES[st.shape][mi].lam.toFixed(1)],['MODE RINGS AT',mh.toFixed(1)+' Hz ('+(off>=0?'+':'')+off.toFixed(0)+'¢)'],['PARTIALS',st.exp?RATIOS[st.shape].map(r=>'×'+r.toFixed(2).replace(/\.?0+$/,'')).join(' '):'×1 ×2 ×3 (control)']];
+  $('#table').innerHTML=rows.map(r=>'<div class="r"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join('');
+}
+function updTune(){
+  $('#tuneV').textContent=st.cents===0?'±0¢':(st.cents>0?'+':'')+st.cents+'¢';
+  $('#tuneHz').textContent=(fNote(st.note)*Math.pow(2,st.cents/1200)).toFixed(2)+' Hz · '+NOTES[st.note];
+  const sc=$('#tuneScale');if(!sc.dataset.b){let h='';for(let c=-200;c<=200;c+=25)h+='<i style="left:'+((c+200)/4)+'%;height:'+(c%100===0?10:5)+'px"></i>';sc.innerHTML=h+'<b></b>';sc.dataset.b=1;}
+  sc.querySelector('b').style.left=((st.cents+200)/4)+'%';
+}
+function updPreview(){
+  const c=$('#patternC'),x=c.getContext('2d');x.clearRect(0,0,120,120);
+  const L={exp:st.exp,D:D,note:st.note,shape:st.shape};x.drawImage(labelImage(L,120),0,0);
+  $('#patternCap').textContent='SGP-015 · '+NOTES[st.note]+(st.exp?' · '+modeName(st.shape,st.modeA):' · TEXT');
+}
+function placeNotch(){
+  const n=$('#notch');const pos={square:[0.02,0.02],round:[0.5,0.02],violin:[0.5-hw(0.72),0.72]}[st.shape];
+  n.style.left='calc('+(pos[0]*100)+'% - 7px)';n.style.top='calc('+(pos[1]*100)+'% - 7px)';n.style.display=st.exp?'block':'none';
+}
+
+/* ---------- measures ---------- */
+let lastMeasure=0;
+function measures(force){
+  const now=performance.now();if(!force&&now-lastMeasure<180)return;lastMeasure=now;
+  const f=fNote(st.note)*Math.pow(2,st.cents/1200);
+  $('#mFreq').textContent=f.toFixed(1)+' Hz';$('#mFreqD').textContent=NOTES[st.note]+(st.cents?(' detuned '+(st.cents>0?'+':'')+st.cents+'¢'):' · in tune')+(st.exp?'':' · control');
+  $('#mMode').textContent=st.exp?modeName(st.shape,st.modeA)+(st.wB>0.1?' + '+modeName(st.shape,st.modeB):''):'n/a';
+  $('#mModeD').textContent=st.exp?(st.shape==='round'?'Nodal diameters ⌀ and circles ○.':'m, n = half-waves across and down.')+(st.wB>0.1?' Two modes mixed — between resonances.':''):'Control: no plate figure is printed.';
+  const r=st.exp?st.wA*Math.min(1,st.res+0.0):1;$('#mRes').textContent=st.exp?Math.round(st.wA*100)+'%':'—';$('#bRes').style.width=(st.exp?st.wA*100:0)+'%';
+  $('#mNode').textContent=st.exp?Math.round(st.nodal).toLocaleString('en-US')+' mm':'—';
+  // same-key match
+  const prev=[...st.labels].reverse().find(l=>l.note===st.note&&l.shape===st.shape&&l.exp===st.exp);
+  if(prev){let m;if(st.exp){m=corr(vecFromD(),prev.v48);}else m=1;m=Math.max(0,m);$('#mMatch').textContent=Math.round(m*100)+'%';$('#bMatch').style.width=(m*100)+'%';
+    $('#mMatchD').textContent=st.exp?(m>0.9?'Plate now looks like your last '+NOTES[st.note]+' print.':m>0.6?'Close to your last '+NOTES[st.note]+' print — still forming or bowed elsewhere.':'Different from your last '+NOTES[st.note]+' print: bow point, detune or sand moved it.'):'Text labels always match — they carry no figure.';}
+  else{$('#mMatch').textContent='—';$('#bMatch').style.width='0';$('#mMatchD').textContent='No '+NOTES[st.note]+' print on this plate yet. Print it, then play it again.';}
+  // glance difference
+  const g=(exp)=>{const L=st.labels.filter(l=>l.exp===exp);let s=0,n=0;for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){if(L[i].note===L[j].note)continue;s+=Math.min(1,Math.max(0,1-corr(L[i].v12,L[j].v12)));n++;}return n?s/n:null;};
+  const on=g(true),off=g(false);
+  $('#gOn').textContent=on==null?'—':Math.round(on*100)+'%';$('#bgOn').style.width=(on||0)*100+'%';
+  $('#gOff').textContent=off==null?'—':Math.round(off*100)+'%';$('#bgOff').style.width=(off||0)*100+'%';
+  $('#mGlance').textContent=on!=null&&off!=null?(on>off?'figure wins':'text wins'):(on!=null||off!=null?'need ON + OFF':'print 2 keys');
+  // distinct
+  const u=new Set(MAP[st.shape]).size;$('#mDist').textContent=u+' / 13';
+  const col=[];MAP[st.shape].forEach((m,i)=>{const j=MAP[st.shape].indexOf(m);if(j!==i)col.push(NOTES[j]+'='+NOTES[i]);});
+  $('#mDistD').textContent=col.length?'On this plate '+col.join(', ')+' fall on the same mode: they print the same mark.':'Every key lands on its own mode here.';
+}
+
+/* ---------- why line ---------- */
+function why(html){const n=$('#whyNow'),o=$('#whyOld');o.innerHTML=n.innerHTML===o.innerHTML?'':n.innerHTML;n.innerHTML=html;$('#why').animate?.([{background:'rgba(22,22,20,.14)'},{background:'transparent'}],{duration:380,easing:'steps(3)'});}
+
+/* ---------- traces & anatomy ---------- */
+const tr=$('#trace'),tx=tr.getContext('2d');let pulses=[],inspect=false,hovAnat=null;
+function sizeTrace(){const d=Math.min(2,window.devicePixelRatio||1);tr.width=innerWidth*d;tr.height=innerHeight*d;tr.style.width=innerWidth+'px';tr.style.height=innerHeight+'px';tx.setTransform(d,0,0,d,0,0);}
+const AN=[
+ ['plate','PLATE','The idealised steel plate. Sand is drawn as one density field, not particles.','Note (3), fine tune (4), bow drag, click, hold, double-click, disc comb (18).','Figure → label preview (8), measures (10–15), why line (6). Rings the bell / bow layers.','It is the press: the physical step that turns a pitch into a mark.'],
+ ['notch','DRIVER NOTCH','Where the keys excite the plate (an ideal transducer).','Plate shape (5).','Fixes the bow point for keys, so the same key always drives the same way.','Without a fixed driver point the "same key" claim cannot be tested.'],
+ ['keyboard','KEYBOARD','13 keys, C4–C5. Shows a printed thumbnail once you print that key.','Click / tap, keys A–K.','Note → plate (1), staff (7), table (9), frequency (10). Strikes a bell.','The main variable. Thumbnails make the keyboard itself a key of marks.'],
+ ['tune','FINE TUNE','Detunes the note ±200 cents.','Wheel over plate or here, ↑↓, − / + buttons.','Drive frequency → mode mix on plate (1), resonance (11). Bell pitch.','Shows the boundary: between two modes the figure blurs. Same key only holds in tune.'],
+ ['shapes','PLATE SHAPE','Square, round or violin outline — three systems from one rule.','Click, keys 1–3.','Mode list → plate (1), distinct prints (15), bell partials (timbre).','Tests whether the mapping is a property of the key or of the plate.'],
+ ['why','WHAT JUST HAPPENED','Plain-language cause → effect for the last action.','Every state change.','Nothing — read-only.','You asked to always know why something changed.'],
+ ['staff','ROSETTA 1 · STAFF','The note in staff notation.','Note (3).','Nothing — output.','Rosetta: the same note in three writing systems, side by side.'],
+ ['pattern','ROSETTA 2 · LABEL PREVIEW','What a print would look like right now (the plate cropped to a centre label).','Sand field on plate (1).','Printed labels (16) on double-click.','The middle system of the Rosetta: the figure itself.'],
+ ['table','ROSETTA 3 · FREQUENCY TABLE','Hz, mode, eigenvalue, where the mode rings, partial ratios.','Note, fine tune, plate shape.','Nothing — output.','The numeric system of the Rosetta; shows the idealised scaling openly.'],
+ ['m-freq','MEASURE · FREQUENCY','Drive frequency of the note.','Note (3), fine tune (4).','—','Ground truth for comparison with the figure.'],
+ ['m-mode','MEASURE · PLATE MODE','The standing wave(s) the plate holds now.','Frequency, shape.','—','Names the figure: m, n half-waves, or diameters and circles.'],
+ ['m-res','MEASURE · RESONANCE','How cleanly the note sits on one mode.','Fine tune (4), hold/damp.','Sand gathering speed and sharpness on plate (1).','Explains when the figure is reliable and when it is not.'],
+ ['m-node','MEASURE · NODAL LINE LENGTH','Total length of still lines on a 240 mm plate.','Mode on plate (1), bow point.','—','A number for "how much ink" each key prints.'],
+ ['m-match','MEASURE · SAME-KEY MATCH','Correlation between the plate now and your last print of this key.','Sand field (1), printed labels (16).','—','Directly tests the hypothesis: same key → same mark?'],
+ ['m-glance','MEASURE · AT-A-GLANCE DIFFERENCE','How different your labels are when blurred to 12 × 12 px, ON vs OFF.','Printed labels (16), experiment toggle (20).','—','The comparison that answers "readable": figure labels vs text labels.'],
+ ['m-distinct','MEASURE · DISTINCT PRINTS','How many of the 13 keys get a unique mode on this plate.','Plate shape (5).','—','Honest limit: some plates give two keys the same mark.'],
+ ['labels','PRINTED LABELS','Your collection of prints. Hover = compare with plate; click = replay; drag = load disc.','Double-click / P on plate (1).','Disc (17), same-key match (13), glance difference (14), key thumbnails (3).','The output of the experiment: physical marks you can compare.'],
+ ['disc','MUSIC-BOX DISC','8 slots. Drop labels in; it turns and the comb rings each print. Click a slot to clear.','Label drag-and-drop (16), Space / ▶.','Plate (1) re-forms each note it plays; bell layer.','Reads prints back as music: if marks are reliable, the disc is a score.'],
+ ['discplay','DISC PLAY','Starts or stops the disc.','Click, Space.','Disc rotation (17), sound.','The only looping sound — always stoppable.'],
+ ['card','EXPERIMENT CARD','Hypothesis, variable, control, measure, observation.','—','Frames everything on screen as a test.','So the piece says what it is trying to prove.'],
+ ['xtoggle','EXPERIMENT ON·OFF','Switches to the control: plain text labels and a harmonic chime.','Click, X.','Plate (1), new labels (16), sound, glance difference OFF bar (14).','The baseline you compare against.'],
+ ['obs','OBSERVATION','Your verdict, saved in this browser with the current numbers.','Click.','Observation log, protocol (22).','The experiment ends with your judgement, not ours.'],
+ ['protocol','PROTOCOL','Eight steps that walk the test like a story.','Your actions.','Coach marks.','Guides first contact; each step adds one idea.'],
+ ['hint','HINT BAR','Every gesture in one line (touch words on touch devices).','Device type.','—','No hidden gestures.'],
+ ['meta','META LABEL','Prototype ID, lineage, intensity.','—','—','Archive reference for the series.'],
+ ['inspect','INSPECT BUTTON','Shows these numbered tags and signal lines.','Click, I.','This layer.','Every element must explain its role.'],
+ ['specbtn','SPEC','Typefaces, mapping formulas, motion numbers, honesty note.','Click.','Spec panel.','The rules are published, not hidden.'],
+ ['sound','SOUND STATUS','Whether sound is on, muted or the disc is playing.','M, Space, disc.','—','You always know what is making sound and how to stop it.'],
+ ['thesis','THESIS','The one-line claim: same key, same mark.','—','—','Readable in five seconds before anything moves.'],
+ ['brand','RELEASE','Fictional label and artist this label system is for.','—','—','A real use: a series of records whose labels are printed by their keys.']
+];
+const ANI={};AN.forEach((a,i)=>ANI[a[0]]=Object.assign({n:i+1},{id:a[0],t:a[1],role:a[2],lis:a[3],aff:a[4],why:a[5]}));
+const EDGES=[['keyboard','plate'],['tune','plate'],['notch','plate'],['shapes','plate'],['xtoggle','plate'],['plate','why'],['plate','staff'],['plate','table'],['plate','pattern'],['plate','m-mode'],['plate','m-res'],['plate','m-node'],['plate','m-match'],['pattern','labels'],['labels','m-glance'],['labels','m-match'],['labels','disc'],['disc','plate'],['shapes','m-distinct'],['xtoggle','m-glance'],['obs','protocol'],['keyboard','m-freq'],['discplay','disc']];
+const el=id=>document.querySelector('[data-anat="'+id+'"]');
+function vis(e){if(!e)return null;const r=e.getBoundingClientRect();if(r.width<2||r.height<2||r.bottom<0||r.top>innerHeight||getComputedStyle(e).display==='none')return null;return r;}
+function anchor(a,b){const cx=a.left+a.width/2,cy=a.top+a.height/2,dx=b.left+b.width/2-cx,dy=b.top+b.height/2-cy;const sx=Math.abs(dx)>1e-6?(a.width/2)/Math.abs(dx):1e9,sy=Math.abs(dy)>1e-6?(a.height/2)/Math.abs(dy):1e9;const s=Math.min(sx,sy,1);return [cx+dx*s,cy+dy*s];}
+function pulse(a,b){if(!el(a)||!el(b))return;pulses.push({a,b,t0:performance.now()});}
+function arrowHead(x,y,ang,sz){tx.beginPath();tx.moveTo(x,y);tx.lineTo(x-sz*Math.cos(ang-0.45),y-sz*Math.sin(ang-0.45));tx.lineTo(x-sz*Math.cos(ang+0.45),y-sz*Math.sin(ang+0.45));tx.closePath();tx.fill();}
+function drawTrace(now){
+  tx.clearRect(0,0,innerWidth,innerHeight);
+  if(inspect){
+    EDGES.forEach(([a,b])=>{const ra=vis(el(a)),rb=vis(el(b));if(!ra||!rb)return;const p=anchor(ra,rb),q=anchor(rb,ra);const hi=hovAnat&&(hovAnat===a||hovAnat===b);
+      tx.strokeStyle=hi?'#161614':'rgba(22,22,20,.38)';tx.fillStyle=tx.strokeStyle;tx.lineWidth=hi?2:1;tx.setLineDash(hi?[]:[4,3]);tx.beginPath();tx.moveTo(p[0],p[1]);tx.lineTo(q[0],q[1]);tx.stroke();tx.setLineDash([]);arrowHead(q[0],q[1],Math.atan2(q[1]-p[1],q[0]-p[0]),hi?9:7);});
+  }
+  pulses=pulses.filter(P=>{const t=(now-P.t0)/380;if(t>1)return false;const ra=vis(el(P.a)),rb=vis(el(P.b));if(!ra||!rb)return false;const p=anchor(ra,rb),q=anchor(rb,ra);
+    const e=t,hx=p[0]+(q[0]-p[0])*e,hy=p[1]+(q[1]-p[1])*e,t2=Math.max(0,e-0.28),sx=p[0]+(q[0]-p[0])*t2,sy=p[1]+(q[1]-p[1])*t2;
+    tx.strokeStyle='#161614';tx.lineWidth=2;tx.beginPath();tx.moveTo(sx,sy);tx.lineTo(hx,hy);tx.stroke();tx.fillStyle='#161614';tx.beginPath();tx.arc(hx,hy,3.5,0,7);tx.fill();
+    if(t>0.85){tx.lineWidth=1;tx.strokeRect(rb.left-2,rb.top-2,rb.width+4,rb.height+4);}return true;});
+}
+function buildTags(){
+  const T=$('#tags');T.innerHTML='';
+  AN.forEach(a=>{const e=el(a[0]),r=vis(e);if(!r)return;const t=document.createElement('div');t.className='tag';t.textContent=ANI[a[0]].n;t.style.left=Math.max(0,Math.min(innerWidth-22,r.left-3))+'px';t.style.top=Math.max(0,r.top-9)+'px';T.appendChild(t);});
+}
+function showCard(id,x,y){
+  const a=ANI[id],c=$('#acard');if(!a){c.style.display='none';return;}
+  c.innerHTML='<h4>'+a.n+' · '+a.t+'</h4><div><b>ROLE</b><span>'+a.role+'</span></div><div><b>LISTENS TO</b><span>'+a.lis+'</span></div><div><b>AFFECTS</b><span>'+(a.aff==='—'?'Nothing: output only. Read it to judge the hypothesis.':a.aff)+'</span></div><div><b>WHY</b><i>'+a.why+'</i></div>';
+  c.style.display='block';const w=c.offsetWidth,h=c.offsetHeight;let L=x+16,Tp=y+16;if(L+w>innerWidth-8)L=x-w-16;if(L<8)L=8;if(Tp+h>innerHeight-8)Tp=Math.max(8,y-h-16);c.style.left=L+'px';c.style.top=Tp+'px';
+}
+function setInspect(v){inspect=v;document.body.classList.toggle('inspect',v);$('#inspectBtn').setAttribute('aria-pressed',v);if(v)buildTags();else{$('#acard').style.display='none';$$('.hov').forEach(e=>e.classList.remove('hov'));hovAnat=null;}}
+document.addEventListener('pointermove',e=>{if(!inspect)return;const t=e.target.closest&&e.target.closest('[data-anat]');$$('.hov').forEach(x=>x!==t&&x.classList.remove('hov'));if(t){t.classList.add('hov');hovAnat=t.dataset.anat;showCard(hovAnat,e.clientX,e.clientY);}else{hovAnat=null;$('#acard').style.display='none';}});
+document.addEventListener('click',e=>{if(!inspect||!isTouch)return;const t=e.target.closest('[data-anat]');if(t&&t.dataset.anat!=='inspect'){e.preventDefault();e.stopPropagation();hovAnat=t.dataset.anat;showCard(hovAnat,e.clientX,e.clientY);}},true);
+
+/* ---------- protocol & coach ---------- */
+const STEPS=[
+ ['strike','Strike a key: A–K or click the keyboard.','keyboard','Your turn — press any key A–K, or click one. Watch sand leave the moving parts.'],
+ ['print','Print: double-click the plate (or P).','plate','Double-click the plate to print this figure as a record label.'],
+ ['repeat','Repeat a key and print again. Same mark?','m-match','Play a key you already printed, and print again. Watch SAME-KEY MATCH.'],
+ ['bow','Bow: drag on the plate elsewhere. Does it hold?','plate','Drag across the plate to bow it at another spot. Does the key still print the same?'],
+ ['disc','Compose: 2+ labels onto the disc, Space.','disc','Drag two or more labels onto the disc slots, then press Space (or ▶).'],
+ ['shape','Change plate 1 · 2 · 3. Same key, new mark?','shapes','Switch the plate shape. The key is the same — is the mark?'],
+ ['control','Control: X, print 2+ text labels, compare.','xtoggle','Press X for the control: plain text labels. Print 2+ keys, then compare AT-A-GLANCE DIFFERENCE.'],
+ ['verdict','Verdict: works / doesn\'t / not sure.','obs','Your verdict: can you read the key from the label?']
+];
+let coachOff=false,coachStep=null;const SHORT=["STRIKE", "PRINT", "REPEAT", "BOW", "COMPOSE", "PLATE", "CONTROL", "VERDICT"];
+function renderProto(){
+  const L=$('#protoList');let first=-1;L.innerHTML=STEPS.map((s,i)=>{const d=!!st.steps[s[0]];if(!d&&first<0)first=i;return '<li class="'+(d?'done':'')+(first===i?' now':'')+'" title="'+s[1].replace(/"/g,'')+'">'+SHORT[i]+'</li>';}).join('');
+  $('#protoCount').textContent=STEPS.filter(s=>st.steps[s[0]]).length+' / 8';coachStep=first;placeCoach();
+}
+function done(k){if(st.demo||st.steps[k])return;st.steps[k]=true;coachOff=false;renderProto();}
+function placeCoach(){
+  const c=$('#coach');if(coachOff||coachStep<0||coachStep==null||!st.started||st.demo){c.style.display='none';return;}
+  const s=STEPS[coachStep],t=el(s[2]),r=t&&t.getBoundingClientRect();
+  $('#coachS').textContent='STEP '+(coachStep+1)+' / 8';$('#coachT').textContent=isTouch?s[3].replace('Double-click','Double-tap').replace(/press any key A–K, or click one/,'tap any key').replace('press Space (or ▶)','tap ▶').replace('Press X','Tap EXPERIMENT ON'):s[3];
+  c.style.display='block';const w=c.offsetWidth,h=c.offsetHeight;c.className='';
+  if(!r||r.bottom<0||r.top>innerHeight){c.style.left='12px';c.style.top=(innerHeight-h-60)+'px';return;}
+  let L=r.left+Math.min(30,r.width/4),Tp;
+  if(s[2]==='plate'){L=r.left+r.width*0.55;Tp=r.top+r.height*0.12;c.className='left';}
+  else if(r.top-h-12>40){Tp=r.top-h-12;c.className='down';}else{Tp=r.bottom+12;c.className='up';}
+  L=Math.max(8,Math.min(innerWidth-w-8,L));Tp=Math.max(8,Math.min(innerHeight-h-8,Tp));c.style.left=L+'px';c.style.top=Tp+'px';
+}
+$('#coachX').addEventListener('click',()=>{coachOff=true;placeCoach();});
+
+/* ---------- actions ---------- */
+function play(ni,o={}){
+  initAudio();if(AC&&AC.state==='suspended')AC.resume();
+  const changed=ni!==st.note||o.keepCents===undefined&&st.cents!==0;
+  st.note=ni;if(!o.keepCents)st.cents=o.cents||0;
+  st.bow={phi:0,th:-Math.PI/2};computeU();st.age=0;st.amp=Math.max(st.amp,0.9);
+  strike(fNote(ni)*Math.pow(2,st.cents/1200),o.vel||0.9,o.shape||st.shape,st.exp);
+  keyEls.forEach(k=>k&&k.classList.remove('on'));keyEls[ni]&&keyEls[ni].classList.add('on');clearTimeout(play._t);play._t=setTimeout(()=>keyEls[ni]&&keyEls[ni].classList.remove('on'),220);
+  drawStaff();updTable();updTune();measures(true);if(st.exp)updPreviewSoon();else updPreview();
+  $('#plateCap2').textContent=NOTES[ni]+' · '+fNote(ni).toFixed(1)+' HZ';
+  const src=o.src||'keyboard';pulse(src,'plate');setTimeout(()=>{pulse('plate','staff');pulse('plate','m-mode');pulse('plate','table');},150);
+  if(st.exp){const mi=st.modeA,o2=MODES[st.shape][mi];
+    why((o.demo?'<b>Demo:</b> ':'')+'<b>'+NOTES[ni]+'</b> '+(src==='disc'?'from the disc comb':'pressed')+' → '+fNote(ni).toFixed(1)+' Hz → the plate rings in mode <b>'+modeName(st.shape,mi)+'</b> (λ '+o2.lam.toFixed(0)+'). Sand runs off the shaking areas and gathers on '+Math.round(st.nodal)+' mm of still lines.');}
+  else why('<b>'+NOTES[ni]+'</b> pressed → control: a plain chime and a text label. Nothing physical is printed.');
+  if(o.user){done('strike');st.lastUser=performance.now();}
+}
+function print(){
+  const L={id:Date.now()+Math.random(),note:st.note,cents:st.cents,shape:st.shape,exp:st.exp,mode:st.modeA,D:Float32Array.from(D)};
+  L.v48=st.exp?vecFromD():textLabelVec(st.note);L.v12=pool12(L.v48);L.img=labelImage(L,112);L.url=L.img.toDataURL();
+  const prev=[...st.labels].reverse().find(l=>l.note===L.note&&l.shape===L.shape&&l.exp===L.exp);
+  st.labels.push(L);if(st.labels.length>36){st.labels.shift();}
+  renderLabels(L.id);updKeyThumbs();measures(true);
+  pulse('plate','pattern');setTimeout(()=>pulse('pattern','labels'),180);setTimeout(()=>{pulse('labels','m-glance');pulse('labels','m-match');},360);
+  if(AC){const t=AC.currentTime;const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=90;env(g,t,0.12,0.002,0.03);o.connect(g);g.connect(bus);o.start(t);o.stop(t+0.3);sandHiss();}
+  const cat='SGP-015-'+NOTES[L.note];
+  if(prev){const m=st.exp?Math.max(0,corr(L.v48,prev.v48)):1;why('Printed <b>'+cat+'</b> — your 2nd '+NOTES[L.note]+' on this plate. It matches the first by <b>'+Math.round(m*100)+'%</b>'+(st.exp?(m>0.85?' → same key, same mark.':' → the figure moved (bow point, detune or unfinished sand).'):' — text labels always match, but carry no figure.'));if(!st.demo)done('repeat');}
+  else why((st.demo?'<b>Demo:</b> ':'')+'Printed <b>'+cat+'</b>'+(st.exp?' — the sand figure of mode '+modeName(st.shape,st.modeA)+' is now a centre label.':' — control text label.')+' Play '+NOTES[L.note]+' again later and compare.');
+  if(!st.exp&&st.labels.filter(l=>!l.exp).length>=2&&st.labels.filter(l=>l.exp).length>=2)done('control');
+  done('print');
+}
+function renderLabels(newId){
+  const g=$('#labGrid');g.innerHTML='';
+  [...st.labels].reverse().forEach(L=>{const d=document.createElement('div');d.className='lab'+(L.id===newId?' new':'');d.dataset.id=L.id;d.innerHTML='<img alt="label '+NOTES[L.note]+'" src="'+L.url+'"><span>'+NOTES[L.note]+(L.exp?'':' T')+(L.shape==='square'?'':L.shape==='round'?' ○':' ∫')+'</span>';g.appendChild(d);bindLabel(d,L);});
+  $('#labCount').textContent=st.labels.length+' · ON '+st.labels.filter(l=>l.exp).length+' / OFF '+st.labels.filter(l=>!l.exp).length;
+}
+function bindLabel(d,L){
+  let down=null,drag=false;
+  d.addEventListener('pointerenter',e=>{if(e.pointerType!=='mouse')return;st.hoverLab=L;d.classList.add('hl');pulse('labels','plate');
+    if(L.exp&&L.shape===st.shape&&st.exp){const m=Math.max(0,corr(vecFromD(),L.v48));why('Comparing <b>'+NOTES[L.note]+'</b> print with the plate (ink dots): '+Math.round(m*100)+'% alike.');}
+    if(AC&&!st.muted){const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.frequency.value=fNote(L.note)*RATIOS[L.shape][2]*2;env(g,t,0.025,0.002,0.12);o.connect(g);g.connect(bus);o.start(t);o.stop(t+0.6);}});
+  d.addEventListener('pointerleave',()=>{if(st.hoverLab===L)st.hoverLab=null;d.classList.remove('hl');});
+  d.addEventListener('pointerdown',e=>{e.preventDefault();down=[e.clientX,e.clientY];drag=false;d.setPointerCapture(e.pointerId);});
+  d.addEventListener('pointermove',e=>{if(!down)return;if(!drag&&Math.hypot(e.clientX-down[0],e.clientY-down[1])>5){drag=true;const gh=$('#ghost');gh.src=L.url;gh.style.display='block';}
+    if(drag){const gh=$('#ghost');gh.style.left=(e.clientX-27)+'px';gh.style.top=(e.clientY-27)+'px';}});
+  d.addEventListener('pointerup',e=>{const was=drag;down=null;drag=false;$('#ghost').style.display='none';
+    if(!was){play(L.note,{src:'labels',cents:L.cents,shape:L.shape,user:true});why('Replayed label <b>SGP-015-'+NOTES[L.note]+'</b> → the plate re-forms it.');return;}
+    const r=$('#disc').getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;if(Math.hypot(e.clientX-cx,e.clientY-cy)<r.width*0.55){
+      const a=Math.atan2(e.clientY-cy,e.clientX-cx)-st.discAng*Math.PI/180;let k=Math.round(((a+Math.PI/2)/(Math.PI*2))*8);k=((k%8)+8)%8;
+      st.slots[k]=L;drawDisc();pulse('labels','disc');strike(fNote(L.note),0.5,L.shape,L.exp);
+      why('Loaded <b>'+NOTES[L.note]+'</b> into disc slot '+(k+1)+'. '+st.slots.filter(Boolean).length+' / 8 slots filled'+(st.discOn?'.':' — press Space to play.'));
+    }});
+}
+function sprinkleAt(x,y){
+  if(st.exp){sprinkle(x,y);st.amp=Math.max(st.amp,0.45);st.age=Math.min(st.age,0.25);strike(fNote(st.note)*Math.pow(2,st.cents/1200),0.25,st.shape,true);}
+  sandHiss();pulse('plate','m-node');
+  why(st.exp?'Sprinkled fresh sand and tapped the plate → the sand <b>re-forms</b> on the same nodal lines of '+modeName(st.shape,st.modeA)+'. The figure belongs to the note, not to where sand lands.':'Sprinkled sand — but the control label is text: nothing forms.');
+}
+function setShape(s,user){
+  if(s===st.shape)return;st.shape=s;$$('#shapes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===s));
+  computeU();resetSand();st.age=0;st.amp=Math.max(st.amp,0.8);strike(fNote(st.note),0.7,s,st.exp);
+  $('#plateCap').textContent=({square:'STEEL PLATE 240 × 240 MM',round:'STEEL DISC Ø 240 MM',violin:'VIOLIN OUTLINE 240 MM'})[s]+' · IDEALISED';
+  placeNotch();drawStaff();updTable();updKeyThumbs();measures(true);pulse('shapes','plate');pulse('shapes','m-distinct');
+  why('Plate changed to <b>'+s.toUpperCase()+'</b> → a new set of modes. '+NOTES[st.note]+' now rings as '+modeName(s,st.modeA)+', and the bell has new partials ('+RATIOS[s].slice(0,4).map(r=>'×'+r.toFixed(2)).join(' ')+'). Same key, different mark.');
+  if(user)done('shape');
+}
+function setExp(v){
+  st.exp=v;$('#xbtn').setAttribute('aria-pressed',v);$('#xlbl').textContent=v?'EXPERIMENT ON':'EXPERIMENT OFF (CONTROL)';
+  bowEnd();placeNotch();updTable();measures(true);pulse('xtoggle','plate');pulse('xtoggle','m-glance');
+  if(v){st.amp=0.8;st.age=0;}
+  why(v?'Experiment <b>ON</b>: the plate prints sand figures again; bells use the plate\'s own partial ratios.':'Experiment <b>OFF</b> — control. Labels are plain text (note name only) and the sound is a harmonic chime. Print a few keys and compare AT-A-GLANCE DIFFERENCE.');
+  st.xToggled++;if(!st.demo){if(!v)st.steps._x=1;}
+  strike(fNote(st.note),0.6,st.shape,v);
+}
+function tune(dc,src){
+  st.cents=Math.max(-200,Math.min(200,st.cents+dc));computeU();st.amp=Math.max(st.amp,0.5);if(st.wA<0.9)st.age=Math.min(st.age,0.5);
+  updTune();updTable();measures(true);pulse(src||'tune','plate');pulse('plate','m-res');
+  if(!tune._t||performance.now()-tune._t>140){tune._t=performance.now();strike(fNote(st.note)*Math.pow(2,st.cents/1200),0.22,st.shape,st.exp);}
+  why(st.exp?'Detuned to <b>'+(st.cents>0?'+':'')+st.cents+'¢</b> → resonance '+Math.round(st.wA*100)+'%'+(st.wB>0.1?': the drive sits between '+modeName(st.shape,st.modeA)+' and '+modeName(st.shape,st.modeB)+', so two figures overlap and the mark blurs.':': still locked to '+modeName(st.shape,st.modeA)+'.'):'Detuned to '+st.cents+'¢ → the text label just prints the new Hz.');
+}
+/* disc */
+function drawDisc(){
+  const s=$('#disc');let h='<g id="dg" transform="rotate('+st.discAng+' 100 100)"><circle cx="100" cy="100" r="96" fill="#5E615E" stroke="#161614" stroke-width="1.5"/>';
+  for(let k=0;k<8;k++){const a=-Math.PI/2+k*Math.PI/4,x=100+Math.cos(a)*68,y=100+Math.sin(a)*68;h+='<g data-slot="'+k+'"><circle cx="'+x+'" cy="'+y+'" r="22" fill="#D8CBB0" stroke="#161614" stroke-width="1" '+(st.slots[k]?'':'stroke-dasharray="3 2"')+'/>';
+    if(st.slots[k])h+='<image href="'+st.slots[k].url+'" x="'+(x-21)+'" y="'+(y-21)+'" width="42" height="42"/>';else h+='<text x="'+x+'" y="'+(y+3)+'" text-anchor="middle" font-family="Victor Mono,monospace" font-size="9" fill="#161614">'+(k+1)+'</text>';h+='</g>';}
+  for(let r=30;r<=40;r+=5)h+='<circle cx="100" cy="100" r="'+r+'" fill="none" stroke="#D8CBB0" stroke-width=".6"/>';
+  h+='<circle cx="100" cy="100" r="6" fill="#161614"/></g>';
+  h+='<g data-anat="comb" id="comb"><rect x="86" y="0" width="28" height="9" fill="#161614"/>';for(let i=0;i<5;i++)h+='<rect x="'+(88+i*5)+'" y="9" width="2.4" height="'+(10+i%2*3)+'" fill="#161614"/>';h+='</g>';
+  s.innerHTML=h;
+}
+$('#disc').addEventListener('click',e=>{const g=e.target.closest('[data-slot]');if(!g)return;const k=+g.dataset.slot;if(st.slots[k]){const n=NOTES[st.slots[k].note];st.slots[k]=null;drawDisc();why('Cleared disc slot '+(k+1)+' ('+n+').');sandHiss();}});
+function setDisc(on){
+  if(on&&!st.slots.some(Boolean)){why('The disc is empty — drag printed labels onto its slots first.');return;}
+  st.discOn=on;$('#discPlay').setAttribute('aria-pressed',on);$('#discPlay').textContent=on?'■ STOP · SPACE':'▶ PLAY · SPACE';updSound();pulse('discplay','disc');
+  if(on){initAudio();if(AC&&AC.state==='suspended')AC.resume();if(st.slots.filter(Boolean).length>=2)done('disc');why('Disc turning: the comb reads each label and rings its note; the plate re-forms each figure in turn.');}
+}
+let lastSlot=-1;
+function stepDisc(dt){
+  if(!st.discOn)return;st.discAng=(st.discAng+dt*64)%360;const g=$('#dg');if(g)g.setAttribute('transform','rotate('+st.discAng+' 100 100)');
+  // slot k at angle -90 + k*45 + discAng; comb at -90 → passes when (k*45+discAng)%360 ≈ 0
+  const cur=Math.floor(((360-st.discAng)%360)/45+0.5)%8;
+  if(cur!==lastSlot){lastSlot=cur;const L=st.slots[cur];if(L){play(L.note,{src:'disc',cents:L.cents,shape:L.shape,vel:0.75});pulse('disc','plate');}}
+}
+function stopAll(){choke();bowEnd();if(st.discOn)setDisc(false);st.amp*=0.3;why('Space → all sound stopped. Sand stays where it settled.');updSound();}
+
+/* ---------- plate pointer ---------- */
+const pw=$('#plateWrap');let pd=null,clickT=0,clickTimer=null,holdTimer=null;
+function plateXY(e){const r=pc.getBoundingClientRect();return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height];}
+pw.addEventListener('pointerdown',e=>{
+  if(inspect&&isTouch)return;e.preventDefault();initAudio();if(AC&&AC.state==='suspended')AC.resume();pw.setPointerCapture(e.pointerId);
+  const p=plateXY(e);pd={x:e.clientX,y:e.clientY,t:performance.now(),p,lt:performance.now(),lp:[e.clientX,e.clientY],mode:'tap'};
+  holdTimer=setTimeout(()=>{if(pd&&pd.mode==='tap'){pd.mode='hold';st.damp=true;st.dampPt=p;choke(true);bowEnd();pulse('plate','m-res');
+    why('Holding the plate → it is <b>damped</b>: vibration stops in ~80 ms, sound chokes, and the sand freezes where it is.');}},430);
+});
+pw.addEventListener('pointermove',e=>{
+  if(!pd)return;const p=plateXY(e);
+  if(pd.mode==='tap'&&Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>6){pd.mode='bow';clearTimeout(holdTimer);st.bowing=true;bowStart();pd.bt=performance.now();}
+  if(pd.mode==='bow'){
+    const now=performance.now(),dtm=Math.max(1,now-pd.lt),sp=Math.hypot(e.clientX-pd.lp[0],e.clientY-pd.lp[1])/dtm;pd.lt=now;pd.lp=[e.clientX,e.clientY];
+    st.bowPt=p;const mi=st.modeA,v=modeAt(st.shape,mi,st.bow,p[0],p[1]);let coup=0;
+    if(v){if(st.shape==='square'){st.bow.phi=Math.atan2(v.A,v.S);coup=Math.min(1,Math.hypot(v.S,v.A)/2);}else if(st.shape==='round'){st.bow.th=v.th;coup=Math.abs(v.R);}else coup=Math.abs(v.U);}
+    if(st.exp)computeU();
+    st.bowIn=Math.min(1,sp*0.9)*(st.exp?(0.15+0.85*coup):1);bowLevel(st.bowIn);
+    if(!pd.lw||now-pd.lw>220){pd.lw=now;pulse('plate','m-match');
+      why(st.exp?(coup<0.2?'Bowing at a <b>still spot</b> (a nodal line) → almost no energy gets in. You cannot excite a mode where it does not move.':'Bowing at ('+(p[0]*240).toFixed(0)+', '+(p[1]*240).toFixed(0)+') mm → coupling '+Math.round(coup*100)+'%'+(st.shape==='violin'?'.':' and the figure <b>rotates</b> to put an antinode under the bow. Same key — the mark is no longer the same.')):'Bowing — the control has no plate, only a sustained tone.');}
+    if(now-pd.bt>500)done('bow');
+  }
+});
+function plateUp(e){
+  if(!pd)return;clearTimeout(holdTimer);const P=pd;pd=null;
+  if(P.mode==='hold'){st.damp=false;st.dampPt=null;why('Released the plate. Strike or bow it to make the sand move again.');return;}
+  if(P.mode==='bow'){st.bowing=false;st.bowIn=0;st.bowPt=null;bowEnd();return;}
+  const now=performance.now();
+  if(now-clickT<320){clearTimeout(clickTimer);clickT=0;print();return;}
+  clickT=now;clickTimer=setTimeout(()=>sprinkleAt(P.p[0],P.p[1]),300);
+}
+pw.addEventListener('pointerup',plateUp);pw.addEventListener('pointercancel',plateUp);
+pw.addEventListener('wheel',e=>{e.preventDefault();tune(e.deltaY<0?5:-5,'tune');},{passive:false});
+$('#tune').addEventListener('wheel',e=>{e.preventDefault();tune(e.deltaY<0?5:-5,'tune');},{passive:false});
+$('#tdn').addEventListener('click',()=>tune(-10,'tune'));$('#tup').addEventListener('click',()=>tune(10,'tune'));
+$$('#shapes button').forEach(b=>b.addEventListener('click',()=>setShape(b.dataset.s,true)));
+$('#xbtn').addEventListener('click',()=>setExp(!st.exp));
+$('#discPlay').addEventListener('click',()=>setDisc(!st.discOn));
+$('#inspectBtn').addEventListener('click',()=>setInspect(!inspect));
+$('#specBtn').addEventListener('click',()=>{const o=$('#spec').classList.toggle('open');$('#specBtn').setAttribute('aria-pressed',o);});
+$('#xcollapse').addEventListener('click',()=>{const c=$('#xcard').classList.toggle('collapsed');$('#xcollapse').textContent=c?'+ expand':'— collapse';});
+
+/* observation */
+const LS='p15-chladni-obs';const lsGet=()=>{try{return JSON.parse(localStorage.getItem(LS)||'[]');}catch(e){return [];}};const lsSet=v=>{try{localStorage.setItem(LS,JSON.stringify(v));}catch(e){}};
+function renderObs(){const L=lsGet();$('#obslog').innerHTML=L.length?L.slice(-5).reverse().map(o=>o).join('<br>'):'<i>No verdicts yet.</i>';}
+$$('.obsb button').forEach(b=>b.addEventListener('click',()=>{const L=lsGet();const d=new Date();const on=$('#gOn').textContent,off=$('#gOff').textContent;
+  L.push(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' · '+b.dataset.v+' · '+(st.exp?'ON':'OFF')+' · '+st.shape+' · '+st.labels.length+' prints · glance ON '+on+' / OFF '+off);lsSet(L.slice(-30));renderObs();
+  pulse('obs','protocol');why('Verdict recorded: <b>'+b.dataset.v+'</b>, with the numbers on screen right now.');done('verdict');strike(fNote(0)*2,0.4,st.shape,st.exp);}));
+
+/* keyboard */
+document.addEventListener('keydown',e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey)return;const k=e.key.toLowerCase();
+  if(!st.started){if(k===' '||k==='enter'){e.preventDefault();start();}return;}
+  const ni=KEYS.indexOf(k);
+  if(ni>=0&&!e.repeat){play(ni,{src:'keyboard',user:true});return;}
+  if(k===' '){e.preventDefault();if(st.discOn)stopAll();else if(st.slots.some(Boolean)){choke();setDisc(true);}else stopAll();return;}
+  if(k==='m'){setMute(!st.muted);return;}
+  if(k==='x'){setExp(!st.exp);if(!st.exp)st.steps._x=1;return;}
+  if(k==='i'){setInspect(!inspect);return;}
+  if(k==='p'){print();return;}
+  if(k==='c'){sprinkleAt(0.5,0.5);return;}
+  if(k==='1'||k==='2'||k==='3'){setShape(['square','round','violin'][+k-1],true);return;}
+  if(e.key==='ArrowUp'||e.key==='ArrowRight'){e.preventDefault();tune(e.shiftKey?25:5,'tune');return;}
+  if(e.key==='ArrowDown'||e.key==='ArrowLeft'){e.preventDefault();tune(e.shiftKey?-25:-5,'tune');return;}
+  if(k==='escape'){setInspect(false);$('#spec').classList.remove('open');}
+});
+
+/* ---------- start / demo ---------- */
+function startPreview(){ // static preview plate on overlay
+  const c=$('#startPlate'),x=c.getContext('2d'),S=300,im=x.createImageData(S,S),b=new Uint32Array(im.data.buffer);const {S:Sq}=sqSA(MAP.square[7]);
+  for(let j=0;j<S;j++)for(let i=0;i<S;i++){const k=((j*G/S)|0)*G+((i*G/S)|0),u=Math.abs(Sq[k])/2,d=Math.exp(-Math.pow(u/0.07,2));b[j*S+i]=(HASH[(j*R+i)%NR]<d*0.95)?abgr(COL.sand):abgr(COL.plate);}
+  x.putImageData(im,0,0);x.strokeStyle='#161614';x.lineWidth=2;x.strokeRect(1,1,S-2,S-2);
+  $('#startCap').textContent='G4 · 392.0 Hz → plate mode '+modeName('square',MAP.square[7])+'. Every key has its own figure; this one is G4.';
+}
+let updPreviewT=0;function updPreviewSoon(){updPreviewT=performance.now()+700;}
+function start(){
+  if(st.started)return;st.started=true;initAudio();if(AC&&AC.state==='suspended')AC.resume();$('#start').style.display='none';updSound();
+  st.demo=true;
+  setTimeout(()=>{play(0,{src:'keyboard',demo:true});},350);
+  setTimeout(()=>{print();},2600);
+  setTimeout(()=>{st.demo=false;renderProto();},3300);
+}
+$('#go').addEventListener('click',start);
+
+/* ---------- loop ---------- */
+let last=performance.now(),tagT=0,frame=0;
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;frame++;
+  const tau=st.damp?0.08:st.bowing?0.9:2.8;st.amp=st.amp*Math.exp(-dt/tau)+(st.bowing&&st.exp?st.bowIn*dt*2.4:0);if(st.amp>1)st.amp=1;
+  st.age+=dt;
+  stepDisc(dt);
+  if(st.exp){if(!st.damp)stepSand(dt);renderPlate();}else if(frame%6===0)renderControl();
+  if(updPreviewT&&now>updPreviewT){updPreviewT=0;updPreview();}
+  if(frame%20===0){if(st.exp&&st.amp>0.02)updPreview();measures();}
+  drawTrace(now);
+  if(inspect&&now-tagT>400){tagT=now;buildTags();}
+  if(st.steps._x&&st.exp&&!st.steps.control&&st.labels.some(l=>!l.exp))done('control');
+  requestAnimationFrame(loop);
+}
+
+/* ---------- init ---------- */
+buildGeo();buildModes();buildPiano();sizeTrace();
+computeU();resetSand();for(let i=0;i<4;i++){st.amp=0.9;stepSand(0.05);}st.amp=0;
+drawStaff();updTable();updTune();placeNotch();drawDisc();renderProto();renderObs();measures(true);updPreview();startPreview();renderPlate();
+addEventListener('resize',()=>{sizeTrace();placeCoach();if(inspect)buildTags();});
+document.addEventListener('scroll',()=>{placeCoach();},true);
+setInterval(placeCoach,700);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{drawStaff();updPreview();});
+requestAnimationFrame(loop);
+window.__p15={st,play,print,setShape,setExp,setInspect,showCard,setDisc,tune,sprinkleAt,MAP,MODES,RATIOS};
+}catch(err){fail(err&&err.message||String(err));console.warn(err);}
+})();
+</script>
+</body>
+</html>

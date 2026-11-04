@@ -1,0 +1,1657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Return Line Collector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+<style>
+/* Palette: paper white + ochre #C8961A. Ink #1A1407 is ochre taken to 8% luminance: type, borders, and the one line that is yours. */
+:root{--paper:#FFFFFF;--ochre:#C8961A;--ink:#1A1407;--C:40px;--lw:100;--topH:44px;--botH:40px;--colW:0px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--paper);color:var(--ink);font-family:'Epilogue',system-ui,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body{min-height:100vh}
+body.locked{overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
+.lab{font-size:9.5px;letter-spacing:.16em;font-weight:560;text-transform:uppercase;line-height:1.25}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* chrome */
+.top{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 18px;padding:13px 24px 11px;background:var(--paper)}
+.meta{font-size:9.5px;letter-spacing:.16em;font-weight:500;text-transform:uppercase}
+.meta b{font-weight:850}
+.ctrls{display:flex;gap:2px;align-items:center;flex-wrap:wrap}
+.ctrls button{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;padding:4px 7px;font-weight:300;line-height:1}
+.ctrls button[aria-pressed="true"]{font-weight:900;box-shadow:inset 0 -2px 0 var(--ochre)}
+.ctrls .sep{width:1px;height:12px;background:var(--ink);margin:0 8px;opacity:.9}
+.bot{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:space-between;align-items:center;gap:6px 24px;padding:10px 24px 12px;background:var(--paper)}
+.hint{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hint i{font-style:normal;font-weight:300}
+.status{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:400;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 0 auto;max-width:44%}
+.status b{font-weight:800}
+
+/* field */
+#field{position:absolute;left:0;top:0;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+#land{position:absolute;left:0;top:0;overflow:visible;display:block}
+#land text{font-family:'Epilogue',sans-serif}
+#land .st,#land .ys{cursor:crosshair}
+.mod{position:absolute;background:var(--paper);overflow:hidden;padding:11px 13px;transition:left .24s cubic-bezier(.7,0,.2,1),top .24s cubic-bezier(.7,0,.2,1)}
+.mod.arrive{animation:arrive .22s cubic-bezier(.7,0,.2,1) both}
+@keyframes arrive{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.mod .lab{display:flex;justify-content:space-between;gap:8px}
+
+#m-word{display:flex;flex-direction:column;justify-content:space-between;padding:12px 14px 11px}
+.wm{font-size:calc(var(--C) * 1.62);line-height:.8;letter-spacing:-.035em;text-transform:uppercase;font-weight:var(--lw)}
+.wm span{display:block}
+.wm span+span{padding-left:.62em}
+.wsub{display:flex;justify-content:space-between}
+
+#m-console{display:flex;gap:12px;padding:8px}
+.play{flex:0 0 auto;width:calc(var(--C) * 3 - 24px);height:100%;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;justify-content:space-between;padding:9px}
+.play svg{width:26px;height:26px;fill:var(--paper)}
+.play .lab{font-size:8.5px}
+.play:hover{background:#000}
+.cinfo{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding:2px 4px 1px 0}
+.cname{font-size:19px;line-height:1;letter-spacing:-.02em;font-weight:var(--lw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmeta{display:flex;gap:10px;font-size:10px;letter-spacing:.06em;font-weight:500;text-transform:uppercase;white-space:nowrap;overflow:hidden}
+.cmeta b{font-weight:850}
+.prog{position:relative;height:9px}
+.prog .rail{position:absolute;left:0;right:0;top:4px;height:1px;background:var(--ink)}
+.prog .fill{position:absolute;left:0;top:2px;height:5px;background:var(--ochre);width:0}
+.lines{display:flex;justify-content:space-between}
+.lines button{font-size:11px;letter-spacing:.02em;padding:1px 0;line-height:1}
+.lines button[aria-pressed="true"]{box-shadow:inset 0 -2px 0 var(--ochre)}
+.lines button.yl{font-weight:800;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:1px 3px;background:var(--ink);color:var(--paper)}
+.lines button.yl[disabled]{background:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);cursor:not-allowed;font-weight:400}
+
+#m-strip svg{display:block;overflow:visible}
+#m-strip text{font-family:'Epilogue',sans-serif}
+
+#m-ledger{display:flex;flex-direction:column;justify-content:space-between}
+.big{font-size:calc(var(--C) * 1.2);line-height:.82;letter-spacing:-.04em}
+.big small{font-size:11px;letter-spacing:.04em;font-weight:500;margin-left:6px}
+.lrow span{white-space:nowrap}
+.lrow{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:400}
+.lrow b{font-weight:850}
+
+#m-voice{display:flex;flex-direction:column;justify-content:space-between}
+.vch{font-size:calc(var(--C) * .72);line-height:.9;letter-spacing:-.03em;font-weight:var(--lw);white-space:nowrap;overflow:hidden;text-overflow:clip}
+.vby{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vby b{font-weight:850}
+
+#m-table{display:flex;flex-direction:column}
+.tt{flex:1;display:flex;flex-direction:column;justify-content:space-between;margin-top:8px}
+.tr{display:grid;grid-template-columns:1fr 46px 30px 34px 22px;align-items:baseline;gap:6px;padding:3px 0 2px;border-top:1px solid var(--ink);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.tr b{font-size:13.5px;letter-spacing:-.01em;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.05}
+.tr[aria-current="true"]{box-shadow:inset 4px 0 0 var(--ochre);padding-left:9px}
+.tr.you{border-top:2px solid var(--ink)}
+.tr.you[disabled] b{font-weight:300!important;font-style:italic}
+.tr:hover b{text-decoration:underline;text-decoration-color:var(--ochre);text-decoration-thickness:2px;text-underline-offset:3px}
+.tr span{text-align:right}
+
+#m-dir{display:flex;flex-direction:column}
+.dl{flex:1;display:flex;flex-direction:column;justify-content:space-between;margin-top:7px}
+.dr{display:grid;grid-template-columns:1fr auto 40px;gap:8px;align-items:center;padding:2px 0;cursor:crosshair;font-size:11.5px;letter-spacing:-.005em}
+.dr span{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:400}
+.dr.on{box-shadow:inset 4px 0 0 var(--ochre);padding-left:8px}
+.dr.on b{font-weight:850}
+.dr b{font-weight:430;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr svg{display:block}
+
+#m-type{display:flex;flex-direction:column}
+.sp{flex:1;display:flex;flex-direction:column;justify-content:space-between;margin-top:6px}
+.sp div{display:flex;align-items:baseline;gap:10px;white-space:nowrap;overflow:hidden;line-height:.95;cursor:pointer}
+.sp em{font-style:normal;font-size:9px;letter-spacing:.1em;width:24px;flex:0 0 auto;font-weight:500}
+.sp span{letter-spacing:-.025em}
+
+#m-note p{font-size:11.5px;line-height:1.38;letter-spacing:.003em;font-weight:380;margin-top:7px;hyphens:auto}
+#m-note p b{font-weight:780}
+
+/* ---------- the Collector column ---------- */
+#col{position:fixed;right:0;top:var(--topH);bottom:var(--botH);width:var(--colW);z-index:20;background:var(--paper);box-shadow:inset 1px 0 0 var(--ink);display:flex;flex-direction:column;padding:2px 22px 6px 20px}
+.cs{border-top:1px solid var(--ink);padding:7px 0 8px}
+.cs:first-child{border-top:0}
+.cs>.lab{display:flex;justify-content:space-between;gap:8px}
+.chd h2{font-size:25px;line-height:.9;letter-spacing:-.035em;font-weight:820;margin:2px 0 4px}
+.chd p{font-size:11px;line-height:1.32;font-weight:380;letter-spacing:.005em}
+.chd p b{font-weight:760}
+#why{min-height:84px}
+#why .w1{font-size:14.5px;line-height:1.16;letter-spacing:-.012em;font-weight:680;margin-top:5px}
+#why .w2{font-size:14.5px;line-height:1.16;letter-spacing:-.012em;font-weight:340;margin-top:1px}
+#why .w2:before{content:"→ ";font-weight:600;color:var(--ochre)}
+#why .w2:empty:before{content:none}
+#why .w3{margin-top:5px;font-weight:450}
+#why.new .wbody{animation:arrive .22s cubic-bezier(.7,0,.2,1) both}
+.meter{position:relative;height:5px;margin-top:6px;box-shadow:inset 0 -1px 0 var(--ink)}
+.meter i{position:absolute;left:0;bottom:0;height:5px;background:var(--ochre);width:0}
+.meter u{position:absolute;bottom:0;width:1px;height:9px;background:var(--ink)}
+/* style card */
+.vrow{display:grid;grid-template-columns:118px 1fr 34px;gap:8px;align-items:center;height:15.5px;font-size:12px;letter-spacing:-.01em;position:relative}
+.vrow b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:200;transition:font-weight .32s steps(4)}
+.vrow .bar{position:relative;height:9px}
+.vrow .bar i{position:absolute;left:0;top:4px;height:1px;right:0;background:var(--ink);opacity:.9}
+.vrow .bar s{position:absolute;left:0;top:1px;height:7px;background:var(--ochre);transition:width .4s cubic-bezier(.7,0,.2,1)}
+.vrow .bar em{position:absolute;top:0;font-style:normal;font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;line-height:9px;padding:0 3px;background:var(--paper);white-space:nowrap}
+.vrow span{font-size:10px;text-align:right;letter-spacing:.04em;font-weight:500}
+.vrow.hot span{background:var(--ink);color:var(--paper);padding:0 2px}
+.vrow.fav b{font-weight:900}
+.prow{display:grid;grid-template-columns:62px 1fr 70px;gap:8px;align-items:center;height:16px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:560}
+.prow .val{font-size:10px;text-align:right;letter-spacing:.05em;font-weight:800;white-space:nowrap}
+.prow.hot .val{background:var(--ink);color:var(--paper);padding:0 3px}
+.rl{position:relative;height:11px}
+.rl:before{content:"";position:absolute;left:0;right:0;top:5px;height:1px;background:var(--ink)}
+.rl i,.rl u{position:absolute;top:0;width:3px;height:11px;margin-left:-1px;transition:left .5s cubic-bezier(.7,0,.2,1)}
+.rl i{background:var(--ink)}
+.rl u{background:var(--ochre);width:7px;margin-left:-3px;height:5px;top:3px}
+.rl small{position:absolute;top:-1px;font-size:7.5px;letter-spacing:.1em;font-weight:400}
+.tsteps{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.04em;font-weight:300;text-transform:none}
+.tsteps b{font-weight:300}
+.tsteps b.on{font-weight:900;box-shadow:inset 0 -2px 0 var(--ochre)}
+/* your line console */
+.ylc{display:grid;grid-template-columns:78px 1fr;gap:12px;align-items:stretch}
+.sleeve{width:78px;height:78px;display:block;position:relative;cursor:pointer;padding:0}
+.sleeve svg{display:block}
+.sleeve.empty{box-shadow:inset 0 0 0 1px var(--ink);cursor:default;display:flex;align-items:center;justify-content:center;text-align:center}
+.ylinfo .lab{display:flex;justify-content:space-between;gap:8px}
+.ylinfo{display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.ylname{font-size:21px;line-height:1;letter-spacing:-.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ylmeta{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:450;line-height:1.35}
+.ylmeta b{font-weight:850}
+.ylbtn{display:inline-flex;gap:7px;align-items:center;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;background:var(--ink);color:var(--paper);padding:5px 9px 5px 7px;align-self:flex-start}
+.ylbtn svg{width:10px;height:10px;fill:var(--paper)}
+.ylbtn[disabled]{background:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:500;cursor:not-allowed}
+.ylbtn[disabled] svg{fill:var(--ink)}
+/* notebook */
+#nbS{flex:1;min-height:0;display:flex;flex-direction:column}
+.nb{flex:1;min-height:0;overflow:auto;margin-top:7px;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start;padding-right:2px;scrollbar-width:thin}
+.nbempty{grid-column:1/-1;font-size:11px;line-height:1.35;font-weight:350;padding:6px 0}
+.tk{display:grid;grid-template-columns:19px 1fr;box-shadow:inset 0 0 0 1px var(--ink);min-height:84px;background:var(--paper);cursor:crosshair}
+.tk.arr{animation:tkin .32s cubic-bezier(.7,0,.2,1) both}
+@keyframes tkin{0%{clip-path:inset(0 100% 0 0);background:var(--ink)}60%{clip-path:inset(0 0 0 0);background:var(--ink)}100%{background:var(--paper)}}
+.tk .stub{border-right:1px dashed var(--ink);writing-mode:vertical-rl;transform:rotate(180deg);font-size:8.5px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;padding:6px 0;line-height:19px}
+.tk .stub i{font-style:normal;font-weight:400}
+.tk .bd{padding:6px 7px 5px 8px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.tk .who{font-size:13px;line-height:1;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk .what{font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;line-height:1.35;margin-top:3px}
+.tk .dw{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+.tk .dw b{font-size:20px;letter-spacing:-.03em;line-height:.9}
+.tk .dw b small{font-size:9px;font-weight:600;letter-spacing:.06em;margin-left:2px}
+.tk .dw span{font-size:8px;letter-spacing:.12em;font-weight:500;text-transform:uppercase}
+.tk.live{box-shadow:inset 0 0 0 2px var(--ink)}
+.tk.live .stub{background:var(--ochre)}
+/* chapters */
+.chl{position:relative;display:flex;justify-content:space-between;margin-top:8px;height:34px}
+.chl:before{content:"";position:absolute;left:5px;right:5px;top:5px;height:1px;background:var(--ochre)}
+.chl .fillc{position:absolute;left:5px;top:3px;height:5px;background:var(--ink);width:0;transition:width .5s cubic-bezier(.7,0,.2,1)}
+.chs{position:relative;display:flex;flex-direction:column;align-items:center;width:11px}
+.chs:nth-child(2){align-items:flex-start}.chs:last-child{align-items:flex-end}
+.chs i{width:11px;height:11px;border-radius:50%;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ochre);display:block;position:relative;z-index:1}
+.chs.on i{box-shadow:inset 0 0 0 2px var(--ink);background:var(--ink)}
+.chs.next i{box-shadow:inset 0 0 0 2px var(--ink)}
+.chs span{font-size:8px;letter-spacing:.1em;text-transform:uppercase;font-weight:400;white-space:nowrap;margin-top:5px;line-height:1.2;text-align:center}
+.chs:nth-child(2) span{text-align:left}.chs:last-child span{text-align:right}
+.chs.on span,.chs.next span{font-weight:800}
+
+/* punch tag: the Collector timing you */
+#punch{position:absolute;z-index:25;pointer-events:none;background:var(--ink);color:var(--paper);padding:5px 7px 6px;display:none;min-width:128px}
+#punch .lab{font-size:8.5px;display:flex;justify-content:space-between;gap:10px}
+#punch b{display:block;font-size:17px;letter-spacing:-.02em;font-weight:700;line-height:1;margin-top:3px}
+#punch .pm{position:relative;height:3px;margin-top:5px;background:rgba(255,255,255,.25)}
+#punch .pm i{position:absolute;left:0;top:0;bottom:0;background:var(--ochre)}
+#punch.kept{background:var(--ochre);color:var(--ink)}
+#punch.kept .pm i{background:var(--ink)}
+
+/* coach marks */
+#coachRing{position:fixed;z-index:61;pointer-events:none;box-shadow:0 0 0 2px var(--ochre),0 0 0 4px var(--paper);display:none;transition:all .28s cubic-bezier(.7,0,.2,1)}
+#coachLead{position:fixed;left:0;top:0;width:100%;height:100%;z-index:61;pointer-events:none;display:none;overflow:visible}
+#coach{position:fixed;z-index:62;width:300px;max-width:calc(100vw - 24px);background:var(--ink);color:var(--paper);padding:12px 14px 11px;display:none;transition:left .28s cubic-bezier(.7,0,.2,1),top .28s cubic-bezier(.7,0,.2,1)}
+#coach .lab{display:flex;justify-content:space-between;color:var(--paper)}
+#coach p{font-size:14px;line-height:1.24;letter-spacing:-.008em;font-weight:420;margin:7px 0 10px}
+#coach p b{font-weight:800;color:#E9C46A}
+#coach .cbar{display:flex;gap:3px;margin-bottom:9px}
+#coach .cbar i{flex:1;height:3px;background:rgba(255,255,255,.22)}
+#coach .cbar i.on{background:var(--ochre)}
+#coach .cb{display:flex;justify-content:space-between;gap:10px}
+#coach button{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--paper);padding:2px 0}
+#coach button.pri{background:var(--ochre);color:var(--ink);padding:5px 9px}
+#coach button.sec{font-weight:400}
+
+/* chapter toast */
+#chap{position:fixed;z-index:35;background:var(--paper);box-shadow:inset 0 0 0 2px var(--ink);padding:12px 16px 13px;width:330px;max-width:calc(100vw - 24px);display:none}
+#chap.on{display:block;animation:arrive .22s cubic-bezier(.7,0,.2,1) both}
+#chap .lab{display:flex;justify-content:space-between}
+#chap h3{font-size:30px;line-height:.92;letter-spacing:-.035em;font-weight:860;margin:6px 0 6px}
+#chap p{font-size:12px;line-height:1.35;font-weight:380}
+#chap p b{font-weight:780}
+
+/* board: the start overlay */
+#board{position:fixed;inset:0;z-index:70;background:var(--paper);overflow:auto;display:none}
+#board.on{display:block}
+.bwrap{min-height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:22px 56px 30px;gap:30px}
+.btop{display:flex;justify-content:space-between;gap:20px}
+.bh{font-size:clamp(30px,4.3vw,64px);line-height:1.0;letter-spacing:-.035em;max-width:1180px;margin-top:6vh}
+.bh span{display:inline}
+.bh .w1{font-weight:150}.bh .w2{font-weight:420}.bh .w3{font-weight:880}
+.bsteps{position:relative;overflow:hidden;padding-right:4px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1180px;margin-top:5vh}
+.bstep{position:relative}
+.bstep:before{content:"";position:absolute;left:14px;right:-42px;top:12.5px;height:2px;margin-top:-1px;background:var(--ochre)}
+.bstep:nth-child(2):before{height:5px;margin-top:-2.5px}
+.bstep:nth-child(3):before{height:9px;margin-top:-4.5px;background:var(--ink);right:-56px}
+.bstep i{display:block;width:27px;height:27px;border-radius:50%;background:var(--paper);box-shadow:inset 0 0 0 2.5px var(--ink);font-style:normal;font-size:11px;font-weight:800;text-align:center;line-height:27px;position:relative;z-index:1}
+.bstep:last-child i{background:var(--ink);color:var(--paper)}
+.bstep h4{font-size:22px;letter-spacing:-.025em;line-height:1;margin:14px 0 7px;font-weight:760}
+.bstep p{font-size:13px;line-height:1.38;font-weight:370;max-width:330px}
+.bstep p b{font-weight:760}
+.bfoot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:18px;max-width:1180px}
+.bgo{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.bgo .go{background:var(--ink);color:var(--paper);padding:15px 20px 14px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;display:inline-flex;gap:14px;align-items:center}
+.bgo .go:hover{background:#000}
+.bgo .go i{font-style:normal;font-weight:300}
+.bgo .skip{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;box-shadow:inset 0 -1px 0 var(--ink);padding:3px 0}
+.bnote{font-size:11px;line-height:1.4;font-weight:380;max-width:420px}
+.bnote b{font-weight:760}
+.bback{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;box-shadow:inset 4px 0 0 var(--ochre);padding:3px 0 3px 12px;margin-top:16px;display:none}
+
+/* side panels */
+#specP,#sleeveP{position:fixed;top:0;right:0;bottom:0;width:460px;max-width:100%;z-index:50;background:var(--paper);box-shadow:-1px 0 0 var(--ink);padding:56px 30px 40px;overflow:auto;transform:translateX(102%);transition:transform .2s cubic-bezier(.7,0,.2,1)}
+#specP.open,#sleeveP.open{transform:none}
+#specP h2,#sleeveP h2{font-size:34px;line-height:.9;font-weight:880;letter-spacing:-.035em;margin:4px 0 18px}
+#specP h3,#sleeveP h3{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;margin:20px 0 6px;padding-top:6px;border-top:1px solid var(--ink)}
+#specP p,#specP li,#sleeveP p{font-size:12px;line-height:1.42;font-weight:380}
+#specP ul{list-style:none}
+#specP li{padding-left:14px;position:relative;margin:3px 0}
+#specP li:before{content:"";position:absolute;left:0;top:.55em;width:7px;height:2px;background:var(--ochre)}
+#specP b,#sleeveP b{font-weight:780}
+#specP .x,#sleeveP .x{position:absolute;top:16px;right:24px;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:800}
+.wlad{display:flex;justify-content:space-between;margin:8px 0 2px;font-size:26px;letter-spacing:-.03em}
+#bigSleeve svg{display:block;width:100%;height:auto}
+
+/* below 1000px the Collector stacks under the map */
+body:not(.side) #col{position:absolute;left:12px;right:12px;width:auto;bottom:auto;box-shadow:none;border-top:2px solid var(--ink);padding:4px 0 10px}
+body:not(.side) .nb{overflow:visible}
+@media (max-width:699px){
+  .top{padding:10px 12px 8px}
+  .meta{font-size:8.5px;letter-spacing:.12em}
+  .ctrls button{font-size:9px;padding:4px 5px}
+  .ctrls .sep{margin:0 4px}
+  .bot{padding:8px 12px 10px;flex-direction:column;align-items:flex-start;gap:3px}
+  .hint{font-size:8.5px;letter-spacing:.1em;line-height:1.4;white-space:normal;flex:none}
+  .vch{font-size:20px}
+  #v-kb{display:none}
+  .big{font-size:34px}
+  .status{max-width:100%;font-size:8.5px;text-align:left;white-space:normal}
+  .mod{padding:9px 10px}
+  .cname{font-size:17px}
+  #specP,#sleeveP{padding:52px 18px 40px}
+  .bwrap{padding:16px 18px 26px;gap:22px}
+  .bh{margin-top:2vh}
+  .bsteps{grid-template-columns:1fr;gap:18px}
+  .bstep:before{left:12.5px!important;right:auto!important;top:14px!important;bottom:-22px;width:2px;height:auto!important;margin:0 0 0 -1px!important}
+  .bstep:nth-child(2):before{width:5px;margin-left:-2.5px!important}
+  .bstep:nth-child(3):before{width:9px;margin-left:-4.5px!important;bottom:-10px}
+  .bstep{padding-left:44px}
+  .bstep i{position:absolute;left:0;top:0}
+  .bstep h4{margin:3px 0 5px;font-size:19px}
+  .vrow{grid-template-columns:112px 1fr 32px}
+}
+</style>
+</head>
+<body class="side">
+<header class="top" id="top">
+  <div class="meta"><b>P9 · TERRITORY v2</b> · THE COLLECTOR · RETURN LINE RECORDINGS</div>
+  <nav class="ctrls" aria-label="Visitors and settings">
+    <button data-preset="you" aria-pressed="true">You</button>
+    <button data-preset="A" aria-pressed="false">Visitor A</button>
+    <button data-preset="B" aria-pressed="false">Visitor B</button>
+    <button data-preset="C" aria-pressed="false">Visitor C</button>
+    <button id="reset">Reset</button>
+    <span class="sep"></span>
+    <button id="tourBtn">Tour</button>
+    <button id="specBtn" aria-pressed="false">Spec</button>
+    <button id="muteBtn" aria-pressed="false">Sound on</button>
+  </nav>
+</header>
+
+<main id="field" aria-label="Your territory">
+  <svg id="land" aria-hidden="true"></svg>
+
+  <section class="mod" id="m-word" data-mod="word">
+    <h1 class="wm"><span>Return</span><span>Line</span></h1>
+    <div class="wsub lab"><span>Recordings</span><span>Terminus of seven lines</span></div>
+  </section>
+
+  <section class="mod" id="m-console" data-mod="console">
+    <button class="play" data-play aria-label="Play this line">
+      <svg viewBox="0 0 26 26" id="playIcon"><path d="M5 3 L23 13 L5 23 Z"/></svg>
+      <span class="lab" id="playLab">Listen<br>+68 land</span>
+    </button>
+    <div class="cinfo">
+      <div class="lab"><span id="c-cat">RL-001 · Line 100</span><span id="c-state" class="tnum">Halted</span></div>
+      <div class="cname" id="c-name">Hairline Night</div>
+      <div class="cmeta tnum"><span><b id="c-bpm">68</b> BPM</span><span>Key <b id="c-key">D♭</b></span><span>Now <b id="c-chord">D♭maj7</b></span></div>
+      <div class="prog"><div class="rail"></div><div class="fill" id="c-fill"></div></div>
+      <div class="lines" id="c-lines"></div>
+    </div>
+  </section>
+
+  <section class="mod" id="m-strip" data-mod="strip">
+    <div class="lab"><span id="s-head">Line 100 · Hairline Night</span><span>Wheel · ← →</span></div>
+    <div id="s-svg"></div>
+  </section>
+
+  <section class="mod" id="m-ledger" data-mod="ledger">
+    <div class="lab"><span>Land</span><span id="l-tension">Tension 7th</span></div>
+    <div class="big tnum" id="l-big">63<small>/ 680</small></div>
+    <div class="lrow tnum"><span><b id="l-pc">9%</b> held · <b id="l-beats">0</b> beats · <b id="l-red">0</b> moved</span></div>
+  </section>
+
+  <section class="mod" id="m-voice" data-mod="voice">
+    <div class="lab"><span>Voicing in hand</span><span id="v-mode">Station</span></div>
+    <div class="vch" id="v-ch">D♭maj7</div>
+    <div class="vby" id="v-by"><b>Marisol Kett</b> · rootless A</div>
+    <svg id="v-kb" height="22"></svg>
+  </section>
+
+  <section class="mod" id="m-table" data-mod="table">
+    <div class="lab"><span>Timetable · seven releases</span><span>Bpm · land</span></div>
+    <div class="tt" id="t-rows"></div>
+  </section>
+
+  <section class="mod" id="m-dir" data-mod="dir">
+    <div class="lab"><span>Stations · hover and stay</span><span>Lines</span></div>
+    <div class="dl" id="d-rows"></div>
+  </section>
+
+  <section class="mod" id="m-type" data-mod="type">
+    <div class="lab"><span>One skeleton, six masses</span><span>Epilogue 100–900</span></div>
+    <div class="sp" id="sp-rows"></div>
+  </section>
+
+  <section class="mod" id="m-note" data-mod="note">
+    <div class="lab"><span>Notice to passengers</span><span>No. 09</span></div>
+    <p>Return Line publishes slow records for long journeys. Every beat you hear is surveyed into land. Every station you <b>stay at</b> is kept as a ticket, and the tickets are laid end to end as a seventh line: <b>yours</b>.</p>
+  </section>
+</main>
+
+<aside id="col" aria-label="The Collector">
+  <div class="cs chd">
+    <div class="lab"><span>The Collector</span><span id="chNow">Chapter 0 of 5</span></div>
+    <h2>It keeps what you stay for.</h2>
+    <p>A <b>small listening model that runs in this page</b>. It times how long you stay, learns a style from it, and composes <b>Your Line</b>. No network, no LLM.</p>
+  </div>
+  <div class="cs" id="why" aria-live="polite">
+    <div class="lab"><span>What just happened · and why</span><span id="whyN" class="tnum"></span></div>
+    <div class="wbody"><div class="w1" id="w1">Nothing yet. The train waits at the terminus.</div><div class="w2" id="w2">Hover a station and stay 1.2 s: that is one inspiration.</div><div class="w3 lab" id="w3"></div></div>
+    <div class="meter" id="meter"><i id="meterI"></i><u id="meterU" style="left:40%"></u></div>
+  </div>
+  <div class="cs" id="styleS">
+    <div class="lab"><span>Style card · learned</span><span id="styleN" class="tnum">From 0 tickets</span></div>
+    <div id="vrows" style="margin-top:6px"></div>
+    <div id="prows" style="margin-top:6px"></div>
+  </div>
+  <div class="cs" id="ylS">
+    <div class="ylc">
+      <button class="sleeve empty" id="sleeveThumb" aria-label="Open the sleeve"></button>
+      <div class="ylinfo">
+        <div class="lab"><span id="ylCat">RL-007 · Your Line</span><span id="ylState">Under construction</span></div>
+        <div class="ylname" id="ylName">Your Line</div>
+        <div class="ylmeta tnum" id="ylMeta">0 stations · opens at 3 tickets</div>
+        <button class="ylbtn" id="ylPlay" disabled><svg viewBox="0 0 10 10" id="ylIcon"><path d="M1 0 L10 5 L1 10Z"/></svg><span id="ylLab">Opens at 3</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="cs" id="nbS">
+    <div class="lab"><span>Notebook · <b id="nbN">0</b> tickets</span><span>Newest first</span></div>
+    <div class="nb" id="nb"></div>
+  </div>
+  <div class="cs" id="chS">
+    <div class="lab"><span>Chapters</span><span id="chNext" class="tnum"></span></div>
+    <div class="chl" id="chl"></div>
+  </div>
+</aside>
+
+<footer class="bot" id="bot">
+  <div class="hint">Hover a station and stay <i>·</i> ▶ listen <i>·</i> drag from the border to annex <i>·</i> wheel / ← → travel <i>·</i> 1–6 lines <i>·</i> 7 your line <i>·</i> space play / stop <i>·</i> M mute</div>
+  <div class="status tnum" id="status"></div>
+</footer>
+
+<div id="punch"><div class="lab"><span id="pK">Staying</span><span id="pT">0.0 s</span></div><b id="pN">Ilse Moravec</b><div class="pm"><i id="pM"></i></div></div>
+<div id="coachRing"></div>
+<svg id="coachLead"><line id="coachLine" stroke="#C8961A" stroke-width="2"/><circle id="coachDot" r="4" fill="#C8961A"/></svg>
+<div id="coach" role="dialog" aria-live="polite">
+  <div class="lab"><span id="coachK">Guided journey</span><span id="coachI" class="tnum">1 / 6</span></div>
+  <p id="coachP"></p>
+  <div class="cbar" id="coachBar"></div>
+  <div class="cb"><button class="sec" id="coachSkip">Skip tour</button><button class="pri" id="coachNext">Next</button></div>
+</div>
+<div id="chap" role="status"><div class="lab"><span id="chapK">Chapter</span><button id="chapX" class="lab">Close</button></div><h3 id="chapH"></h3><p id="chapP"></p></div>
+
+<div id="board" class="on" role="dialog" aria-label="Start">
+  <div class="bwrap">
+    <div class="btop"><div class="lab">Return Line Recordings · Catalogue as a transit map</div><div class="lab">P9 · Territory v2</div></div>
+    <div>
+      <p class="bh"><span class="w1">Travel a record label like a metro map.</span> <span class="w2">A small listening model in this page keeps what you stay for,</span> <span class="w3">and lays it down as a seventh line: yours.</span></p>
+      <div class="bsteps">
+        <div class="bstep"><i>1</i><h4>Travel</h4><p>Each line is a record, each station an artist. <b>Hover a station</b> to hear how they voice the chord. Wheel or ← → moves the train; 1–6 change line.</p></div>
+        <div class="bstep"><i>2</i><h4>Stay</h4><p><b>Linger 1.2 s</b> on a station, stop the train for 2.5 s, or listen to a record. Each one becomes a ticket in your notebook, and the style card learns from how long you stayed.</p></div>
+        <div class="bstep"><i>3</i><h4>Ride Your Line</h4><p>Every ticket adds a station to <b>Your Line</b>. At 3 it plays music composed from your tickets; at 7 it gains a bass; at 12 a sleeve; at 20 it runs express.</p></div>
+      </div>
+      <div class="bback" id="bBack"></div>
+    </div>
+    <div class="bfoot">
+      <div class="bgo"><button class="go" id="bGo">Board · guided first journey <i>40 s</i></button><button class="skip" id="bSkip">Skip the tour</button></div>
+      <p class="bnote">Sound starts when you board. <b>Space</b> starts or stops anything playing, <b>M</b> mutes everything. Nothing leaves this page: your notebook is kept on this device only, and <b>Reset</b> forgets it.</p>
+    </div>
+  </div>
+</div>
+
+<aside id="sleeveP" aria-label="Sleeve">
+  <button class="x" id="sleeveX">Close</button>
+  <div class="lab" id="slCat">RL-007 · Your Line · Sleeve</div>
+  <h2 id="slTitle">Your Line</h2>
+  <div id="bigSleeve"></div>
+  <h3>Liner notes</h3>
+  <p id="slNotes"></p>
+  <h3>How the cover was set</h3>
+  <p>The drawing is Your Line itself, station for station. The title is set at the line's own weight. The ten ticks on the right are your voicing weights, Marisol Kett first. The title takes its adjective from your favourite voicing and its noun from the record you rode most.</p>
+</aside>
+
+<aside id="specP" aria-label="Specification">
+  <button class="x" id="specX">Close</button>
+  <div class="lab">P9 · Territory v2 · Specification</div>
+  <h2>The visitor draws the site. Now the site also listens back.</h2>
+
+  <h3>The Collector, honestly</h3>
+  <ul>
+    <li>A <b>small listening model running in this page</b>: weighted counts, averages and a first-order Markov chain. Not a neural network, not an LLM, no network calls.</li>
+    <li>An <b>inspiration</b> is a stay: hovering a station 1.2 s or more, stopping the train 2.5 s or more, a listen of 8 beats or more, or a drag that moves 4 parcels or more.</li>
+    <li>Weight of a ticket = kind × log₂(1 + seconds stayed, capped at 30). Listen 1.5, linger 1.0, part listen 0.9, stop 0.8, survey 0.6. A prior of 3 keeps the first ticket from deciding everything.</li>
+    <li>Learned: share of each of the ten voicings; share of each line; tension (from each voicing's colour and the land you held); tempo (the BPM of the lines you stayed on); swing (long stays lean back, 1.3:1 to 2.6:1); register and density (from the voicings, plus restless surveying).</li>
+    <li>Every change is reported in one line: what happened, what moved, by how much.</li>
+  </ul>
+
+  <h3>Your Line</h3>
+  <ul>
+    <li>Starts under the terminus and grows one station per ticket, 1.5 parcels at a time, only in the eight transit directions, turning toward the station that inspired it and never back over itself. Where you linger, it coils.</li>
+    <li>Drawn in ink, the only ink line on the map, at the mean weight of the lines you collected from. Under 3 tickets it is dashed: under construction.</li>
+    <li>It has right of way: sections never sit on it, so the page rearranges as it grows. Each ticket also surveys 4 parcels along it, more the longer you stayed.</li>
+    <li>Music: chords from a Markov chain trained on the progressions of the lines you favour plus the order in which you collected chords; one bar per station, voiced by that station's artist, sometimes swapped for the voicing you favour. Tempo, swing, tension, register and comping density come from the style card.</li>
+    <li>3 tickets: piano alone. 7: walking bass. 12: brushes and ride, and a sleeve. 20: a second chorus in the key of your second favourite line.</li>
+  </ul>
+
+  <h3>Typeface</h3>
+  <p><b>Epilogue</b>, one variable family, weight axis 100–900, nothing else. Lines are separated by mass, not colour. On the style card an artist's name is set heavier the more you have stayed with them, so preference is read as weight.</p>
+  <div class="wlad"><span style="font-weight:100">a</span><span style="font-weight:260">a</span><span style="font-weight:420">a</span><span style="font-weight:580">a</span><span style="font-weight:740">a</span><span style="font-weight:900">a</span></div>
+  <p class="lab">100 · 260 · 420 · 580 · 740 · 900 = the six lines · Your Line = your mean</p>
+
+  <h3>Land rules (from v1)</h3>
+  <ul>
+    <li>A fresh visitor holds one terminus. Listening earns parcels beat by beat along the line you hear; a full listen = the record's BPM in parcels.</li>
+    <li>Sections only appear where a whole rectangle of your land is free.</li>
+    <li>Dragging annexes a parcel and cedes your most remote one. Area is conserved.</li>
+    <li>Land beyond the terminus sets tension of the six records: 7th, 9th, 11th, 13th.</li>
+  </ul>
+
+  <h3>Sound</h3>
+  <ul>
+    <li>FM electric piano, triangle walking bass, noise brushes and ride. All synthesised; no files.</li>
+    <li>Nothing loops on its own. A record plays 32 beats; Your Line plays once through. Space stops either. M mutes everything. A compressor and a limiter sit before the output.</li>
+  </ul>
+
+  <h3>Colour</h3>
+  <p>Paper #FFFFFF, ochre #C8961A, ink #1A1407. Unclaimed network is ochre on white; held land is white line on ochre; Your Line is ink on both.</p>
+
+  <h3>Label</h3>
+  <p>Return Line Recordings is fictional, as are all ten artists.</p>
+</aside>
+
+<script>
+(()=>{
+'use strict';
+/* ---------------- world ---------------- */
+const NOTE=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+/* ten: harmonic colour 0..1 · reg: register -1..1 · dens: comping density 0..1 · adj: sleeve adjective */
+const ARTISTS=[
+  {n:'Marisol Kett',s:'Kett',v:'ROOTLESS A',ten:.45,reg:0,dens:.5,adj:'Rootless'},
+  {n:'Teodor Abenga',s:'Abenga',v:'DROP 2',ten:.35,reg:-.2,dens:.55,adj:'Dropped'},
+  {n:'Ilse Moravec',s:'Moravec',v:'QUARTAL',ten:.72,reg:.3,dens:.3,adj:'Quartal'},
+  {n:'June Okafor-Lind',s:'Okafor',v:'OPEN TENTHS',ten:.3,reg:-.65,dens:.4,adj:'Wide'},
+  {n:'Vaszary Trio',s:'Vaszary',v:'CLUSTER',ten:.95,reg:-.1,dens:.85,adj:'Crowded'},
+  {n:'Nell Corrigan',s:'Corrigan',v:'SHELL',ten:.08,reg:-.35,dens:.18,adj:'Bare'},
+  {n:'Bastien Oyel',s:'Oyel',v:'UPPER STRUCTURE',ten:.88,reg:.6,dens:.62,adj:'Upper'},
+  {n:'Haruka Delmont',s:'Delmont',v:'DROP 3',ten:.4,reg:-.45,dens:.5,adj:'Low-Slung'},
+  {n:'Pim Achterberg',s:'Achterberg',v:'ROOTLESS B',ten:.5,reg:.35,dens:.6,adj:'Restless'},
+  {n:'Ros Adewale',s:'Adewale',v:'SO WHAT',ten:.62,reg:.1,dens:.26,adj:'Modal'}
+];
+const LINES=[
+  {w:100,name:'Hairline Night',noun:'Night',cat:'RL-001',bpm:68,key:1,kn:'D♭',prog:[[0,'maj'],[9,'m'],[2,'m'],[7,'dom']],st:[0,2,5,8]},
+  {w:260,name:'Low Platform',noun:'Platforms',cat:'RL-002',bpm:74,key:8,kn:'A♭',prog:[[2,'m'],[7,'dom'],[0,'maj'],[5,'maj']],st:[1,0,7,9]},
+  {w:420,name:'Shunting Yard Psalms',noun:'Psalms',cat:'RL-003',bpm:82,key:3,kn:'E♭',prog:[[5,'maj'],[4,'m'],[9,'m'],[10,'dom']],st:[4,2,6,3]},
+  {w:580,name:'Overground, Slowly',noun:'Overground',cat:'RL-004',bpm:88,key:10,kn:'B♭ dor',prog:[[0,'m'],[5,'dom'],[0,'m'],[10,'dom']],st:[3,1,5,4]},
+  {w:740,name:'Interchange Hymnal',noun:'Hymnal',cat:'RL-005',bpm:94,key:5,kn:'F',prog:[[0,'maj'],[3,'maj'],[8,'maj'],[1,'maj']],st:[9,7,6,0]},
+  {w:900,name:'Heavy Freight Lullaby',noun:'Lullaby',cat:'RL-006',bpm:102,key:0,kn:'C',prog:[[9,'m'],[2,'m'],[7,'dom'],[0,'maj'],[4,'dom']],st:[8,4,1,2,6]}
+];
+const YOU=6;
+const LISTEN_BEATS=32, REF_TOTAL=680, TEN=['7th','9th','11th','13th'];
+const NET_D=[
+  [[14,4.5],[22,4.5],[25,1.5],[33.5,1.5]],
+  [[14,7.5],[20,7.5],[25,12.5],[33.5,12.5]],
+  [[12,10],[12,13],[15,16],[33.5,16]],
+  [[9,10],[9,15],[12.5,18.5],[26,18.5]],
+  [[5,8],[2.5,8],[2.5,18.5]],
+  [[14,6],[29,6],[33.5,10.5]]
+];
+const NET_M=[
+  [[1,7],[1,29.5]],
+  [[4.5,7],[4.5,24],[2.5,26],[2.5,29.5]],
+  [[6.5,7],[6.5,19],[8.5,21],[8.5,29.5]],
+  [[8.5,7],[8.5,26]],
+  [[11,7],[11,21]],
+  [[2.75,7],[2.75,16],[6.5,19.75],[6.5,29.5]]
+];
+const MODS=[
+  {id:'word',seed:true},
+  {id:'console',seed:true},
+  {id:'strip',d:[[12,3],[9,3]],m:[[12,3]]},
+  {id:'ledger',d:[[6,3],[5,3]],m:[[6,3],[12,3]]},
+  {id:'voice',d:[[6,3],[5,3]],m:[[6,3],[12,3]]},
+  {id:'table',d:[[9,6],[8,7]],m:[[12,7],[6,9]]},
+  {id:'dir',d:[[7,6],[6,7]],m:[[12,7],[6,10]]},
+  {id:'type',d:[[10,4],[8,5]],m:[[12,5],[6,6]]},
+  {id:'note',d:[[6,4],[5,5]],m:[[6,5],[12,4]]}
+];
+const KIND={LINGER:{f:1,thr:1.2,lab:'Linger'},STOP:{f:.8,thr:2.5,lab:'Stop'},LISTEN:{f:1.5,lab:'Listen'},PART:{f:.9,lab:'Part listen'},ANNEX:{f:.6,lab:'Survey'}};
+const CHAPTERS=[
+  {n:1,t:'First ticket',s:'1 · First',d:'Your Line gets its first station, drawn in ink under the terminus.'},
+  {n:3,t:'Your Line opens',s:'3 · Opens',d:'Three tickets are enough to compose. Press <b>7</b> or <b>▶ Ride Your Line</b>: piano alone, voiced by your stations.'},
+  {n:7,t:'A bass joins',s:'7 · Bass',d:'Your Line now walks: a bass follows the chords the Collector chained from your journey.'},
+  {n:12,t:'A sleeve is printed',s:'12 · Sleeve',d:'RL-007 gets a cover set from your style card, and brushes join the band. Click the sleeve to read its liner notes.'},
+  {n:20,t:'Express service',s:'20 · Express',d:'Your Line plays a second chorus in the key of your second favourite line.'}
+];
+/* simulated journeys: each visitor rides differently, so the Collector learns a different style */
+const PRESETS={
+  A:{name:'Visitor A · the commuter',hist:[[0,68],[0,68],[0,34],[1,40]],line:0,j:{n:6,seed:11,lines:[0,0,0,1],like:[5,0,8],dw:[1.3,4],kinds:['STOP','LINGER','STOP','LISTEN']}},
+  B:{name:'Visitor B · the night shift',hist:[[3,88],[5,102],[3,88],[5,60]],line:5,j:{n:14,seed:23,lines:[5,5,3,5,2],like:[4,6,2,4],dw:[7,24],kinds:['LINGER','LINGER','LISTEN','LINGER']}},
+  C:{name:'Visitor C · the cartographer',hist:[[0,68],[1,74],[2,82],[3,88],[4,94],[5,102]],line:2,j:{n:21,seed:37,lines:[0,1,2,3,4,5],like:[1,7,3,9],dw:[1.3,3.6],kinds:['STOP','LINGER','ANNEX','STOP','LINGER']}}
+};
+
+/* ---------------- storage (never required) ---------------- */
+const LS_KEY='returnline.territory.v2';
+const lsGet=()=>{try{const s=window.localStorage.getItem(LS_KEY);return s?JSON.parse(s):null}catch(e){return null}};
+const lsSet=o=>{try{window.localStorage.setItem(LS_KEY,JSON.stringify(o))}catch(e){}};
+const lsDel=()=>{try{window.localStorage.removeItem(LS_KEY)}catch(e){}};
+
+/* ---------------- state ---------------- */
+const S={line:0,station:0,st0:0,hist:[],listens:[0,0,0,0,0,0],beatsHeard:0,redrawn:0,override:-1,playing:false,beat:0,total:LISTEN_BEATS,acc:0,preset:'you',owned:null,fresh:new Map(),walk:0,msg:'',msgT:0,lw:100,
+  cards:[],prof:null,dv:null,dp:null,hotT:0,plan:null,playPlan:null,chSeen:0,toured:false,yBar:0,ended:false};
+let G=null, PL={};
+const $=s=>document.querySelector(s);
+const field=$('#field'), land=$('#land');
+const hash=(i,l)=>{const x=Math.sin(i*12.9898+l*78.233)*43758.5453;return x-Math.floor(x)};
+const rngOf=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pad2=n=>String(n).padStart(2,'0'), pad3=n=>String(n).padStart(3,'0');
+const fmtS=s=>s<10?s.toFixed(1):String(Math.round(s));
+
+/* ---------------- geometry ---------------- */
+function geo(colW){
+  const vw=document.documentElement.clientWidth-colW, vh=window.innerHeight;
+  const mobile=vw<700, C=mobile?30:40;
+  const topH=$('#top').offsetHeight, botH=$('#bot').offsetHeight;
+  const pad=mobile?12:24;
+  const cols=Math.max(8,Math.floor((vw-pad*2)/C));
+  const rows=mobile?30:Math.max(14,Math.floor((vh-topH-botH-16)/C));
+  const left=Math.round((vw-cols*C)/2), top=topH+(mobile?6:8);
+  const sy=mobile?1:rows/20;
+  const sx0=cols/34, seedX=mobile?0:Math.max(1,Math.round(5*sx0)), seedR=seedX+9;
+  /* piecewise: everything west of the terminus keeps its shape, everything east is compressed into the remaining width */
+  const fx=x=>x<=14?x*seedR/14:seedR+(x-14)*(cols-seedR)/20;
+  const seed=mobile?{x:0,y:0,w:Math.min(12,cols),h:7}:{x:seedX,y:Math.round(3*sy),w:9,h:7};
+  const seedPos=mobile?{word:{x:0,y:0,w:seed.w,h:3},console:{x:0,y:3,w:seed.w,h:4}}
+    :{word:{x:seed.x,y:seed.y,w:9,h:4},console:{x:seed.x,y:seed.y+4,w:9,h:3}};
+  const net=(mobile?NET_M:NET_D).map(pl=>pl.map(([x,y])=>[Math.min(cols-.5,mobile?x*cols/12:fx(x)),Math.min(rows-.5,y*sy)]));
+  const N=cols*rows, dist=[], arc=[], stations=[];
+  net.forEach((pl,l)=>{
+    const d=new Float32Array(N), a=new Float32Array(N);
+    const segs=[];let acc=0;
+    for(let k=0;k<pl.length-1;k++){const [x1,y1]=pl[k],[x2,y2]=pl[k+1];const len=Math.hypot(x2-x1,y2-y1);segs.push({x1,y1,x2,y2,len,acc});acc+=len}
+    for(let i=0;i<N;i++){const px=i%cols+.5,py=Math.floor(i/cols)+.5;let bd=1e9,ba=0;
+      for(const s of segs){const dx=s.x2-s.x1,dy=s.y2-s.y1;let t=((px-s.x1)*dx+(py-s.y1)*dy)/(s.len*s.len);t=clamp(t,0,1);
+        const qx=s.x1+dx*t,qy=s.y1+dy*t,dd=Math.hypot(px-qx,py-qy);if(dd<bd){bd=dd;ba=s.acc+t*s.len}}
+      d[i]=bd;a[i]=ba}
+    dist.push(d);arc.push(a);
+    const n=LINES[l].prog.length, pts=[];
+    for(let k=0;k<n;k++){const target=acc*(k+.75)/(n+.25);let sg=segs[segs.length-1];for(const s of segs){if(target<=s.acc+s.len){sg=s;break}}
+      const t=clamp((target-sg.acc)/sg.len,0,1);pts.push({x:sg.x1+(sg.x2-sg.x1)*t,y:sg.y1+(sg.y2-sg.y1)*t,dx:sg.x2-sg.x1,dy:sg.y2-sg.y1})}
+    stations.push(pts);
+  });
+  const cx=seed.x+seed.w/2, cy=seed.y+seed.h/2;
+  const order=[...Array(N).keys()].sort((p,q)=>{const d1=Math.hypot(p%cols-cx,Math.floor(p/cols)-cy*1.25),d2=Math.hypot(q%cols-cx,Math.floor(q/cols)-cy*1.25);return d1-d2});
+  return {mobile,C,cols,rows,left,top,N,seed,seedPos,net,dist,arc,stations,order,scale:N/REF_TOTAL,occ:new Int8Array(N).fill(-1),you:null,yDist:null};
+}
+const inSeed=i=>{const x=i%G.cols,y=Math.floor(i/G.cols),s=G.seed;return x>=s.x&&x<s.x+s.w&&y>=s.y&&y<s.y+s.h};
+function seedOwned(){const o=new Uint8Array(G.N);for(let i=0;i<G.N;i++)if(inSeed(i))o[i]=1;return o}
+function heldCount(){let c=0;for(let i=0;i<G.N;i++)c+=S.owned[i];return c}
+function tension(){const sd=G.seed.w*G.seed.h,f=(heldCount()-sd)/(G.N-sd);return f<.2?0:f<.45?1:f<.7?2:3}
+
+function growBy(d,a,salt,k,flash){
+  const {cols,rows}=G, o=S.owned;let got=0;const t=performance.now();
+  for(let n=0;n<k;n++){let best=-1,bs=1e9;
+    for(let i=0;i<o.length;i++){if(o[i])continue;const x=i%cols,y=(i/cols)|0;
+      if(!((x>0&&o[i-1])||(x<cols-1&&o[i+1])||(y>0&&o[i-cols])||(y<rows-1&&o[i+cols])))continue;
+      const s=d[i]+(a?a[i]*.05:0)+hash(i,salt)*1.1;if(s<bs){bs=s;best=i}}
+    if(best<0)break;o[best]=1;got++;if(flash)S.fresh.set(best,t+320)}
+  return got;
+}
+const grow=(l,k,flash)=>growBy(G.dist[l],G.arc[l],l,k,flash);
+
+/* ---------------- Your Line: one station per ticket ---------------- */
+const DX=[1,1,0,-1,-1,-1,0,1], DY=[0,1,1,1,0,-1,-1,-1];
+function targetOf(c){const p=G.stations[c.l]&&G.stations[c.l][c.k];return p||{x:G.cols/2,y:G.rows/2}}
+function buildYou(cards){
+  const s=G.seed, start={x:s.x+2.5,y:s.y+s.h}, step=1.5, pts=[];
+  let p={x:start.x,y:start.y}, dir=2;
+  const inS=q=>q.x>s.x-.2&&q.x<s.x+s.w+.2&&q.y>s.y-.2&&q.y<s.y+s.h-.01;
+  cards.forEach((c,i)=>{
+    const tg=targetOf(c);let best=null,bs=1e9;
+    for(const dd of [0,1,-1,2,-2,3,-3]){
+      const d=(dir+dd+8)%8, q={x:p.x+DX[d]*step,y:p.y+DY[d]*step};
+      if(q.x<.5||q.y<.5||q.x>G.cols-.5||q.y>G.rows-.5||inS(q))continue;
+      let near=Math.hypot(start.x-q.x,start.y-q.y);for(const o of pts)near=Math.min(near,Math.hypot(o.x-q.x,o.y-q.y));
+      const sc=Math.hypot(q.x-tg.x,q.y-tg.y)+Math.abs(dd)*.55+(near<1.2?7:0)+hash(i,d)*.25;
+      if(sc<bs){bs=sc;best={q,d}}
+    }
+    if(!best)best={q:{x:p.x,y:p.y},d:dir};
+    p=best.q;dir=best.d;pts.push({x:p.x,y:p.y,dx:DX[dir],dy:DY[dir],c:i});
+  });
+  return {start,pts};
+}
+function polyDist(pl){
+  const {cols,N}=G, d=new Float32Array(N);
+  for(let i=0;i<N;i++){const px=i%cols+.5,py=((i/cols)|0)+.5;let bd=1e9;
+    for(let k=0;k<pl.length-1;k++){const a=pl[k],b=pl[k+1],dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy||1e-6;
+      const t=clamp(((px-a.x)*dx+(py-a.y)*dy)/L2,0,1);bd=Math.min(bd,Math.hypot(px-a.x-dx*t,py-a.y-dy*t))}
+    if(pl.length===1)bd=Math.hypot(px-pl[0].x,py-pl[0].y);d[i]=bd}
+  return d;
+}
+function refreshYou(){
+  G.you=buildYou(S.cards);
+  G.yDist=S.cards.length?polyDist([G.you.start,...G.you.pts]):null;
+  G.stations[YOU]=G.you.pts;
+}
+const growYou=(k,flash)=>G.yDist?growBy(G.yDist,null,7,Math.max(1,Math.round(k*G.scale)),flash):0;
+
+/* ---------------- the Collector: learning ---------------- */
+function learn(cards){
+  const vr=new Array(10).fill(0), lr=new Array(6).fill(0);let W=0,ten=0,bpm=0,sw=0,reg=0,dens=0,secs=0;
+  for(const c of cards){
+    const w=KIND[c.kind].f*Math.log2(1+Math.min(30,c.dwell)), A=ARTISTS[c.a];
+    vr[c.a]+=w;lr[c.l]+=w;W+=w;secs+=c.dwell;
+    ten+=w*clamp(A.ten*.78+(c.ten||0)/3*.22+(c.kind==='ANNEX'?.12:0),0,1);
+    bpm+=w*LINES[c.l].bpm;sw+=w*Math.min(1,c.dwell/14);reg+=w*A.reg;
+    dens+=w*Math.min(1,A.dens+(c.kind==='ANNEX'?.3:0)+(c.kind==='STOP'?.08:0));
+  }
+  const PR=3, vw=vr.map(v=>(v+PR/10)/(W+PR)), lw=lr.map(v=>(v+.4)/(W+2.4));
+  const t=(ten+PR*.36)/(W+PR), s=(sw+PR*.35)/(W+PR);
+  const P={n:cards.length,W,vw,lw,ten:t,tenL:t<.42?0:t<.56?1:t<.7?2:3,bpm:Math.round((bpm+PR*82)/(W+PR)),
+    swing:Math.round((1.3+s*1.3)*10)/10,reg:(reg)/(W+PR),dens:(dens+PR*.42)/(W+PR),secs};
+  let home=0,second=-1;lr.forEach((v,i)=>{if(v>lr[home])home=i});lr.forEach((v,i)=>{if(i!==home&&v>0&&(second<0||v>lr[second]))second=i});
+  P.home=home;P.second=second;
+  let top=0;vr.forEach((v,i)=>{if(v>vr[top])top=i});P.top=W?top:-1;
+  P.yW=W?Math.round(lr.reduce((a,v,i)=>a+v*LINES[i].w,0)/W/10)*10:500;
+  return P;
+}
+const VOX=a=>ARTISTS[a].v.toLowerCase().replace('rootless a','rootless A').replace('rootless b','rootless B').replace('so what','"So What"');
+function deltas(P0,P1){
+  S.dv=P1.vw.map((v,i)=>v-P0.vw[i]);
+  S.dp={ten:P1.ten-P0.ten,bpm:P1.bpm-P0.bpm,swing:P1.swing-P0.swing,reg:P1.reg-P0.reg,dens:P1.dens-P0.dens,tenL:P1.tenL-P0.tenL};
+  S.hotT=performance.now()+5200;
+  const out=[];let mi=0;S.dv.forEach((d,i)=>{if(Math.abs(d)>Math.abs(S.dv[mi]))mi=i});
+  const pts=Math.round(S.dv[mi]*100);
+  if(pts)out.push(`${VOX(mi)} voicings ${pts>0?'+':''}${pts} pts`);
+  if(S.dp.tenL)out.push(`tension ${S.dp.tenL>0?'rises':'falls'} to the ${TEN[P1.tenL]}`);
+  else if(Math.abs(S.dp.bpm)>=2)out.push(`tempo ${S.dp.bpm>0?'up':'down'} to ${P1.bpm} BPM`);
+  else if(Math.abs(S.dp.swing)>=.1)out.push(`swing ${S.dp.swing>0?'leans back':'straightens'} to ${P1.swing.toFixed(1)}:1`);
+  else if(Math.abs(S.dp.dens)>=.025)out.push(`comping ${S.dp.dens>0?'busier':'sparser'}`);
+  return out.slice(0,2).join(' · ');
+}
+
+/* ---------------- the Collector: composing ---------------- */
+const ck=(r,q)=>r+':'+q;
+function pickW(m,rng){let t=0;m.forEach(v=>t+=v);let x=rng()*t;for(const [k,v] of m){x-=v;if(x<=0)return k}return m.keys().next().value}
+function compose(){
+  const cards=S.cards,n=cards.length,P=S.prof;if(n<3)return null;
+  const rng=rngOf(n*7919+cards[n-1].a*131+Math.round(cards[n-1].dwell*10));
+  const T=new Map(),add=(a,b,w)=>{if(!T.has(a))T.set(a,new Map());const m=T.get(a);m.set(b,(m.get(b)||0)+w)};
+  LINES.forEach((L,l)=>L.prog.forEach(([d,q],i)=>{const [d2,q2]=L.prog[(i+1)%L.prog.length];add(ck((L.key+d)%12,q),ck((L.key+d2)%12,q2),P.lw[l]*4)}));
+  for(let i=0;i<n-1;i++){const a=ck(cards[i].root,cards[i].q),b=ck(cards[i+1].root,cards[i+1].q);if(a!==b)add(a,b,1.3)}
+  const VT=new Map();for(let i=0;i<n-1;i++){const a=cards[i].a,b=cards[i+1].a;if(!VT.has(a))VT.set(a,new Map());VT.get(a).set(b,(VT.get(a).get(b)||0)+1)}
+  const fav=new Map();P.vw.forEach((v,i)=>fav.set(i,v*v));
+  const nb=clamp(n,8,16),bars=[];let cur=ck(cards[0].root,cards[0].q);
+  for(let b=0;b<nb;b++){
+    const c=cards[b%n];let a=c.a;
+    if(rng()<.28){a=(VT.has(a)&&rng()<.5)?pickW(VT.get(a),rng):pickW(fav,rng)}
+    const [r,q]=cur.split(':');
+    const pat=clamp(Math.round(P.dens*5-.6+(rng()-.5)*1.6),0,4);
+    bars.push({root:+r,q,a,k:b%n,pat});
+    let nx=T.has(cur)?pickW(T.get(cur),rng):ck(cards[(b+1)%n].root,cards[(b+1)%n].q);
+    if(nx===cur&&T.has(cur))nx=pickW(T.get(cur),rng);
+    cur=nx;
+  }
+  if(n>=20&&P.second>=0){const tr=(LINES[P.second].key-LINES[P.home].key+12)%12||5;bars.slice().forEach(b=>bars.push({...b,root:(b.root+tr)%12}))}
+  return {bars,bass:n>=7,drums:n>=12,bpm:P.bpm,sr:P.swing,tenL:P.tenL,reg:P.reg};
+}
+
+/* ---------------- packing: sections only live inside your land, never on Your Line ---------------- */
+function pack(){
+  const {cols,rows,N}=G, o=S.owned, occ=new Int8Array(N).fill(-1), next={};
+  const mark=(p,m)=>{for(let y=p.y;y<p.y+p.h;y++)for(let x=p.x;x<p.x+p.w;x++)occ[y*cols+x]=m};
+  const fits=(x,y,w,h)=>{if(x<0||y<0||x+w>cols||y+h>rows)return false;for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){const i=yy*cols+xx;if(!o[i]||occ[i]>=0)return false}return true};
+  MODS.forEach((m,mi)=>{if(m.seed){next[m.id]=G.seedPos[m.id];mark(next[m.id],mi)}});
+  if(G.yDist)for(let i=0;i<N;i++)if(occ[i]<0&&G.yDist[i]<.75)occ[i]=99;
+  MODS.forEach((m,mi)=>{if(m.seed)return;
+    const opts=(G.mobile?m.m:m.d).filter(op=>op[0]<=cols);const prev=PL[m.id];let f=null;
+    if(prev&&opts.some(op=>op[0]===prev.w&&op[1]===prev.h)&&fits(prev.x,prev.y,prev.w,prev.h))f=prev;
+    else for(const op of opts){for(const i of G.order){const x=i%cols,y=(i/cols)|0;if(fits(x,y,op[0],op[1])){f={x,y,w:op[0],h:op[1]};break}}if(f)break}
+    if(f){next[m.id]=f;mark(f,mi)}
+  });
+  for(let i=0;i<N;i++)if(occ[i]===99)occ[i]=-1;
+  G.occ=occ;
+  MODS.forEach(m=>{const el=document.getElementById('m-'+m.id),p=next[m.id],q=PL[m.id];
+    if(!p){el.style.display='none';return}
+    const C=G.C,g=4;el.style.display='';
+    if(!q){el.style.transition='none';}
+    el.style.left=(p.x*C+g)+'px';el.style.top=(p.y*C+g)+'px';el.style.width=(p.w*C-g*2)+'px';el.style.height=(p.h*C-g*2)+'px';
+    if(!q){void el.offsetWidth;el.style.transition='';el.classList.remove('arrive');void el.offsetWidth;el.classList.add('arrive')}
+    if(!q||q.w!==p.w||q.h!==p.h){el.dataset.dirty='1'}
+  });
+  PL=next;
+}
+
+/* ---------------- land drawing ---------------- */
+const wOf=l=>l===YOU?(S.prof?S.prof.yW:500):LINES[l].w;
+const sw=l=>(l===YOU?2.6+(wOf(l)-100)/800*5.4:1+(wOf(l)-100)/800*7)*(G&&G.mobile?.8:1);
+function render(){
+  const {C,cols,rows,N}=G, o=S.owned, W=cols*C, H=rows*C, now=performance.now();
+  let fill='',ink='',edge='';
+  for(let y=0;y<rows;y++){let x=0;while(x<cols){const i=y*cols+x;if(o[i]&&!(S.fresh.get(i)>now)){let e=x;while(e<cols&&o[y*cols+e]&&!(S.fresh.get(y*cols+e)>now))e++;fill+=`M${x*C} ${y*C}h${(e-x)*C}v${C}h${-(e-x)*C}Z`;x=e}else x++}}
+  S.fresh.forEach((t,i)=>{if(t>now){ink+=`M${(i%cols)*C} ${((i/cols)|0)*C}h${C}v${C}h${-C}Z`}else S.fresh.delete(i)});
+  for(let i=0;i<N;i++){if(!o[i])continue;const x=(i%cols)*C,y=((i/cols)|0)*C,cx=i%cols,cy=(i/cols)|0;
+    if(cy===0||!o[i-cols])edge+=`M${x} ${y+.5}h${C}`;
+    if(cy===rows-1||!o[i+cols])edge+=`M${x} ${y+C-.5}h${C}`;
+    if(cx===0||!o[i-1])edge+=`M${x+.5} ${y}v${C}`;
+    if(cx===cols-1||!o[i+1])edge+=`M${x+C-.5} ${y}v${C}`}
+  const allLand=fill+ink;
+  function spanOwned(x0,y0,w){const cy=Math.floor(y0/C);if(cy<0||cy>=rows)return false;for(let x=x0;x<=x0+w;x+=C/2){const cx=Math.floor(x/C);if(cx>=0&&cx<cols&&o[cy*cols+cx])return true}return false}
+  const free=N-heldCount();
+  const ux=W-6, uy=G.mobile?Math.round(28.6*C):H-17, us=G.mobile?40:Math.round(C*.95);
+  const unsv=`<text x="${ux}" y="${uy}" text-anchor="end" font-size="${us}" font-weight="100" letter-spacing="-2" fill="#C8961A">Unsurveyed</text>
+   <text x="${ux}" y="${uy+13}" text-anchor="end" font-size="${G.mobile?8.5:9.5}" font-weight="600" letter-spacing="1.6" fill="#C8961A">${free} PARCELS NOBODY HAS LISTENED TO YET</text>`;
+  let lines='',linesW='',stn='',lbl='';
+  G.net.forEach((pl,l)=>{
+    const d='M'+pl.map(([x,y])=>`${(x*C).toFixed(1)} ${(y*C).toFixed(1)}`).join('L');
+    const cur=l===S.line;
+    lines+=`<path d="${d}" fill="none" stroke="#C8961A" stroke-width="${sw(l)}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    linesW+=`<path d="${d}" fill="none" stroke="#FFFFFF" stroke-width="${sw(l)}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const end=pl[pl.length-1], prev=pl[pl.length-2];
+    const horiz=Math.abs(end[0]-prev[0])>=Math.abs(end[1]-prev[1]);
+    const ex=end[0]*C, ey=end[1]*C, txt=`${LINES[l].w} ${LINES[l].name.toUpperCase()}${cur?' ◂':''}`, tw=txt.length*7.2;
+    let tx=horiz?ex-2:ex+10, ty=horiz?ey-9:ey-4, anc=horiz?'end':'start';
+    if(!horiz&&tx+tw>W){tx=ex-10;anc='end'}
+    let rot='';
+    if(G.mobile&&!horiz){tx=ex-sw(l)/2-4;ty=ey;anc='start';rot=` transform="rotate(-90 ${tx} ${ty})"`}
+    const lx0=anc==='end'?tx-tw:tx;
+    lbl+=`<text x="${tx}" y="${ty}"${rot} text-anchor="${anc}" font-size="${G.mobile?9:10.5}" letter-spacing="1.2" font-weight="${Math.max(250,LINES[l].w)}" fill="${spanOwned(lx0,ty-4,tw)?'#1A1407':'#C8961A'}">${txt}</text>`;
+    G.stations[l].forEach((p,k)=>{
+      const x=p.x*C,y=p.y*C, ci=Math.min(N-1,Math.floor(p.y)*cols+Math.floor(p.x)), mine=o[ci];
+      const a=LINES[l].st[k], hot=S.override===a, kept=S.cards.some(c=>c.l===l&&c.k===k);
+      const r=Math.max(4.5,sw(l)/2+3.5);
+      stn+=`<g class="st" data-st="${l}:${k}"><circle cx="${x}" cy="${y}" r="${r+7}" fill="transparent"/><circle cx="${x}" cy="${y}" r="${r}" fill="${hot?'#1A1407':'#FFFFFF'}" stroke="${mine||cur||kept?'#1A1407':'#C8961A'}" stroke-width="${cur||kept?2:1.5}"/>${kept&&!hot?`<circle cx="${x}" cy="${y}" r="1.8" fill="#1A1407"/>`:''}</g>`;
+      if(G.mobile&&!cur)return;
+      const vert=Math.abs(p.dy)>Math.abs(p.dx), diag=!vert&&Math.abs(p.dy)>.01;
+      const nm=ARTISTS[a].n, tw=nm.length*5.6;
+      let lx=vert||diag?x+r+5:x+2, ly=vert||diag?y+3.5:y+r+13, anc='start';
+      if(diag){lx=x-r-5;anc='end'}
+      if(anc==='start'&&lx+tw>W){lx=x-r-5;anc='end'}
+      if(anc==='end'&&lx-tw<0){lx=x+r+5;anc='start'}
+      const lx0=anc==='end'?lx-tw:lx;
+      lbl+=`<text x="${lx}" y="${ly}" text-anchor="${anc}" font-size="${G.mobile?8.5:9.5}" font-weight="${Math.max(400,LINES[l].w)}" fill="${spanOwned(lx0,ly-4,tw)?'#1A1407':'#C8961A'}" pointer-events="none">${nm}</text>`;
+    });
+  });
+  /* Your Line: ink, cased in paper, dashed until it opens */
+  let yl='';
+  if(G.you){
+    const Y=G.you, n=Y.pts.length, open=n>=3, cur=S.line===YOU, w=sw(YOU)+(cur?1.5:0);
+    const pl=[Y.start,...Y.pts];
+    const stub=n?pl:[Y.start,{x:Y.start.x,y:Y.start.y+1.2}];
+    const d='M'+stub.map(p=>`${(p.x*C).toFixed(1)} ${(p.y*C).toFixed(1)}`).join('L');
+    yl+=`<path d="${d}" fill="none" stroke="#FFFFFF" stroke-width="${w+5}" stroke-linejoin="round" stroke-linecap="square"/>`;
+    yl+=`<path d="${d}" fill="none" stroke="#1A1407" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="square"${open?'':` stroke-dasharray="${w*1.6+3} ${w+4}"`}/>`;
+    yl+=`<rect x="${Y.start.x*C-7}" y="${Y.start.y*C-2}" width="14" height="4" fill="#1A1407"/>`;
+    const r=Math.max(4.5,w/2+3.2);
+    Y.pts.forEach((p,i)=>{
+      const x=p.x*C,y=p.y*C,last=i===n-1,c=S.cards[i];
+      const tr=S.line===YOU&&S.station===i;
+      yl+=`<g class="ys" data-st="6:${i}"><circle cx="${x}" cy="${y}" r="${r+6}" fill="transparent"/><circle cx="${x}" cy="${y}" r="${r}" fill="${last?'#1A1407':'#FFFFFF'}" stroke="#1A1407" stroke-width="2"/>${last?`<circle cx="${x}" cy="${y}" r="${Math.max(1.6,r-3.2)}" fill="#C8961A"/>`:''}</g>`;
+      /* numbers sit on the outside of the turn */
+      const nx=-p.dy, ny=p.dx, L=Math.hypot(nx,ny)||1, ox=nx/L*(r+5), oy=ny/L*(r+5);
+      const anc=ox>2?'start':ox<-2?'end':'middle';
+      const txt=pad2(i+1);
+      yl+=`<text x="${(x+ox).toFixed(1)}" y="${(y+oy+3).toFixed(1)}" text-anchor="${anc}" font-size="${last?9.5:8}" letter-spacing=".8" font-weight="${last?850:600}" fill="#1A1407" pointer-events="none">${txt}</text>`;
+      void tr;
+    });
+    const e=n?Y.pts[n-1]:{x:Y.start.x,y:Y.start.y+1.2,dx:0,dy:1};
+    const yw=S.prof?S.prof.yW:500;
+    const t1=`YOUR LINE · ${yw}${cur?' ◂':''}`, t2=open?`${n} STATIONS · ${S.plan?S.plan.bpm:''} BPM · KEY 7`:`UNDER CONSTRUCTION · OPENS AT 3 · ${3-n} TO GO`;
+    const t3=n?`LATEST ${pad2(n)} · ${ARTISTS[S.cards[n-1].a].n.toUpperCase()}`:'';
+    const bw=Math.max(t1.length*6.6,t2.length*5.4,t3.length*5.4)+10, bh=n?38:27, ex=e.x*C, ey=e.y*C;
+    /* try four corners around the newest station; keep the one that covers the least of the line */
+    const samp=[];for(let k=0;k<pl.length-1;k++)for(let s2=0;s2<=4;s2++)samp.push({x:(pl[k].x+(pl[k+1].x-pl[k].x)*s2/4)*C,y:(pl[k].y+(pl[k+1].y-pl[k].y)*s2/4)*C});
+    const sd=G.seed;let best=null,bs=1e9;
+    for(const [sx,sy] of [[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0]]){
+      const bx=sx>0?ex+12:ex-12-bw, by=sy>0?ey+10:sy<0?ey-10-bh:ey-bh/2;
+      let sc=0;samp.forEach(q=>{if(q.x>bx-4&&q.x<bx+bw+4&&q.y>by-4&&q.y<by+bh+4)sc++});
+      if(bx<0||bx+bw>W||by<0||by+bh>H)sc+=50;
+      for(const id in PL){const m=PL[id];if(bx<(m.x+m.w)*C&&bx+bw>m.x*C&&by<(m.y+m.h)*C&&by+bh>m.y*C)sc+=30}
+      if(sc<bs){bs=sc;best={bx,by}}
+    }
+    const {bx,by}=best;
+    yl+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#FFFFFF" stroke="#1A1407" stroke-width="1"/>`;
+    yl+=`<text x="${bx+5}" y="${by+12}" font-size="11" letter-spacing="1.3" font-weight="${clamp(yw,300,900)}" fill="#1A1407">${t1}</text>`;
+    yl+=`<text x="${bx+5}" y="${by+23}" font-size="8" letter-spacing="1.3" font-weight="500" fill="#1A1407">${t2}</text>`;
+    if(t3)yl+=`<text x="${bx+5}" y="${by+33}" font-size="8" letter-spacing="1.3" font-weight="800" fill="#1A1407">${t3}</text>`;
+  }
+  const stl=G.stations[S.line]||[];
+  const tp=stl.length?stl[S.station%stl.length]:{x:G.seed.x+2.5,y:G.seed.y+G.seed.h};
+  const tr=sw(S.line)/2+7;
+  G.trainPx={x:tp.x*C,y:tp.y*C,r:tr};
+  land.setAttribute('width',W);land.setAttribute('height',H);land.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  land.innerHTML=`<defs><clipPath id="tc"><path d="${allLand}"/></clipPath></defs>
+   <rect width="${W}" height="${H}" fill="#FFFFFF"/>
+   ${unsv}${lines}
+   <path d="${fill}" fill="#C8961A" shape-rendering="crispEdges"/>
+   <path d="${ink}" fill="#1A1407" shape-rendering="crispEdges"/>
+   <g clip-path="url(#tc)">${linesW}</g>
+   <path d="${edge}" stroke="#1A1407" stroke-width="1" fill="none" shape-rendering="crispEdges"/>
+   ${lbl}${stn}${yl}
+   <g class="train" pointer-events="none" transform="translate(${tp.x*C},${tp.y*C})"><rect x="${-tr}" y="${-tr}" width="${tr*2}" height="${tr*2}" fill="#1A1407"/><rect x="-2.5" y="-2.5" width="5" height="5" fill="#C8961A"/></g>`;
+}
+
+/* ---------------- music ---------------- */
+let AC=null,MASTER=null,EPB=null,BUS=null,REV=null,NOISE=null,muted=false;
+const VOL=.6;
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function audio(){
+  if(AC){if(AC.state==='suspended')AC.resume().catch(()=>{});return AC}
+  try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=null;return null}
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=10;comp.ratio.value=5;comp.attack.value=.004;comp.release.value=.22;
+  const lim=AC.createDynamicsCompressor();lim.threshold.value=-3;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.1;
+  MASTER=AC.createGain();MASTER.gain.value=muted?0:VOL;comp.connect(MASTER);MASTER.connect(lim);lim.connect(AC.destination);
+  BUS=AC.createGain();BUS.gain.value=1;BUS.connect(comp);
+  EPB=AC.createGain();EPB.gain.value=.84;
+  const trem=AC.createOscillator();trem.frequency.value=4.4;const td=AC.createGain();td.gain.value=.16;trem.connect(td);td.connect(EPB.gain);trem.start();
+  EPB.connect(BUS);
+  const len=Math.floor(AC.sampleRate*1.9),ir=AC.createBuffer(2,len,AC.sampleRate);
+  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2)}
+  REV=AC.createConvolver();REV.buffer=ir;const rg=AC.createGain();rg.gain.value=.2;REV.connect(rg);rg.connect(comp);EPB.connect(REV);
+  NOISE=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const nd=NOISE.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;
+  return AC;
+}
+const live=()=>AC&&AC.state==='running';
+function ep(t,m,v,dur){
+  if(!live())return;const f=mtof(m);
+  const c=AC.createOscillator();c.frequency.value=f;
+  const mo=AC.createOscillator();mo.frequency.value=f;const mg=AC.createGain();
+  const idx=(1.4+v*1.6)*(m>76?.6:1);
+  mg.gain.setValueAtTime(f*idx,t);mg.gain.exponentialRampToValueAtTime(f*.2,t+.9);mo.connect(mg);mg.connect(c.frequency);
+  const ti=AC.createOscillator();ti.frequency.value=f*14;const tg=AC.createGain();tg.gain.setValueAtTime(f*v*.8,t);tg.gain.exponentialRampToValueAtTime(.01,t+.05);ti.connect(tg);tg.connect(c.frequency);
+  const a=AC.createGain();const pk=.075*v*(m>72?.8:1);
+  a.gain.setValueAtTime(0,t);a.gain.linearRampToValueAtTime(pk,t+.004);a.gain.setTargetAtTime(pk*.28,t+.006,.38);a.gain.setTargetAtTime(0,t+dur,.11);
+  c.connect(a);a.connect(EPB);const end=t+dur+.9;[c,mo,ti].forEach(o=>{o.start(t);o.stop(end)});
+}
+function chordHit(t,notes,v,dur){notes.forEach((m,i)=>ep(t+i*.006,m,v*(1-i*.04),dur))}
+function bass(t,m,v,dur){
+  if(!live())return;const f=mtof(m);
+  const o=AC.createOscillator();o.type='triangle';o.frequency.value=f;
+  const o2=AC.createOscillator();o2.frequency.value=f;
+  const lp=AC.createBiquadFilter();lp.type='lowpass';lp.Q.value=1.2;lp.frequency.setValueAtTime(1500,t);lp.frequency.exponentialRampToValueAtTime(380,t+.2);
+  const g=AC.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.34*v,t+.008);g.gain.setTargetAtTime(.13*v,t+.012,.16);g.gain.setTargetAtTime(0,t+dur,.05);
+  o.connect(lp);o2.connect(lp);lp.connect(g);g.connect(BUS);o.start(t);o2.start(t);o.stop(t+dur+.4);o2.stop(t+dur+.4);
+}
+function noiseHit(t,type,freq,q,v,dec){
+  if(!live())return;const s=AC.createBufferSource();s.buffer=NOISE;
+  const fl=AC.createBiquadFilter();fl.type=type;fl.frequency.value=freq;fl.Q.value=q;
+  const g=AC.createGain();g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0008,t+dec);
+  s.connect(fl);fl.connect(g);g.connect(BUS);s.start(t,Math.random()*.5);s.stop(t+dec+.05);
+}
+const ride=(t,v)=>noiseHit(t,'highpass',7200,.7,.045*v,.38);
+const brush=(t,v)=>noiseHit(t,'bandpass',1900,.8,.05*v,.11);
+
+function mkChord(root,q,t){
+  const base={maj:[0,4,7,11],m:[0,3,7,10],dom:[0,4,7,10]}[q];
+  const ext={maj:[14,18,21],m:[14,17,21],dom:[14,21,18]}[q].slice(0,t);
+  const suf={maj:['maj7','maj9','maj9♯11','maj13♯11'],m:['m7','m9','m11','m13'],dom:['7','9','13','13♯11']}[q][t];
+  return {root,q,iv:base.concat(ext),ext,name:NOTE[root]+suf,t};
+}
+function yBarAt(i){const P=S.playPlan||S.plan;if(P)return P.bars[i%P.bars.length];const c=S.cards[i%Math.max(1,S.cards.length)];return c?{root:c.root,q:c.q,a:c.a}:{root:0,q:'maj',a:5}}
+function chordAt(l,i){
+  if(l===YOU){const b=yBarAt(i);return mkChord(b.root,b.q,S.prof?S.prof.tenL:0)}
+  const L=LINES[l],[deg,q]=L.prog[i%L.prog.length];return mkChord((L.key+deg)%12,q,tension());
+}
+function voice(v,ch,reg){
+  const r=48+ch.root,I=ch.iv,th=I[1],sv=I[3],ex=ch.ext,t=ch.t,e0=ex[0]||12;let n;
+  switch(v){
+    case 'SHELL':n=[th,sv].concat(ex.length?[ex[ex.length-1]]:[]);break;
+    case 'ROOTLESS A':n=[th,7,sv,e0].concat(ex.slice(1));break;
+    case 'ROOTLESS B':n=[sv,e0,th+12,19].concat(ex.slice(1).map(e=>e+12));break;
+    case 'DROP 2':n=[sv-12,th,7,e0].concat(ex.slice(1));break;
+    case 'DROP 3':n=[7-12,th,sv,e0].concat(ex.slice(1));break;
+    case 'QUARTAL':n=({m:[0,5,10,15,19,24],maj:[4,9,14,19,23,28],dom:[10,16,21,26,30,33]}[ch.q]).slice(0,3+t);break;
+    case 'SO WHAT':n=({m:[0,5,10,15,19],maj:[4,9,14,19,23],dom:[10,15,20,25,29]}[ch.q]).slice(0,t>=2?5:4);break;
+    case 'OPEN TENTHS':n=[0,th+12,sv+12].concat(ex.map(e=>e+12));break;
+    case 'CLUSTER':{const pcs=[th,sv].concat(ex).map(e=>((e-th)%12+12)%12+th);n=[...new Set(pcs)].sort((a,b)=>a-b);break}
+    case 'UPPER STRUCTURE':n=[th,sv].concat(({m:[17,21,24],maj:[14,18,21],dom:[14,18,21]}[ch.q]).slice(0,1+t));break;
+    default:n=[th,7,sv];
+  }
+  const lo0=50+Math.round((reg||0)*8);
+  n=n.map(x=>r+x);let lo=Math.min(...n);while(lo<lo0){n=n.map(x=>x+12);lo+=12}while(lo>lo0+11){n=n.map(x=>x-12);lo-=12}
+  return n.sort((a,b)=>a-b);
+}
+const nSt=l=>l===YOU?Math.max(1,S.cards.length):LINES[l].prog.length;
+const stationArtist=(l,i)=>l===YOU?yBarAt(i).a:LINES[l].st[i%LINES[l].st.length];
+const voicingFor=(l,i)=>S.override>=0?S.override:stationArtist(l,i);
+function LN(l){
+  if(l!==YOU)return LINES[l];
+  const P=S.prof,pl=S.plan,k=pl?pl.bars[0].root:LINES[P.home].key;
+  return {w:P.yW,name:S.prof.n>=12?sleeveTitle().join(' '):'Your Line',cat:'RL-007',bpm:P.bpm,key:k,kn:NOTE[k],st:S.cards.map(c=>c.a)};
+}
+
+function scheduleBeat(b,t,spb){
+  const l=S.line,L=LINES[l],n=L.prog.length,bar=(b/4)|0,p=b%4,si=(S.st0+bar)%n;
+  const ch=chordAt(l,si),nx=chordAt(l,si+1);
+  const r=36+ch.root;let m;
+  if(p===0)m=r;else if(p===1)m=r+(bar%2?ch.iv[1]:7);else if(p===2)m=r+(bar%2?7:12);
+  else{let tg=36+nx.root;if(tg-r>6)tg-=12;m=tg+((bar+si)%2?-1:1)}
+  while(m<31)m+=12;while(m>52)m-=12;
+  bass(t,m,p===0?1:.82,spb*.9);
+  ride(t,p%2?.75:1);if(p===1||p===3){ride(t+spb*2/3,.5);brush(t,.8)}
+  const notes=voice(ARTISTS[voicingFor(l,si)].v,ch);
+  if(bar%2===0){
+    if(p===0&&bar===0)chordHit(t,notes,.85,spb*1.6);
+    if(p===1)chordHit(t+spb*2/3,notes,.5,spb*.45);
+    if(p===2&&bar>0)chordHit(t,notes,.6,spb*.8);
+  }else{
+    if(p===0)chordHit(t,notes,.75,spb*1.2);
+    if(p===3){const nn=voice(ARTISTS[voicingFor(l,si+1)].v,nx);chordHit(t+spb*2/3,nn,.82,spb*1.7)}
+  }
+}
+/* Your Line: one bar per station, everything else from the style card */
+const PATS=[[[0,.8,3.4]],[[0,.75,1.6],[2,.6,1.4,1]],[[0,.8,1.1],[1,.62,.5,1]],[[0,.6,.5,1],[2,.7,.9],[3,.8,1.6,1,1]],[[0,.72,.5],[1,.55,.4,1],[2,.6,.4,1],[3,.8,1.5,1,1]]];
+function scheduleYou(b,t,spb){
+  const Pl=S.playPlan,bar=b>>2,p=b&3,B=Pl.bars[bar%Pl.bars.length],NB=Pl.bars[(bar+1)%Pl.bars.length];
+  const ch=mkChord(B.root,B.q,Pl.tenL),nx=mkChord(NB.root,NB.q,Pl.tenL),sf=Pl.sr/(Pl.sr+1);
+  if(Pl.bass){const r=36+ch.root;let m;
+    if(p===0)m=r;else if(p===1)m=r+(bar%2?ch.iv[1]:7);else if(p===2)m=r+(bar%2?7:12);
+    else{let tg=36+nx.root;if(tg-r>6)tg-=12;m=tg+(bar%2?-1:1)}
+    while(m<31)m+=12;while(m>52)m-=12;bass(t,m,p===0?1:.8,spb*.9)}
+  if(Pl.drums){ride(t,p%2?.7:.95);if(p===1||p===3){ride(t+spb*sf,.45);brush(t,.75)}}
+  else if(!Pl.bass&&p===0&&bar%2===0)noiseHit(t,'highpass',7200,.7,.012,.5);
+  if(p===0){
+    const notes=voice(ARTISTS[B.a].v,ch,Pl.reg), nn=voice(ARTISTS[NB.a].v,nx,Pl.reg);
+    for(const [pos,v,dur,swg,ant] of PATS[B.pat]){const at=Math.floor(pos)+(swg?sf:0);chordHit(t+at*spb,ant?nn:notes,v,spb*dur)}
+    if(!Pl.bass)ep(t,36+12+ch.root,.55,spb*3.4);
+  }
+}
+let timer=null,nextT=0,sb=0;const VQ=[];
+const clock=()=>live()?AC.currentTime:performance.now()/1000;
+function sched(){
+  const spb=60/(S.line===YOU?S.playPlan.bpm:LINES[S.line].bpm);
+  while(nextT<clock()+.15){
+    if(sb>=S.total){VQ.push({t:nextT,end:true});clearInterval(timer);timer=null;return}
+    if(S.line===YOU)scheduleYou(sb,nextT,spb);else scheduleBeat(sb,nextT,spb);
+    VQ.push({t:nextT,b:sb});nextT+=spb;sb++;
+  }
+}
+function startPlay(delay){
+  audio();if(S.playing)return;
+  if(S.line===YOU){
+    if(S.cards.length<3){closedThud();return}
+    S.playPlan=S.plan;S.total=S.playPlan.bars.length*4;S.st0=0;S.station=0;
+    const Pl=S.playPlan;
+    setWhy(`Riding Your Line: ${S.cards.length} stations, ${Pl.bars.length} bars.`,
+      `chords chained by a Markov chain from what you heard, voiced by your stations · ${Pl.bpm} BPM, swing ${Pl.sr.toFixed(1)}:1, up to the ${TEN[Pl.tenL]}`,
+      `${Pl.drums?'Piano, bass and brushes':Pl.bass?'Piano and bass · brushes join at 12':'Piano alone · a bass joins at 7'} · Space stops`);
+  }else{
+    S.total=LISTEN_BEATS;S.st0=S.station;S.hist.push([S.line,0]);
+    const L=LINES[S.line];
+    setWhy(`Listening to ${L.name}.`,`every beat surveys land along line ${L.w}; 8 beats or more becomes a ticket`,`32 beats · ${L.bpm} BPM · Space stops`);
+  }
+  S.playing=true;S.ended=false;S.beat=0;sb=0;VQ.length=0;nextT=clock()+(delay||.06);
+  timer=setInterval(sched,25);sched();ui();
+}
+function stopPlay(quiet){
+  if(timer){clearInterval(timer);timer=null}
+  const was=S.playing, l=S.line, beats=S.beat;
+  VQ.length=0;S.playing=false;S.playPlan=null;
+  if(was&&!quiet&&!S.ended&&l!==YOU&&beats>=8&&S.preset==='you'){
+    const L=LINES[l];collect({kind:'PART',a:LINES[l].st[S.st0%L.st.length],l,k:S.st0%L.st.length,dwell:beats*60/L.bpm});
+  }else if(was&&!quiet&&!S.ended){setWhy(l===YOU?'Your Line stopped.':`Stopped after ${beats} beats.`,l===YOU?'':beats<8?'under 8 beats: too short to keep':'',l===YOU?'Space plays it again':'')}
+  ui();save();
+}
+function onBeat(b){
+  S.beat=b+1;
+  if(S.line===YOU){S.yBar=b>>2;if(b%4===0){S.station=(b>>2)%nSt(YOU);S.lastVoice=S.playPlan.bars[S.yBar%S.playPlan.bars.length].a;render()}ui();return}
+  const L=LINES[S.line],n=L.prog.length;
+  if(b%4===0){S.station=(S.st0+(b/4|0))%n;S.lastVoice=voicingFor(S.line,S.station)}
+  const nominal=L.bpm/LISTEN_BEATS;
+  const h=S.hist[S.hist.length-1];if(h)h[1]=Math.round((h[1]+nominal)*100)/100;
+  S.acc+=nominal*G.scale;const k=Math.floor(S.acc);S.acc-=k;
+  const before=tension();
+  if(k)grow(S.line,k,true);
+  S.beatsHeard++;
+  if(tension()!==before)flash('Tension of the six records rises to the '+TEN[tension()]);
+  pack();render();ui();
+  if(b%4===3)save();
+}
+function onEnd(){
+  S.ended=true;
+  if(S.line===YOU){setWhy('Your Line played through.','keep travelling: every new ticket changes the next ride','Space or 7 plays it again');stopPlay(true);return}
+  const l=S.line,L=LINES[l];S.listens[l]++;
+  stopPlay(true);
+  if(S.preset==='you')collect({kind:'LISTEN',a:L.st[S.st0%L.st.length],l,k:S.st0%L.st.length,dwell:LISTEN_BEATS*60/L.bpm});
+}
+
+/* immediate sounds */
+function stab(l,i,a){
+  audio();const t=clock()+.01,ch=chordAt(l,i),v=ARTISTS[a!=null?a:voicingFor(l,i)].v;
+  chordHit(t,voice(v,ch,l===YOU&&S.prof?S.prof.reg:0),.8,1.1);S.lastChord=ch;S.lastVoice=a!=null?a:voicingFor(l,i);return {t,ch}
+}
+function modulate(from,to){
+  audio();const t=clock()+.01,k=LN(to).key,tn=Math.min(2,tension());
+  const dom={root:(k+7)%12,q:'dom',iv:[0,4,7,10,13,21].slice(0,4+tn),ext:[13,21].slice(0,tn),t:tn};
+  chordHit(t,voice('DROP 2',dom),.75,.42);bass(t,36+dom.root,.9,.4);
+  const ch=chordAt(to,0);chordHit(t+.44,voice(ARTISTS[stationArtist(to,0)].v,ch),.85,1.4);bass(t+.44,36+ch.root,1,.9);
+}
+function closedThud(){
+  audio();bass(clock()+.01,31,.7,.2);
+  const n=S.cards.length;
+  setWhy('Your Line is still under construction.',`it opens at 3 tickets: ${3-n} to go`,'Hover a station and stay 1.2 s');
+}
+function chime(){
+  audio();const t=clock()+.02,k=S.plan?S.plan.bars[0].root:LINES[S.prof.home].key;
+  [[(k+2)%12,'m'],[(k+7)%12,'dom'],[k,'maj']].forEach(([r,q],i)=>chordHit(t+i*.24,voice(i===2&&S.prof.top>=0?ARTISTS[S.prof.top].v:'DROP 2',mkChord(r,q,Math.min(2,S.prof.tenL)),S.prof.reg),.5,i===2?1.4:.22));
+  bass(t+.48,36+k,.8,1);
+}
+
+/* ---------------- dwell sessions: how the Collector watches ---------------- */
+let SES=null;
+function sesStart(o){
+  sesEnd();
+  if(S.preset!=='you')return;
+  SES=Object.assign({t0:performance.now(),card:null,base:0,P0:S.prof},o);
+  const last=S.cards[S.cards.length-1];
+  if(o.kind==='LINGER'&&last&&last.kind==='LINGER'&&last.a===o.a&&last.l===o.l&&Date.now()-(last.tEnd||0)<5000){SES.card=last;SES.base=last.dwell;SES.merge=true;SES.P0=learn(S.cards.slice(0,-1))}
+}
+function sesTick(){
+  if(!SES){$('#punch').style.display='none';return}
+  const d=(performance.now()-SES.t0)/1000, thr=KIND[SES.kind].thr;
+  if(!SES.card&&d>=thr){SES.card=collect({kind:SES.kind,a:SES.a,l:SES.l,k:SES.k,dwell:d},{live:true})}
+  if(SES.card){SES.card.dwell=Math.min(60,SES.base+d);const el=document.querySelector(`.tk[data-n="${SES.card.n}"] .dwv`);if(el)el.innerHTML=dwellHTML(SES.card.dwell)}
+  const pu=$('#punch'),r=SES.anchor&&SES.anchor();
+  if(r&&r.width!==undefined){
+    pu.style.display='block';pu.classList.toggle('kept',!!SES.card);
+    $('#pK').textContent=SES.card?(SES.merge?`Ticket No. ${pad3(SES.card.n)} · extended`:`Kept · ticket No. ${pad3(SES.card.n)}`):(SES.kind==='STOP'?'Train stopped · timing':'Staying · timing');
+    $('#pT').textContent=fmtS(SES.base+d)+' s';$('#pN').textContent=ARTISTS[SES.a].n;
+    $('#pM').style.width=Math.min(100,d/thr*100)+'%';
+    let x=r.right+10+scrollX,y=r.top+scrollY-6;if(x+150>scrollX+document.documentElement.clientWidth-(document.body.classList.contains('side')?parseInt(getComputedStyle(document.documentElement).getPropertyValue('--colW')):0)){x=r.left+scrollX-148-10}
+    pu.style.left=Math.max(4,x)+'px';pu.style.top=y+'px';
+  }
+  const m=Math.min(1,d/thr);$('#meterI').style.width=(SES.card?100:m*40)+'%';
+}
+function sesEnd(){
+  if(!SES)return;const s=SES;SES=null;$('#punch').style.display='none';
+  const d=(performance.now()-s.t0)/1000;
+  if(s.card){
+    const c=s.card;c.dwell=Math.min(60,s.base+d);c.tEnd=Date.now();
+    const P0=s.P0;S.prof=learn(S.cards);const why=deltas(P0,S.prof);
+    const extra=growYou(Math.min(8,Math.floor(c.dwell/4)),true);
+    S.plan=compose();
+    setWhy(s.merge?`You came back to ${ARTISTS[c.a].n}: ticket No. ${pad3(c.n)} now reads ${fmtS(c.dwell)} s.`:(c.kind==='STOP'?`The train stood ${fmtS(c.dwell)} s at ${ARTISTS[c.a].n}.`:`You stayed ${fmtS(c.dwell)} s at ${ARTISTS[c.a].n}.`),
+      why||'the style card barely moves: it already knew this',
+      `${extra?`+${extra} parcels along Your Line for staying longer · `:''}Your Line: ${S.cards.length} station${S.cards.length>1?'s':''}`);
+    renderCollector();pack();render();ui();save();
+  }else if(s.kind==='LINGER'&&d>.12){
+    setWhy(`Passed ${ARTISTS[s.a].n} in ${d.toFixed(1)} s.`,`too quick to keep: the Collector only keeps what you stay 1.2 s for`,'Hover again and hold still');
+  }
+  $('#meterI').style.width='0%';
+}
+
+/* ---------------- collecting ---------------- */
+function collect(c,opt){
+  opt=opt||{};
+  const P0=S.prof, ch=chordAt(c.l,c.k);
+  Object.assign(c,{n:S.cards.length+1,root:ch.root,q:ch.q,cn:ch.name,ten:tension(),t:Date.now(),tEnd:Date.now()});
+  S.cards.push(c);
+  S.prof=learn(S.cards);const why=deltas(P0,S.prof);
+  refreshYou();
+  const got=growYou(4,true);
+  S.plan=compose();
+  S.newN=c.n;
+  const A=ARTISTS[c.a],L=LINES[c.l];
+  const what=c.kind==='LISTEN'?`You listened to ${L.name} to the end.`:c.kind==='PART'?`You listened to ${L.name} for ${fmtS(c.dwell)} s.`:c.kind==='ANNEX'?`You redrew the border for ${fmtS(c.dwell)} s on line ${L.w}.`:c.kind==='STOP'?`The train stood ${fmtS(c.dwell)} s at ${A.n}.`:`You stayed ${fmtS(c.dwell)} s at ${A.n}.`;
+  setWhy(what,why,`Ticket No. ${pad3(c.n)} · Your Line reaches station ${pad2(S.cards.length)}${got?` · +${got} parcels along it`:''}`);
+  renderCollector();pack();render();ui();checkChapters();save();
+  return c;
+}
+function checkChapters(){
+  const n=S.cards.length,reached=CHAPTERS.filter(c=>n>=c.n).length;
+  if(reached>S.chSeen){S.chSeen=reached;if(S.preset==='you'){const C=CHAPTERS[reached-1];if(!TOUR)showChapter(reached,C);if(reached>1)chime()}renderCollector()}
+}
+let chapT=null;
+function showChapter(i,C){
+  const ch=$('#chap');$('#chapK').textContent=`Chapter ${i} of ${CHAPTERS.length} · ${C.n} ticket${C.n>1?'s':''}`;$('#chapH').textContent=C.t;$('#chapP').innerHTML=C.d;
+  const fr=field.getBoundingClientRect();ch.style.left=Math.max(12,Math.min(fr.right,document.documentElement.clientWidth-12)-338)+'px';ch.style.top=($('#top').offsetHeight+10)+'px';
+  ch.classList.remove('on');void ch.offsetWidth;ch.classList.add('on');clearTimeout(chapT);chapT=setTimeout(()=>ch.classList.remove('on'),7500);
+}
+
+/* ---------------- Collector rendering ---------------- */
+function setWhy(a,b,c){
+  const el=$('#why');$('#w1').textContent=a||'';$('#w2').textContent=b||'';$('#w3').textContent=c||'';
+  el.classList.remove('new');void el.offsetWidth;el.classList.add('new');
+  if(G&&!document.body.classList.contains('side')){S.msg=a;S.msgT=performance.now()+3200}
+}
+const dwellHTML=s=>`${fmtS(s)}<small>s</small>`;
+function sleeveTitle(){const P=S.prof;return [ARTISTS[P.top>=0?P.top:5].adj,LINES[P.home].noun]}
+function sleeveSVG(Z){
+  const P=S.prof,Y=G.you,n=S.cards.length,pts=[Y.start,...Y.pts];
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;pts.forEach(p=>{x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y)});
+  const bw=Math.max(1,x1-x0),bh=Math.max(1,y1-y0),pd=Z*.1,aw=Z*.72,ah=Z*.44,k=Math.min(aw/bw,ah/bh),ox=pd+(aw-bw*k)/2,oy=Z*.14+(ah-bh*k)/2;
+  const X=p=>(ox+(p.x-x0)*k).toFixed(1),Yy=p=>(oy+(p.y-y0)*k).toFixed(1);
+  const d='M'+pts.map(p=>X(p)+' '+Yy(p)).join('L'),lw=Math.max(1.2,(1+(P.yW-100)/800*7)*Z/300);
+  const [t1,t2]=sleeveTitle(),fs=Z*.105;
+  let g=`<rect width="${Z}" height="${Z}" fill="#C8961A"/>`;
+  g+=`<path d="${d}" fill="none" stroke="#FFFFFF" stroke-width="${lw+Z/90}" stroke-linejoin="round" stroke-linecap="square"/><path d="${d}" fill="none" stroke="#1A1407" stroke-width="${lw}" stroke-linejoin="round" stroke-linecap="square"/>`;
+  if(Z>120)Y.pts.forEach(p=>{g+=`<circle cx="${X(p)}" cy="${Yy(p)}" r="${Math.max(1.5,lw*.55+1)}" fill="#FFFFFF" stroke="#1A1407" stroke-width="${Math.max(.8,Z/300)}"/>`});
+  P.vw.forEach((v,i)=>{const h=Z*.42*v/Math.max(...P.vw);g+=`<rect x="${(Z*.9+i*Z*.0072).toFixed(1)}" y="${(Z*.6-h).toFixed(1)}" width="${(Z*.0042).toFixed(1)}" height="${h.toFixed(1)}" fill="#1A1407"/>`});
+  if(Z>120){
+    g+=`<text x="${pd}" y="${Z*.075}" font-size="${Z*.028}" letter-spacing="${Z*.004}" font-weight="700" fill="#1A1407">RL-007 · RETURN LINE RECORDINGS</text>`;
+    g+=`<text x="${Z-pd*.5}" y="${Z*.075}" text-anchor="end" font-size="${Z*.028}" letter-spacing="${Z*.004}" font-weight="400" fill="#1A1407">${n} TICKETS</text>`;
+    g+=`<text x="${pd}" y="${Z*.73}" font-size="${fs}" letter-spacing="${-fs*.035}" font-weight="${P.yW}" fill="#1A1407">${t1}</text>`;
+    g+=`<text x="${pd}" y="${Z*.73+fs*.92}" font-size="${fs}" letter-spacing="${-fs*.035}" font-weight="${P.yW}" fill="#1A1407">${t2}</text>`;
+    g+=`<text x="${pd}" y="${Z*.95}" font-size="${Z*.026}" letter-spacing="${Z*.0035}" font-weight="600" fill="#1A1407">${P.bpm} BPM · SWING ${P.swing.toFixed(1)}:1 · TO THE ${TEN[P.tenL].toUpperCase()} · LINE ${P.yW}</text>`;
+  }else{
+    g+=`<text x="${Z*.08}" y="${Z*.84}" font-size="${Z*.15}" letter-spacing="-.5" font-weight="${P.yW}" fill="#1A1407">${t1}</text>`;
+    g+=`<text x="${Z*.08}" y="${Z*.96}" font-size="${Z*.11}" letter-spacing="-.3" font-weight="${Math.min(900,P.yW+100)}" fill="#1A1407">${t2}</text>`;
+  }
+  return `<svg width="${Z}" height="${Z}" viewBox="0 0 ${Z} ${Z}" font-family="Epilogue, sans-serif">${g}</svg>`;
+}
+function buildCollectorStatic(){
+  $('#vrows').innerHTML=ARTISTS.map((A,i)=>`<div class="vrow" data-a="${i}" id="vr${i}"><b>${A.n}</b><div class="bar"><i></i><s></s><em>${A.v}</em></div><span class="tnum">10%</span></div>`).join('');
+  $('#prows').innerHTML=`
+   <div class="prow" id="pr-ten"><span>Tension</span><div class="tsteps" id="tsteps">${TEN.map((t,i)=>`<b data-t="${i}">${t}</b>`).join('')}</div><span class="val" id="pv-ten"></span></div>
+   <div class="prow" id="pr-bpm"><span>Tempo</span><div class="rl"><u></u><i></i></div><span class="val tnum" id="pv-bpm"></span></div>
+   <div class="prow" id="pr-swing"><span>Swing</span><div class="rl"><u></u><i></i></div><span class="val tnum" id="pv-swing"></span></div>
+   <div class="prow" id="pr-reg"><span>Register</span><div class="rl"><u></u><i></i></div><span class="val" id="pv-reg"></span></div>
+   <div class="prow" id="pr-dens"><span>Comping</span><div class="rl"><u></u><i></i></div><span class="val" id="pv-dens"></span></div>
+   <div class="prow" id="pr-home"><span>Home line</span><span id="pv-home" style="font-size:10px;letter-spacing:.06em;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span><span class="val" id="pv-key"></span></div>`;
+  $('#chl').innerHTML='<div class="fillc" id="chFill"></div>'+CHAPTERS.map((C,i)=>`<div class="chs" data-i="${i}"><i></i><span>${C.s}</span></div>`).join('');
+}
+function setRail(id,v0,v1){const r=document.querySelector(`#${id} .rl`);r.querySelector('u').style.left=(clamp(v0,0,1)*100)+'%';r.querySelector('i').style.left=(clamp(v1,0,1)*100)+'%'}
+let lastProf=null;
+function renderCollector(){
+  const P=S.prof,n=S.cards.length,hot=performance.now()<S.hotT;
+  const mx=Math.max(...P.vw);let mi=-1;if(hot&&S.dv){mi=0;S.dv.forEach((d,i)=>{if(Math.abs(d)>Math.abs(S.dv[mi]))mi=i});if(Math.abs(S.dv[mi])<.005)mi=-1}
+  ARTISTS.forEach((A,i)=>{const r=$('#vr'+i),v=P.vw[i];
+    r.querySelector('b').style.fontWeight=Math.round(150+750*Math.pow(v/mx,1.3));
+    r.querySelector('s').style.width=(v/mx*100)+'%';
+    const em=r.querySelector('em');em.style.left=`calc(${Math.min(v/mx*100,100)}% + 2px)`;em.style.display=v/mx>.72?'none':'';
+    const d=S.dv?Math.round(S.dv[i]*100):0;
+    r.querySelector('span').textContent=(i===mi&&d)?`${d>0?'+':''}${d}`:Math.round(v*100)+'%';
+    r.classList.toggle('hot',i===mi&&!!d);r.classList.toggle('fav',n>0&&i===P.top);
+  });
+  const P0=lastProf||P, dp=hot&&S.dp?S.dp:{};
+  document.querySelectorAll('#tsteps b').forEach(b=>b.classList.toggle('on',+b.dataset.t===P.tenL));
+  $('#pv-ten').textContent=n?`colour ${Math.round(P.ten*100)}`:'—';
+  setRail('pr-bpm',(P0.bpm-66)/38,(P.bpm-66)/38);$('#pv-bpm').textContent=P.bpm+' BPM';
+  setRail('pr-swing',(P0.swing-1.3)/1.3,(P.swing-1.3)/1.3);$('#pv-swing').textContent=P.swing.toFixed(1)+' : 1';
+  setRail('pr-reg',(P0.reg+.7)/1.4,(P.reg+.7)/1.4);$('#pv-reg').textContent=P.reg<-.15?'Low':P.reg>.15?'High':'Middle';
+  setRail('pr-dens',(P0.dens-.15)/.7,(P.dens-.15)/.7);$('#pv-dens').textContent=P.dens<.36?'Sparse':P.dens<.5?'Even':P.dens<.62?'Busy':'Crowded';
+  const sc={ten:Math.abs(dp.ten||0)/.25+(dp.tenL?1:0),bpm:Math.abs(dp.bpm||0)/12,swing:Math.abs(dp.swing||0)/.5,reg:Math.abs(dp.reg||0)/.4,dens:Math.abs(dp.dens||0)/.2};
+  let hk=null;Object.keys(sc).forEach(k=>{if(sc[k]>.08&&(!hk||sc[k]>sc[hk]))hk=k});
+  Object.keys(sc).forEach(k=>$('#pr-'+k).classList.toggle('hot',k===hk));
+  $('#pv-home').textContent=n?`${LINES[P.home].w} · ${LINES[P.home].name}`:'Not yet';$('#pv-key').textContent=n?LINES[P.home].kn:'';
+  $('#styleN').textContent=n?`From ${n} ticket${n>1?'s':''} · ${fmtS(P.secs)} s stayed`:'From 0 tickets · even';
+  lastProf=P;
+  /* your line console */
+  const open=n>=3,pl=S.plan;
+  $('#ylName').textContent=n>=12?sleeveTitle().join(' '):'Your Line';$('#ylName').style.fontWeight=P.yW;
+  $('#ylCat').textContent=`RL-007 · Line ${P.yW}`;
+  $('#ylState').textContent=!open?'Under construction':pl.drums?'Full band':pl.bass?'Piano · bass':'Piano alone';
+  $('#ylMeta').innerHTML=open?`<b>${n}</b> stations · ${pl.bars.length} bars · <b>${NOTE[pl.bars[0].root]}</b><br><b>${pl.bpm}</b> BPM · swing <b>${pl.sr.toFixed(1)}</b> : 1 · to the <b>${TEN[pl.tenL]}</b>`:`<b>${n}</b> station${n===1?'':'s'} · opens at 3 tickets · <b>${3-n}</b> to go`;
+  const yp=$('#ylPlay');yp.disabled=!open;
+  const th=$('#sleeveThumb');
+  if(n>=12){th.classList.remove('empty');th.innerHTML=sleeveSVG(78)}else{th.classList.add('empty');th.innerHTML=`<span class="lab" style="font-size:8px">Sleeve<br>at 12</span>`}
+  /* notebook */
+  $('#nbN').textContent=n;
+  const shown=S.cards.slice(-40).reverse();
+  $('#nb').innerHTML=n?shown.map(c=>{const A=ARTISTS[c.a],L=LINES[c.l];
+    return `<div class="tk${c.n===S.newN?' arr':''}${SES&&SES.card===c?' live':''}" data-n="${c.n}" data-a="${c.a}" data-tl="${c.l}" data-tk="${c.k}"><div class="stub"><span>No. ${pad3(c.n)}</span><i>${KIND[c.kind].lab}</i></div><div class="bd">
+      <div class="who" style="font-weight:${Math.max(250,L.w)}">${A.n}</div>
+      <div class="what">${A.v} · line ${L.w}<br>${L.kn} · ${L.bpm} bpm · ${c.cn}</div>
+      <div class="dw"><b class="dwv tnum" style="font-weight:${Math.round(150+Math.min(1,c.dwell/20)*700)}">${dwellHTML(c.dwell)}</b><span>stayed</span></div></div></div>`}).join('')
+    +(n>40?`<div class="nbempty">and ${n-40} older tickets</div>`:'')
+    :`<div class="nbempty">Empty. A ticket is written when you stay: 1.2 s on a hovered station, 2.5 s with the train stopped, 8 beats of a record, or a long drag across the border.</div>`;
+  S.newN=0;
+  /* chapters */
+  const reached=CHAPTERS.filter(c=>n>=c.n).length,nx=CHAPTERS[reached];
+  document.querySelectorAll('.chs').forEach((e,i)=>{e.classList.toggle('on',i<reached);e.classList.toggle('next',i===reached)});
+  const segs=CHAPTERS.length-1;let f=0;if(reached>0){f=(reached-1)/segs;if(nx){const a=CHAPTERS[reached-1].n;f+=(n-a)/(nx.n-a)/segs}}else f=0;
+  $('#chFill').style.width=`calc(${f*100}% - ${f*10}px)`;
+  $('#chNext').textContent=nx?`${nx.n-n} more ${nx.n-n===1?'ticket':'tickets'} to “${nx.t.toLowerCase()}”`:'All chapters open · keep travelling';
+  $('#chNow').textContent=`Chapter ${reached} of ${CHAPTERS.length}`;
+  if(!document.body.classList.contains('side'))fitBody();
+}
+
+/* ---------------- ui ---------------- */
+function flash(m){S.msg=m;S.msgT=performance.now()+2600;ui()}
+function setWeight(w){
+  const from=S.lw;S.lw=w;let k=0;
+  const step=()=>{k++;const v=Math.round(from+(w-from)*k/4);document.documentElement.style.setProperty('--lw',v);if(k<4)setTimeout(step,40)};step();
+}
+function buildStatic(){
+  $('#c-lines').innerHTML=LINES.map((L,i)=>`<button data-line="${i}" style="font-weight:${L.w}" aria-pressed="false" title="Key ${i+1}">${L.w}</button>`).join('')+`<button data-line="6" class="yl" aria-pressed="false" title="Key 7">You</button>`;
+  $('#t-rows').innerHTML=LINES.map((L,i)=>`<button class="tr tnum" data-line="${i}" data-go="1"><b style="font-weight:${L.w}">${L.name}</b><span>${L.cat}</span><span>${L.bpm}</span><span>+${L.bpm}</span><span id="t-n${i}">0</span></button>`).join('')
+    +`<button class="tr tnum you" data-line="6" data-go="1" id="t-you"><b id="t-yname">Your Line</b><span>RL-007</span><span id="t-ybpm">—</span><span id="t-yst">0 st</span><span id="t-n6"></span></button>`;
+  $('#d-rows').innerHTML=ARTISTS.map((A,a)=>{
+    const ls=LINES.map((L,l)=>L.st.includes(a)?l:-1).filter(x=>x>=0);
+    const marks=ls.map((l,j)=>`<line x1="${j*10}" y1="1" x2="${j*10}" y2="11" stroke="#1A1407" stroke-width="${(1+(LINES[l].w-100)/800*5).toFixed(1)}"/>`).join('');
+    return `<div class="dr" data-a="${a}"><b>${A.n}</b><span>${A.v}</span><svg width="40" height="12"><g transform="translate(2,0)">${marks}</g></svg></div>`}).join('');
+  $('#sp-rows').innerHTML=LINES.map((L,i)=>`<div data-line="${i}" data-go="1"><em>${L.w}</em><span style="font-weight:${L.w}">${L.name}</span></div>`).join('');
+  buildCollectorStatic();
+}
+function buildStrip(){
+  const el=$('#m-strip');if(el.style.display==='none')return;
+  const l=S.line,isY=l===YOU,W=el.clientWidth-26,H=el.clientHeight-34;
+  let ks;if(isY){const n=S.cards.length,from=Math.max(0,Math.min(S.station-2,n-5));ks=[];for(let k=from;k<Math.min(n,from+5);k++)ks.push(k)}else ks=LINES[l].st.map((_,k)=>k);
+  const n=ks.length;if(!n){$('#s-svg').innerHTML='';return}
+  const alt=W/n<120, y=alt?Math.round(H*.5)-2:Math.round(H*.34),x0=8,x1=W-8,s=sw(l)*1.2+1,col=isY?'#1A1407':'#C8961A';
+  let g=`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="${col}" stroke-width="${s}" stroke-linecap="round"/>`;
+  ks.forEach((k,j)=>{const x=n>1?x0+(x1-x0)*j/(n-1):(x0+x1)/2,a=stationArtist(l,k),w=isY?S.prof.yW:LINES[l].w;
+    const anc=n===1?'middle':j===0?'start':j===n-1?'end':'middle',dx=n===1?0:j===0?-6:j===n-1?6:0;
+    g+=`<g class="st" data-st="${l}:${k}" style="cursor:crosshair"><rect x="${x-34}" y="0" width="68" height="${H}" fill="transparent"/>
+      <circle class="sdot" data-k="${k}" cx="${x}" cy="${y}" r="${s/2+4}" fill="#FFFFFF" stroke="#1A1407" stroke-width="1.6"/>
+      <text x="${x}" y="${alt&&j%2?y-s/2-19:y+s/2+18}" text-anchor="${anc}" font-size="${G.mobile?10:11}" font-weight="${Math.max(380,w)}" fill="#1A1407" dx="${dx}">${isY?pad2(k+1)+' ':''}${ARTISTS[a].n}</text>
+      <text x="${x}" y="${alt&&j%2?y-s/2-8:y+s/2+30}" text-anchor="${anc}" font-size="8" letter-spacing="1.1" font-weight="500" fill="#1A1407" dx="${dx}">${ARTISTS[a].v}</text></g>`});
+  $('#s-svg').innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  el.dataset.line=l;el.dataset.dirty='';el.dataset.sk=ks.join(',');
+}
+function buildKb(){
+  const el=$('#v-kb'),W=$('#m-voice').clientWidth-26;if(W<=0)return;
+  el.setAttribute('width',W);el.setAttribute('viewBox',`0 0 ${W} 22`);el.dataset.w=W;
+}
+function drawKb(notes){
+  const el=$('#v-kb'),W=+el.dataset.w||200,lo=48,hi=84,whites=[];
+  for(let m=lo;m<=hi;m++)if([0,2,4,5,7,9,11].includes(m%12))whites.push(m);
+  const kw=W/whites.length;let g='';
+  whites.forEach((m,i)=>{g+=`<rect x="${i*kw}" y="0" width="${kw-1}" height="22" fill="${notes.includes(m)?'#C8961A':'#FFFFFF'}" stroke="#1A1407" stroke-width=".8"/>`});
+  for(let m=lo;m<=hi;m++)if(![0,2,4,5,7,9,11].includes(m%12)){const wi=whites.findIndex(w=>w>m);const x=wi*kw-kw*.3;g+=`<rect x="${x}" y="0" width="${kw*.6}" height="13" fill="${notes.includes(m)?'#C8961A':'#1A1407'}" stroke="#1A1407" stroke-width=".8"/>`}
+  el.innerHTML=g;
+}
+function ui(){
+  const L=LN(S.line),held=heldCount(),t=tension(),frac=held/G.N,isY=S.line===YOU,n=S.cards.length;
+  $('#c-cat').textContent=`${L.cat} · Line ${L.w}`;
+  $('#c-name').textContent=L.name;
+  $('#c-bpm').textContent=L.bpm;$('#c-key').textContent=L.kn;
+  const ch=isY&&S.playing?chordAt(YOU,S.yBar):chordAt(S.line,S.station);$('#c-chord').textContent=ch.name;
+  $('#c-state').textContent=S.playing?`Beat ${String(S.beat).padStart(2,'0')}/${S.total}`:'Halted';
+  $('#c-fill').style.width=(S.playing?S.beat/S.total*100:0)+'%';
+  const pIcon=S.playing?'<path d="M5 3h6v20H5zM15 3h6v20h-6z"/>':'<path d="M5 3 L23 13 L5 23 Z"/>';
+  $('#playIcon').innerHTML=pIcon;
+  $('#playLab').innerHTML=isY?(S.playing?'Riding<br>your line':'Ride<br>your line'):(S.playing?`Surveying<br>${L.bpm} land`:`Listen<br>+${Math.round(L.bpm*G.scale)} land`);
+  document.querySelectorAll('#c-lines button').forEach((b,i)=>b.setAttribute('aria-pressed',i===S.line));
+  const yb=document.querySelector('#c-lines .yl');yb.disabled=n<3;yb.title=n<3?`Opens at 3 tickets`:'Key 7';
+  document.querySelectorAll('.tr').forEach(b=>b.setAttribute('aria-current',+b.dataset.line===S.line));
+  LINES.forEach((_,i)=>{const e=$('#t-n'+i);if(e)e.textContent='×'+S.listens[i]});
+  const ty=$('#t-you');ty.disabled=n<3;$('#t-yname').textContent=n>=12?sleeveTitle().join(' '):(n<3?'Your Line · opens at 3':'Your Line');$('#t-yname').style.fontWeight=S.prof.yW;
+  $('#t-ybpm').textContent=n>=3?S.prof.bpm:'—';$('#t-yst').textContent=n+' st';
+  $('#s-head').textContent=isY?`Your Line · ${n} stations · latest ${n?ARTISTS[S.cards[n-1].a].n:'—'}`:`Line ${L.w} · towards ${ARTISTS[L.st[L.st.length-1]].n}`;
+  const strip=$('#m-strip');
+  if(strip.style.display!=='none'){const need=strip.dataset.dirty==='1'||+strip.dataset.line!==S.line||(isY&&!(strip.dataset.sk||'').split(',').includes(String(S.station)));if(need)buildStrip()}
+  document.querySelectorAll('#s-svg .sdot').forEach(c=>{const on=+c.dataset.k===S.station;c.setAttribute('fill',on?'#1A1407':'#FFFFFF')});
+  $('#l-big').innerHTML=`${held}<small>/ ${G.N}</small>`;$('#l-pc').textContent=Math.round(frac*100)+'%';
+  $('#l-big').style.fontWeight=Math.round(100+800*frac);
+  $('#l-tension').textContent='Tension '+TEN[t];
+  $('#l-beats').textContent=S.beatsHeard;$('#l-red').textContent=S.redrawn;
+  const vk=$('#m-voice');if(vk.style.display!=='none'&&(vk.dataset.dirty==='1'||!$('#v-kb').dataset.w)){buildKb();vk.dataset.dirty=''}
+  const va=S.lastVoice!=null?S.lastVoice:voicingFor(S.line,S.station), vch=S.lastChord&&!S.playing?S.lastChord:ch;
+  $('#v-ch').textContent=vch.name;
+  $('#v-by').innerHTML=`<b>${ARTISTS[va].n}</b> · ${ARTISTS[va].v.toLowerCase()}`;
+  $('#v-mode').textContent=S.override>=0?'In hand · Esc':'Station';
+  drawKb(voice(ARTISTS[va].v,vch,isY?S.prof.reg:0));
+  document.querySelectorAll('.dr').forEach(d=>d.classList.toggle('on',+d.dataset.a===S.override));
+  document.querySelectorAll('[data-preset]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.preset===S.preset));
+  /* your line console in the Collector */
+  $('#ylIcon').innerHTML=isY&&S.playing?'<path d="M1 0h3v10H1zM6 0h3v10H6z"/>':'<path d="M1 0 L10 5 L1 10Z"/>';
+  $('#ylLab').textContent=n<3?`Opens at 3 · ${3-n} to go`:isY&&S.playing?`Stop · bar ${S.yBar+1}`:'Ride Your Line · 7';
+  const away=MODS.filter(m=>!PL[m.id]).length;
+  const msg=performance.now()<S.msgT?S.msg:(S.preset!=='you'?PRESETS[S.preset].name+' · simulated':'');
+  $('#status').innerHTML=(msg?`<b>${msg}</b> · `:'')+`${held} / ${G.N} parcels · ${away?`<b>${away}</b> section${away>1?'s':''} beyond the border`:'every section housed'}`;
+}
+
+/* ---------------- persistence ---------------- */
+function save(){
+  if(S.preset!=='you')return;
+  lsSet({v:2,hist:S.hist,listens:S.listens,line:S.line===YOU?0:S.line,beats:S.beatsHeard,red:S.redrawn,sig:G.cols+'x'+G.rows,owned:Array.from(S.owned).join(''),
+    cards:S.cards.slice(-200).map(c=>({kind:c.kind,a:c.a,l:c.l,k:c.k,dwell:Math.round(c.dwell*10)/10,root:c.root,q:c.q,cn:c.cn,ten:c.ten,t:c.t,n:c.n})),toured:S.toured,ch:S.chSeen});
+}
+function validCard(c){return c&&KIND[c.kind]&&c.a>=0&&c.a<10&&c.l>=0&&c.l<6&&c.k>=0&&c.k<LINES[c.l].st.length&&typeof c.dwell==='number'&&LINES[c.l].st[c.k]===c.a}
+function regenerate(){
+  S.owned=seedOwned();let acc=0;for(const [l,n] of S.hist){if(l<0||l>5)continue;acc+=n*G.scale;const k=Math.floor(acc);acc-=k;grow(l,k,false)}S.acc=acc;
+  const all=S.cards;
+  for(let i=1;i<=all.length;i++){const Y=buildYou(all.slice(0,i));G.yDist=polyDist([Y.start,...Y.pts]);growYou(4+Math.min(8,Math.floor(all[i-1].dwell/4)),false)}
+  refreshYou();
+}
+function load(){
+  const d=lsGet();
+  S.hist=[];S.listens=[0,0,0,0,0,0];S.beatsHeard=0;S.redrawn=0;S.line=0;S.station=0;S.override=-1;S.cards=[];S.toured=false;S.chSeen=0;
+  if(d&&d.v===2){S.hist=Array.isArray(d.hist)?d.hist:[];S.listens=Array.isArray(d.listens)?d.listens:S.listens;S.line=clamp(d.line|0,0,5);S.beatsHeard=d.beats|0;S.redrawn=d.red|0;
+    S.cards=(Array.isArray(d.cards)?d.cards:[]).filter(validCard).map((c,i)=>Object.assign({},c,{n:i+1}));S.toured=!!d.toured;}
+  S.prof=learn(S.cards);S.chSeen=CHAPTERS.filter(c=>S.cards.length>=c.n).length;S.dv=null;S.dp=null;
+  if(d&&d.v===2&&d.sig===G.cols+'x'+G.rows&&typeof d.owned==='string'&&d.owned.length===G.N){S.owned=Uint8Array.from(d.owned,c=>c==='1'?1:0);refreshYou()}else regenerate();
+  S.plan=compose();
+}
+function journey(k){
+  const j=PRESETS[k].j,rng=rngOf(j.seed),cards=[];
+  for(let i=0;i<j.n;i++){
+    const l=j.lines[Math.floor(rng()*j.lines.length)],st=LINES[l].st;
+    let ks=st.map((a,kk)=>j.like.includes(a)?kk:-1).filter(x=>x>=0);if(!ks.length||rng()<.22)ks=st.map((_,kk)=>kk);
+    const kk=ks[Math.floor(rng()*ks.length)],kind=j.kinds[i%j.kinds.length];
+    const dwell=kind==='LISTEN'?LISTEN_BEATS*60/LINES[l].bpm:j.dw[0]+rng()*(j.dw[1]-j.dw[0]);
+    const L=LINES[l],[deg,q]=L.prog[kk%L.prog.length],tn=Math.min(3,Math.floor(i/5));
+    cards.push({kind,a:st[kk],l,k:kk,dwell:Math.round(dwell*10)/10,root:(L.key+deg)%12,q,cn:mkChord((L.key+deg)%12,q,tn).name,ten:tn,n:i+1,t:0});
+  }
+  return cards;
+}
+function applyPreset(k){
+  sesEnd();if(S.playing)stopPlay(true);
+  S.preset=k;PL={};$('#chap').classList.remove('on');
+  if(k==='you'){load()}else{
+    const p=PRESETS[k];S.hist=p.hist.map(x=>x.slice());S.listens=[0,0,0,0,0,0];p.hist.forEach(([l,n])=>{if(n>=LINES[l].bpm)S.listens[l]++});
+    S.beatsHeard=p.hist.reduce((s,[l,n])=>s+Math.round(n/LINES[l].bpm*LISTEN_BEATS),0);S.redrawn=0;S.line=p.line;S.station=0;S.override=-1;
+    S.cards=journey(k);S.prof=learn(S.cards);S.chSeen=CHAPTERS.filter(c=>S.cards.length>=c.n).length;S.dv=null;S.dp=null;regenerate();S.plan=compose();
+    const P=S.prof;
+    setWhy(`${p.name}: ${S.cards.length} tickets, simulated.`,`mostly ${ARTISTS[P.top].n} (${VOX(P.top)}) on line ${LINES[P.home].w} · ${P.bpm} BPM · swing ${P.swing.toFixed(1)}:1 · to the ${TEN[P.tenL]}`,S.cards.length>=3?'Press 7 to hear their Your Line · You returns to yours':'Their line is still under construction');
+  }
+  S.lastChord=null;S.lastVoice=null;lastProf=null;
+  document.querySelectorAll('.mod').forEach(m=>m.style.display='none');
+  setWeight(LN(S.line).w);renderCollector();pack();render();ui();
+}
+
+/* ---------------- input ---------------- */
+function selectLine(l,go){
+  if(l===YOU&&S.cards.length<3){closedThud();return}
+  if(l===S.line){if(go&&!S.playing)startPlay();return}
+  const was=S.playing;if(was)stopPlay(true);
+  sesEnd();
+  modulate(S.line,l);
+  S.line=l;S.station=0;S.lastChord=null;S.lastVoice=null;
+  setWeight(LN(l).w);render();ui();save();
+  if(l===YOU)setWhy(`Changed to Your Line.`,`modulating to ${LN(l).kn}, the first chord the Collector chained for you`,'Space or ▶ rides it');
+  else setWhy(`Changed to line ${LINES[l].w}: ${LINES[l].name}.`,`modulating to ${LINES[l].kn} through its dominant`,'Stations you stay at on this line become tickets');
+  if(was||go)startPlay(.95);
+}
+function travel(d){
+  const n=nSt(S.line);S.station=(S.station+d+n)%n;
+  if(S.playing){S.st0=((S.station-Math.floor(S.beat/4))%n+n*8)%n}
+  const {ch}=stab(S.line,S.station);bass(clock()+.01,36+ch.root,1,.7);
+  render();ui();
+  if(S.line!==YOU&&!S.playing){const k=S.station,a=LINES[S.line].st[k];sesStart({kind:'STOP',a,l:S.line,k,anchor:trainRect})}
+}
+function trainRect(){const f=field.getBoundingClientRect(),t=G.trainPx;return {left:f.left+t.x-t.r,top:f.top+t.y-t.r,right:f.left+t.x+t.r,bottom:f.top+t.y+t.r,width:t.r*2,height:t.r*2}}
+function stationOf(a){const l0=S.line<6&&LINES[S.line].st.includes(a)?S.line:LINES.findIndex(L=>L.st.includes(a));return {l:l0,k:LINES[l0].st.indexOf(a)}}
+let lastHover=null,lastHoverT=0;
+document.addEventListener('pointerover',e=>{
+  if(TOUR&&TOUR.lock)return;
+  const st=e.target.closest&&e.target.closest('[data-st]'),dr=e.target.closest&&e.target.closest('[data-a]'),tk=e.target.closest&&e.target.closest('.tk');
+  const key=st?st.dataset.st:tk?'t'+tk.dataset.n:dr?'a'+dr.dataset.a:null;
+  if(!key||key===lastHover)return;lastHover=key;
+  const now=performance.now();if(now-lastHoverT<70)return;lastHoverT=now;
+  const el=st||tk||dr,anchor=()=>el.isConnected?el.getBoundingClientRect():null;
+  if(st){const [l,k]=st.dataset.st.split(':').map(Number);
+    if(l===YOU){const a=stationArtist(YOU,k);S.override=-1;stab(YOU,k,a);S.lastChord=chordAt(YOU,k);sesEnd();
+      const c=S.cards[k];if(c)setWhy(`Station ${pad2(k+1)} of Your Line: ${ARTISTS[c.a].n}.`,`ticket No. ${pad3(c.n)}, ${fmtS(c.dwell)} s · plays its voicing on the chord Your Line puts here`,'Your own stations play back; they do not count twice');}
+    else{const a=stationArtist(l,k);S.override=a;stab(l,k,a);S.lastChord=chordAt(l,k);sesStart({kind:'LINGER',a,l,k,anchor})}}
+  else if(tk){const c=S.cards.find(x=>x.n===+tk.dataset.n);if(c){S.override=c.a;stab(c.l,c.k,c.a);sesEnd()}}
+  else{const a=+dr.dataset.a;S.override=a;stab(S.line,S.station,a);if(!dr.closest('#col')){const p=stationOf(a);sesStart({kind:'LINGER',a,l:p.l,k:p.k,anchor})}else sesEnd()}
+  render();ui();
+});
+document.addEventListener('pointerout',e=>{if(!e.relatedTarget||!(e.relatedTarget.closest&&e.relatedTarget.closest('[data-st],[data-a],.tk'))){lastHover=null;if(SES&&SES.kind==='LINGER')sesEnd()}});
+document.addEventListener('pointerdown',()=>audio(),{capture:true});
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,[data-line]');if(!t)return;
+  if(t.closest('#coach')||t.closest('#board'))return;
+  if(t.hasAttribute('data-play')){S.playing?stopPlay():startPlay();return}
+  if(t.id==='ylPlay'){if(S.playing&&S.line===YOU)stopPlay();else if(S.line!==YOU)selectLine(YOU,true);else startPlay();return}
+  if(t.dataset.line!=null){selectLine(+t.dataset.line,!!t.dataset.go);return}
+  if(t.dataset.preset){applyPreset(t.dataset.preset);if(t.dataset.preset==='you')setWhy('Back to your own journey.',`${S.cards.length} tickets in your notebook`,'');return}
+  if(t.id==='reset'){sesEnd();if(S.playing)stopPlay(true);lsDel();S.preset='you';applyPreset('you');S.dv=null;renderCollector();setWhy('Everything forgotten.','notebook, style card, Your Line and land are back to the terminus','');openBoard();return}
+  if(t.id==='tourBtn'){if(S.preset!=='you')applyPreset('you');startTour();return}
+  if(t.id==='specBtn'||t.id==='specX'){const o=$('#specP').classList.toggle('open');$('#specBtn').setAttribute('aria-pressed',o);return}
+  if(t.id==='sleeveThumb'){if(S.cards.length>=12)openSleeve();return}
+  if(t.id==='sleeveX'){$('#sleeveP').classList.remove('open');return}
+  if(t.id==='chapX'){$('#chap').classList.remove('on');return}
+  if(t.id==='muteBtn'){toggleMute()}
+});
+function openSleeve(){
+  const P=S.prof,n=S.cards.length,[t1,t2]=sleeveTitle();
+  $('#slTitle').textContent=`${t1} ${t2}`;$('#slTitle').style.fontWeight=P.yW;
+  $('#bigSleeve').innerHTML=sleeveSVG(400);
+  const lines=[...new Set(S.cards.map(c=>c.l))].length,top2=P.vw.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).slice(0,2);
+  $('#slNotes').innerHTML=`Composed in this page from <b>${n} tickets</b> collected across ${lines} line${lines>1?'s':''}, ${fmtS(P.secs)} seconds of staying in all. Mostly <b>${ARTISTS[top2[0][1]].n}</b> (${Math.round(top2[0][0]*100)}%) and <b>${ARTISTS[top2[1][1]].n}</b> (${Math.round(top2[1][0]*100)}%). Played at ${P.bpm} BPM, swing ${P.swing.toFixed(1)}:1, voiced up to the ${TEN[P.tenL]}, home line ${LINES[P.home].w}. No two visitors get this sleeve.`;
+  $('#sleeveP').classList.add('open');
+}
+function toggleMute(){
+  muted=!muted;if(MASTER&&AC)MASTER.gain.setTargetAtTime(muted?0:VOL,AC.currentTime,.02);
+  $('#muteBtn').textContent=muted?'Sound off':'Sound on';$('#muteBtn').setAttribute('aria-pressed',muted);
+}
+document.addEventListener('keydown',e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  if($('#board').classList.contains('on')){if(e.key==='Enter'){e.preventDefault();$('#bGo').click()}return}
+  audio();const k=e.key;
+  if(k>='1'&&k<='7'){selectLine(+k-1,k==='7');return}
+  if(k===' '){e.preventDefault();S.playing?stopPlay():startPlay();return}
+  if(k==='ArrowRight'||k==='ArrowDown'){e.preventDefault();travel(1);return}
+  if(k==='ArrowLeft'||k==='ArrowUp'){e.preventDefault();travel(-1);return}
+  if(k==='m'||k==='M'){toggleMute();return}
+  if(k==='Escape'){
+    if(TOUR){endTour();return}
+    if($('#specP').classList.contains('open')){$('#specP').classList.remove('open');$('#specBtn').setAttribute('aria-pressed',false);return}
+    if($('#sleeveP').classList.contains('open')){$('#sleeveP').classList.remove('open');return}
+    S.override=-1;S.lastVoice=null;render();ui();flash('Voicing returned to the stations')}
+});
+let wAcc=0,wT=0;
+window.addEventListener('wheel',e=>{
+  if(!G||G.mobile||e.target.closest('#specP,#sleeveP,#col,#board'))return;
+  e.preventDefault();wAcc+=e.deltaY+e.deltaX;const now=performance.now();
+  if(Math.abs(wAcc)>45&&now-wT>130){travel(wAcc>0?1:-1);wAcc=0;wT=now}
+},{passive:false});
+
+/* drag: annex a parcel, cede a remote one; area is conserved */
+let drag=null;
+function cellAt(e){const r=field.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/G.C),y=Math.floor((e.clientY-r.top)/G.C);if(x<0||y<0||x>=G.cols||y>=G.rows)return -1;return y*G.cols+x}
+function adjacent(i){const {cols,rows}=G,o=S.owned,x=i%cols,y=(i/cols)|0;return (x>0&&o[i-1])||(x<cols-1&&o[i+1])||(y>0&&o[i-cols])||(y<rows-1&&o[i+cols])}
+function tryAnnex(c,dx){
+  const o=S.owned;if(o[c]||!adjacent(c))return;
+  const {cols}=G,cx=c%cols,cy=(c/cols)|0;let best=-1,bs=-1e9;
+  for(let i=0;i<G.N;i++){if(!o[i]||inSeed(i))continue;const x=i%cols,y=(i/cols)|0;
+    const nb=(x>0&&o[i-1]?1:0)+(x<cols-1&&o[i+1]?1:0)+(o[i-cols]?1:0)+(o[i+cols]?1:0);
+    const s=Math.hypot(x-cx,y-cy)-nb*2.5-(G.occ[i]>=0?60:0)+hash(i,9);if(s>bs){bs=s;best=i}}
+  audio();const t=clock()+.005,ch=chordAt(S.line,S.station);
+  if(best<0){bass(t,33,.7,.18);flash('Nothing to trade · listen first to hold land beyond the terminus');return}
+  o[best]=0;o[c]=1;S.fresh.set(c,performance.now()+320);S.redrawn++;if(drag)drag.n++;
+  const pcs=[...new Set(ch.iv.map(x=>x%12))].sort((a,b)=>a-b);
+  S.walk+=dx>=0?1:-1;const len=pcs.length*2,w=((S.walk%len)+len)%len;
+  bass(t,36+ch.root+pcs[w%pcs.length]+(w>=pcs.length?12:0)-(ch.root>7?12:0),.85,.32);
+  ep(t+.07,72+ch.root+pcs[(w+2)%pcs.length],.22,.25);
+  noiseHit(t,'highpass',7200,.7,.025,.18);
+  render();ui();
+}
+field.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.mod')||e.target.closest('[data-st]'))return;
+  const c=cellAt(e);if(c<0)return;
+  drag={id:e.pointerId,last:c,x:e.clientX,n:0,t0:performance.now()};
+  try{field.setPointerCapture(e.pointerId)}catch(_){}
+  tryAnnex(c,0);
+});
+field.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.id)return;const c=cellAt(e);
+  if(c>=0&&c!==drag.last){const dx=e.clientX-drag.x;drag.x=e.clientX;drag.last=c;tryAnnex(c,dx)}
+});
+const endDrag=()=>{if(!drag)return;const d=drag;drag=null;pack();render();ui();save();
+  if(d.n>=4&&S.preset==='you'){const l=S.line===YOU?0:S.line,k=S.station%LINES[l].st.length;collect({kind:'ANNEX',a:LINES[l].st[k],l,k,dwell:(performance.now()-d.t0)/1000})}
+  else if(d.n>0)setWhy(`You moved ${d.n} parcel${d.n>1?'s':''} of border.`,'area is conserved: every parcel annexed cedes a remote one','Move 4 or more in one drag and the Collector keeps it as a survey');};
+field.addEventListener('pointerup',endDrag);field.addEventListener('pointercancel',endDrag);
+
+/* ---------------- board + guided journey ---------------- */
+function openBoard(){
+  const n=S.cards.length,b=$('#bBack');
+  if(n){b.style.display='inline-block';b.textContent=`Welcome back · ${n} ticket${n>1?'s':''} in your notebook · Your Line has ${n} station${n>1?'s':''}`;$('#bGo').innerHTML='Continue your journey <i>→</i>';$('#bSkip').textContent='Replay the tour'}
+  else{b.style.display='none';$('#bGo').innerHTML='Board · guided first journey <i>40 s</i>';$('#bSkip').textContent='Skip the tour'}
+  $('#board').classList.add('on');document.body.classList.add('locked');
+}
+function closeBoard(){$('#board').classList.remove('on');document.body.classList.remove('locked');scrollTo(0,0)}
+$('#bGo').addEventListener('click',()=>{audio();closeBoard();if(S.cards.length){setWhy('Back at the terminus.',`${S.cards.length} tickets kept; the style card picks up where you left it`,'Hover a station and stay')}else startTour()});
+$('#bSkip').addEventListener('click',()=>{audio();closeBoard();if(S.cards.length)startTour();else{S.toured=true;save();setWhy('No tour. The train waits at the terminus.','hover a station and stay 1.2 s: that is one inspiration','Three tickets open Your Line')}});
+
+let TOUR=null;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function placeCoach(rect,i,N,html,btn){
+  const co=$('#coach'),ring=$('#coachRing'),lead=$('#coachLead');
+  $('#coachI').textContent=`${i} / ${N}`;$('#coachP').innerHTML=html;$('#coachNext').textContent=btn||'Next';
+  $('#coachBar').innerHTML=Array.from({length:N},(_,k)=>`<i class="${k<i?'on':''}"></i>`).join('');
+  co.style.display='block';
+  const vw=document.documentElement.clientWidth,vh=innerHeight,cw=co.offsetWidth,chh=co.offsetHeight;
+  if(!rect){ring.style.display='none';lead.style.display='none';co.style.left=Math.round((vw-cw)/2)+'px';co.style.top=Math.round(vh*.35)+'px';return}
+  const pd=6;ring.style.display='block';ring.style.left=(rect.left-pd)+'px';ring.style.top=(rect.top-pd)+'px';ring.style.width=(rect.width+pd*2)+'px';ring.style.height=(rect.height+pd*2)+'px';
+  let x,y;const gap=34;
+  if(rect.right+gap+cw<vw-8){x=rect.right+gap;y=rect.top+rect.height/2-chh/2}
+  else if(rect.left-gap-cw>8){x=rect.left-gap-cw;y=rect.top+rect.height/2-chh/2}
+  else if(rect.bottom+gap+chh<vh-8){x=rect.left+rect.width/2-cw/2;y=rect.bottom+gap}
+  else{x=rect.left+rect.width/2-cw/2;y=rect.top-gap-chh}
+  x=clamp(x,12,vw-cw-12);y=clamp(y,$('#top').offsetHeight+6,vh-chh-12);
+  co.style.left=x+'px';co.style.top=y+'px';
+  const cx=clamp(rect.left+rect.width/2,x,x+cw),cy=clamp(rect.top+rect.height/2,y,y+chh);
+  const tx=clamp(cx,rect.left-pd,rect.right+pd),ty=clamp(cy,rect.top-pd,rect.bottom+pd);
+  lead.style.display='block';const ln=$('#coachLine');ln.setAttribute('x1',cx);ln.setAttribute('y1',cy);ln.setAttribute('x2',tx);ln.setAttribute('y2',ty);
+  const dt=$('#coachDot');dt.setAttribute('cx',tx);dt.setAttribute('cy',ty);
+}
+function hideCoach(){$('#coach').style.display='none';$('#coachRing').style.display='none';$('#coachLead').style.display='none'}
+function ensureVisible(getRect){
+  const r=getRect();if(!r)return Promise.resolve();
+  const vh=innerHeight;if(r.top>=50&&r.bottom<=vh-50)return Promise.resolve();
+  scrollTo({top:Math.max(0,scrollY+r.top-vh*.35),behavior:'instant'});return sleep(60);
+}
+function waitNext(ms){return new Promise(res=>{const T=TOUR;if(!T)return res(false);let done=false;const fin=v=>{if(done)return;done=true;clearTimeout(to);T.next=null;res(v)};const to=ms?setTimeout(()=>fin(true),ms):null;T.next=()=>fin(true);T.cancel=()=>fin(false)})}
+$('#coachNext').addEventListener('click',()=>{if(TOUR&&TOUR.next)TOUR.next()});
+$('#coachSkip').addEventListener('click',()=>endTour());
+function endTour(){if(!TOUR)return;const T=TOUR;TOUR=null;if(T.cancel)T.cancel();hideCoach();S.toured=true;save();
+  if(!S.cards.length)setWhy('Tour skipped. The train waits at the terminus.','hover a station and stay 1.2 s: that is one inspiration','Three tickets open Your Line');}
+async function startTour(){
+  if(TOUR)return;hideCoach();sesEnd();if(S.playing)stopPlay(true);
+  TOUR={lock:false};const T=TOUR;const N=6;const alive=()=>TOUR===T;
+  if(S.line!==0){S.line=0;setWeight(100)}S.station=0;render();ui();
+  const stRect=()=>{const f=field.getBoundingClientRect(),p=G.stations[0][1];return {left:f.left+p.x*G.C-14,top:f.top+p.y*G.C-14,right:f.left+p.x*G.C+14,bottom:f.top+p.y*G.C+14,width:28,height:28}};
+  const trainR=()=>{const r=trainRect();return {left:r.left-4,top:r.top-4,right:r.right+4,bottom:r.bottom+4,width:r.width+8,height:r.height+8}};
+  setWhy('Guided journey: watch one inspiration being collected.','the train will move one station on line 100','Skip any time');
+  await ensureVisible(trainR);if(!alive())return;
+  placeCoach(trainR(),1,N,'Each line on this map is a <b>record</b>; each circle is an <b>artist</b> and their way of voicing a chord. The black square is the train. Watch it move one station.');
+  if(!await waitNext(3800)||!alive())return;
+  T.lock=true;travel(1);
+  await sleep(250);if(!alive())return;
+  const pr=()=>{const e=$('#punch');return e.style.display==='block'?e.getBoundingClientRect():stRect()};
+  placeCoach(stRect(),2,N,`It stops at <b>Ilse Moravec</b>, who voices in fourths. The Collector is <b>timing the stop</b>: 2.5 s with the train standing, or 1.2 s with your cursor on a station, makes a ticket.`);
+  for(let i=0;i<30&&alive()&&!(SES&&SES.card);i++)await sleep(100);
+  if(!alive())return;
+  await sleep(500);
+  T.lock=false;sesEnd();
+  const tkR=()=>{const e=document.querySelector('.tk');return e?e.getBoundingClientRect():$('#nbS').getBoundingClientRect()};
+  await ensureVisible(tkR);if(!alive())return;
+  placeCoach(tkR(),3,N,`<b>Kept.</b> Ticket No. 001 records who, which voicing, which line and key, the tempo, and how long you stayed. That is one <b>inspiration</b>.`);
+  if(!await waitNext(5200)||!alive())return;
+  const sr=()=>$('#styleS').getBoundingClientRect();
+  await ensureVisible(sr);if(!alive())return;
+  placeCoach(sr(),4,N,`The <b>style card</b> learns from it: <b>${$('#w2').textContent||'quartal voicings rise'}</b>. A name is set heavier the more you stay with it. The ochre tick on each rail is where it was; the ink tick is where it is now.`);
+  if(!await waitNext(6200)||!alive())return;
+  const yr=()=>{const f=field.getBoundingClientRect(),Y=G.you,p=Y.pts[0]||Y.start;const x0=Math.min(Y.start.x,p.x)*G.C,x1=Math.max(Y.start.x,p.x)*G.C,y0=Math.min(Y.start.y,p.y)*G.C,y1=Math.max(Y.start.y,p.y)*G.C;return {left:f.left+x0-16,top:f.top+y0-10,right:f.left+x1+16,bottom:f.top+y1+16,width:x1-x0+32,height:y1-y0+26}};
+  await ensureVisible(yr);if(!alive())return;
+  placeCoach(yr(),5,N,`And <b>Your Line</b>, the only ink line on the map, gains its first station, turning toward the station that inspired it. Every ticket adds one. At <b>3</b> it opens and plays music composed from your tickets.`);
+  if(!await waitNext(6500)||!alive())return;
+  sesEnd();
+  const fr=()=>{const f=field.getBoundingClientRect();return {left:f.left,top:f.top,right:f.right,bottom:Math.min(f.bottom,innerHeight-50),width:f.width,height:Math.min(f.bottom,innerHeight-50)-f.top}};
+  scrollTo({top:0,behavior:'instant'});
+  placeCoach(null,6,N,`<b>Your turn.</b> Hover any station and hold still. Press ▶ to listen to a record. Two more tickets and Your Line opens: chapter 2.`,'Start travelling');
+  void fr;
+  await waitNext(0);
+  if(TOUR===T){TOUR=null;hideCoach();S.toured=true;save();setWhy('Your turn.','hover a station and stay 1.2 s: each stay is one inspiration',`${Math.max(0,3-S.cards.length)} more ticket${3-S.cards.length===1?'':'s'} open Your Line`)}
+}
+
+/* ---------------- loop ---------------- */
+function frame(){
+  const t=clock();
+  while(VQ.length&&VQ[0].t<=t){const ev=VQ.shift();if(ev.end){onEnd();break}onBeat(ev.b)}
+  if(S.fresh.size){const now=performance.now();let exp=false;S.fresh.forEach(v=>{if(v<=now)exp=true});if(exp)render()}
+  if(S.msgT&&performance.now()>S.msgT){S.msgT=0;ui()}
+  if(S.hotT&&performance.now()>S.hotT){S.hotT=0;renderCollector()}
+  sesTick();
+  requestAnimationFrame(frame);
+}
+function fitBody(){
+  const side=document.body.classList.contains('side'),col=$('#col'),botH=$('#bot').offsetHeight;
+  if(side){document.body.style.height=(G.top+G.rows*G.C+botH+8)+'px';return}
+  const top=G.top+G.rows*G.C+18;col.style.top=top+'px';
+  document.body.style.height=(top+col.offsetHeight+botH+18)+'px';
+}
+function layout(){
+  const vw=document.documentElement.clientWidth,side=vw>=1000;
+  document.body.classList.toggle('side',side);
+  const root=document.documentElement.style;
+  root.setProperty('--topH',$('#top').offsetHeight+'px');root.setProperty('--botH',$('#bot').offsetHeight+'px');
+  const colW=side?clamp(Math.round(vw*.27),340,400):0;root.setProperty('--colW',colW+'px');
+  G=geo(colW);
+  field.style.left=G.left+'px';field.style.top=G.top+'px';field.style.width=G.cols*G.C+'px';field.style.height=G.rows*G.C+'px';
+  root.setProperty('--C',G.C+'px');
+  if(!side)$('#col').style.top='0px';
+}
+let booted=false;
+function boot(){
+  if(booted)return;booted=true;
+  buildStatic();layout();
+  S.preset='you';load();
+  S.lw=LINES[S.line].w;document.documentElement.style.setProperty('--lw',S.lw);
+  renderCollector();pack();render();ui();fitBody();requestAnimationFrame(frame);
+  openBoard();
+}
+let rz=null;
+window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{
+  const sig=G.cols+'x'+G.rows;layout();
+  if(G.cols+'x'+G.rows!==sig){
+    if(S.preset==='you'){const d=lsGet();if(d&&d.v===2&&d.sig===G.cols+'x'+G.rows)load();else regenerate()}else regenerate();
+    PL={};document.querySelectorAll('.mod').forEach(m=>m.style.display='none');}
+  else refreshYou();
+  S.plan=compose();renderCollector();pack();render();ui();fitBody()},120)});
+
+window.TERRITORY={
+  preset:applyPreset,
+  sim(l,n){if(S.playing)stopPlay(true);S.line=l;S.st0=S.station;S.hist.push([l,0]);for(let i=0;i<n;i++)onBeat(i);if(n>=LISTEN_BEATS){S.st0=S.station;onEnd()}S.beat=0;setWeight(LINES[l].w);render();ui();save()},
+  border(){for(let i=G.N-1;i>=0;i--){if(S.owned[i]&&G.occ[i]<0&&!inSeed(i)){const x=i%G.cols,y=(i/G.cols)|0;if(y+1<G.rows&&!S.owned[i+G.cols])return {x,y,C:G.C}}}return null},
+  state:()=>({line:S.line,held:heldCount(),total:G.N,tension:TEN[tension()],placed:Object.keys(PL),cards:S.cards.length,prof:S.prof,plan:S.plan&&{bars:S.plan.bars.length,bass:S.plan.bass,drums:S.plan.drums,bpm:S.plan.bpm,sr:S.plan.sr,chords:S.plan.bars.map(b=>NOTE[b.root]+b.q).join(' ')},you:G.you&&G.you.pts.length,tour:!!TOUR,why:$('#w1').textContent+' | '+$('#w2').textContent}),
+  stationXY(l,k){const f=field.getBoundingClientRect(),p=G.stations[l][k];return {x:f.left+p.x*G.C,y:f.top+p.y*G.C}}
+};
+let bootT=setTimeout(boot,2500);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{clearTimeout(bootT);boot()});else boot();
+})();
+</script>
+</body>
+</html>
