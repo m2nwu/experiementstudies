@@ -1,0 +1,59 @@
+<!doctype html>
+<!--
+  TRACK — a port of the scroll site "Hiro_Demo-03_TRACK" (demo-03-track.hirotos.com) by Hiro (hirotos.com).
+  Built with the author's permission as stated by the repository owner. The 3D model and video in ./assets are the original files.
+  The scene, camera switching, runner blend, toon + outline look, grain pass and typography values follow the original's template config.
+  Fonts: the original uses Adobe Fonts (ivyora-display, helvetica-neue-lt-pro). Cormorant Garamond and Helvetica stand in here.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hiro_Demo-03_TRACK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--tone:#f7d902;--display:"ivyora-display","Cormorant Garamond",Georgia,serif;--sans:"helvetica-neue-lt-pro","Helvetica Neue",Helvetica,Arial,sans-serif}
+html,body{margin:0;height:100%;overflow:hidden;background:#fff;overscroll-behavior:none;-ms-overflow-style:none;scrollbar-width:none}
+body{font-family:var(--display);-webkit-font-smoothing:antialiased;touch-action:none;user-select:none}
+#shell{position:relative;width:100%;height:100dvh;min-height:100svh;overflow-x:clip;background:#fff}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fix{position:fixed;pointer-events:none}
+#hero{left:50%;top:12%;transform:translate(-50%,-50%);z-index:90;margin:0;color:var(--tone);font-weight:600;font-size:clamp(60px,12.4vw,200px);line-height:1;
+  letter-spacing:.07em;padding-left:.07em;text-transform:uppercase;text-shadow:0 0 1px #0000006b,0 0 2px #00000038;white-space:nowrap}
+#msg{left:50%;top:50%;transform:translate(-50%,-50%);z-index:91;width:min(92vw,1120px);margin:0;color:var(--tone);letter-spacing:0;text-align:center;text-transform:uppercase;
+  text-shadow:0 0 1px #0000006b,0 0 2px #00000038;font-size:clamp(28px,2.7vw,54px);font-weight:500;line-height:.98;transition:color .4s}
+#msg .text{display:grid;justify-items:center;row-gap:clamp(12px,1vw,18px);max-width:100%}
+#msg .quote{display:flex;flex-direction:column;align-items:center;row-gap:.12em;letter-spacing:.12em;line-height:1.05}
+#msg .who{display:flex;justify-content:center;font-family:var(--sans);font-size:clamp(9px,.74vw,13px);font-weight:500;letter-spacing:.2em;line-height:1}
+#msg .line,#msg .name{display:inline-flex;white-space:nowrap;column-gap:.38em;max-width:100%;justify-content:center}
+#msg .name{flex-wrap:wrap;gap:.28em .42em}
+.word{display:inline-flex;white-space:nowrap}
+.c{display:inline-block;opacity:0;filter:blur(10px);transform:translateY(.12em) scale(.98);transition:opacity .7s ease,filter .7s ease,transform .7s ease}
+.c.on{opacity:1;filter:blur(0);transform:none}
+#hud{left:clamp(14px,2vw,32px);bottom:clamp(14px,2vw,28px);z-index:92;display:flex;gap:1.4em;color:var(--tone);font:500 clamp(9px,.74vw,12px)/1 var(--sans);letter-spacing:.2em;
+  opacity:0;transition:opacity .8s,color .4s;font-variant-numeric:tabular-nums;text-shadow:0 0 1px #0000006b}
+#hud[data-visible=true]{opacity:1}
+#credit{right:clamp(14px,2vw,32px);bottom:clamp(14px,2vw,28px);z-index:92;margin:0;color:var(--tone);text-align:right;text-transform:uppercase;font:500 clamp(7px,.5vw,9px)/1.7 var(--display);
+  letter-spacing:.12em;opacity:0;transition:opacity 1s,color .4s;pointer-events:none}
+#credit[data-visible=true]{opacity:1}
+#credit a{color:inherit;text-decoration:underline;text-underline-offset:2px;pointer-events:auto}
+#pre{position:absolute;inset:0;z-index:260;background:#ef3329;display:grid;place-items:center;overflow:hidden;transition:opacity 1.08s cubic-bezier(.45,0,.55,1),filter 1.08s cubic-bezier(.45,0,.55,1)}
+#pre.go{opacity:0;filter:blur(18px);pointer-events:none}
+#pre p{margin:0;color:#f7d902;letter-spacing:clamp(.2em,.72vw,.56em);text-align:center;text-transform:uppercase;text-shadow:0 0 1px #0000006b,0 0 2px #00000038;font-size:clamp(15px,1.35vw,24px);font-weight:500;line-height:1;padding-left:.56em}
+@media (max-width:760px){#pre p{letter-spacing:.18em;font-size:14px}#hero{letter-spacing:.06em;padding-left:.06em;font-size:clamp(50px,20vw,110px)}}
+@media (prefers-reduced-motion:reduce){.c{transition:opacity .2s;filter:none}}
+</style>
+</head>
+<body>
+<div id="shell">
+  <canvas id="gl"></canvas>
+  <h1 id="hero" class="fix" aria-label="Track"></h1>
+  <p id="msg" class="fix"></p>
+  <div id="hud" class="fix"><span id="hudT">00:00:00</span><span id="hudD">000m</span></div>
+  <p id="credit" class="fix">This site was made by Hiro.<br><a href="https://hirotos.com" target="_blank" rel="noreferrer">See the portfolio here.</a></p>
+  <div id="pre"><p>The Trace of Icons</p></div>
+</div>
+<script src="track.js"></script>
+</body>
+</html>
