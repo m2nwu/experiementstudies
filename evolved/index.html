@@ -1,166 +1,92 @@
 <!doctype html>
 <!--
-  E11 — EVOLVED TYPE. A typeface bred by a genetic algorithm and judged by a machine reader
-  that is trained inside this page.
-  UI typeface: "Geist Mono" (Google Fonts). Reason: a technical, slightly wide monospace that reads like
-  a lab register at 9-10px; it is not on the series' used-font list and stays quiet so the evolved
-  letters (drawn in code, not a font) carry the page.
-  Training faces (rasterised, never shown as text): Anton, Abril Fatface, Bungee, Cinzel, Comfortaa,
-  Josefin Sans, Oswald, Playfair Display, Press Start 2P, Righteous, Rubik Mono One, Zilla Slab,
-  Poiret One, Syne, Unbounded, VT323, Shrikhand, Alfa Slab One, Bebas Neue, Lora, Work Sans, Bitter,
-  chosen to be as different from each other as possible, plus whatever system faces exist and a
-  built-in stroke set when the network is blocked.
-  Palette: white paper + ink (what the machine measured) + ONE fluorescent ink (what a human chose).
+  REGULA / EVOLVED — a standard for selection.
+  Each glyph is a population of 16 stroke genomes bred continuously by a genetic algorithm and judged by a small
+  neural reader (MLP 400-72-37) trained in this page; fitness = reading x strangeness; visitors' picks breed more.
+  Site faces (whole series): Jost, a Futura revival - geometry built from circle, square and triangle, the
+  emblem of standardised form - for names and headings; B612 Mono, drawn as a legibility standard for Airbus
+  cockpit displays - a typeface as a working instrument - for axis readouts, units and numbers.
+  The second stylesheet loads training faces only: they are rasterised for the reader and never shown as text.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>EVOLVED TYPE — E11</title>
+<title>Evolved — Regula</title>
+<meta name="description" content="Evolved: letters bred continuously and read by a machine trained in the page.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=B612+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Abril+Fatface&family=Bungee&family=Cinzel:wght@500&family=Comfortaa:wght@500&family=Josefin+Sans&family=Oswald:wght@500&family=Playfair+Display:wght@700&family=Press+Start+2P&family=Righteous&family=Rubik+Mono+One&family=Zilla+Slab:wght@500&family=Poiret+One&family=Syne:wght@700&family=Unbounded&family=VT323&family=Shrikhand&family=Alfa+Slab+One&family=Bebas+Neue&family=Lora:wght@600&family=Work+Sans:wght@300&family=Bitter:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/site.css">
+<script>if(/[?&]embed/.test(location.search))document.documentElement.classList.add('embed')</script>
 <style>
-:root{
-  --bg:#f5f4f0; --fg:#161616; --dim:rgba(22,22,22,.5); --faint:rgba(22,22,22,.12); --hair:rgba(22,22,22,.26);
-  --acc:#ff2d8d; --panel:rgba(245,244,240,.92);
-  --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
-}
-:root[data-theme="dark"]{
-  --bg:#0f0f0e; --fg:#ecebe6; --dim:rgba(236,235,230,.5); --faint:rgba(236,235,230,.12); --hair:rgba(236,235,230,.26); --panel:rgba(15,15,14,.9);
-}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;
-  font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;-webkit-font-smoothing:antialiased}
-button,input{font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
-button{background:none;border:0;padding:0;cursor:pointer}
-#top{position:fixed;left:0;right:0;top:0;height:44px;display:flex;align-items:center;gap:22px;padding:0 18px;z-index:5;border-bottom:1px solid var(--faint);background:var(--bg)}
-#mark{display:flex;gap:10px;align-items:baseline;white-space:nowrap}
-#mark b{font-weight:600;letter-spacing:.16em}
-#mark span{color:var(--dim)}
-#mark i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--acc);margin-right:2px}
-#tabs{display:flex;gap:2px;margin-left:auto;margin-right:auto}
-#tabs button{padding:6px 10px;color:var(--dim);border:1px solid transparent;white-space:nowrap}
-#tabs button:hover{color:var(--fg)}
-#tabs button.on{color:var(--fg);border-color:var(--hair)}
-#tabs button i{font-style:normal;opacity:.55;margin-right:6px}
-#clock{color:var(--dim);white-space:nowrap;min-width:170px;text-align:right}
-#stage{position:fixed;left:0;top:44px;right:252px;bottom:30px;overflow:hidden;touch-action:manipulation}
+:root{--bg:#f5f4f0;--fg:#161616;--acc:#ff2d8d}
+#stage{touch-action:manipulation;background:var(--bg)}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
-#tester{position:absolute;left:18px;top:14px;display:flex;align-items:center;gap:10px;z-index:3}
-#tester label{color:var(--dim)}
-#txt{background:none;border:0;border-bottom:1px solid var(--hair);padding:3px 0;width:min(280px,52vw);outline:none;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
-#txt:focus{border-bottom-color:var(--fg)}
-#posterWrap{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:var(--bg)}
-#poster{max-width:100%;max-height:100%;box-shadow:0 0 0 1px var(--faint)}
-#exportBtn{position:absolute;right:18px;bottom:16px;padding:8px 12px;border:1px solid var(--hair);background:var(--panel)}
-#exportBtn:hover{border-color:var(--fg)}
-#panel{position:fixed;right:0;top:44px;bottom:30px;width:252px;border-left:1px solid var(--faint);padding:16px 18px 18px;overflow-y:auto;z-index:4;background:var(--bg)}
-.sec{margin-bottom:22px}
-.sec h3{margin:0 0 10px;font-size:9px;font-weight:400;color:var(--dim);display:flex;justify-content:space-between}
-.sec h3 em{font-style:normal;color:var(--fg)}
-.wts{display:grid;gap:2px}
-.wts button{display:flex;justify-content:space-between;padding:7px 8px;border:1px solid transparent;color:var(--dim);text-align:left}
-.wts button:hover{color:var(--fg)}
-.wts button.on{border-color:var(--hair);color:var(--fg)}
-.wts button i{font-style:normal;opacity:.6}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0;cursor:pointer}
-input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--hair)}
-input[type=range]::-moz-range-track{height:1px;background:var(--hair)}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;margin-top:-4px;background:var(--fg);border:0;border-radius:0}
-input[type=range]::-moz-range-thumb{width:9px;height:9px;background:var(--fg);border:0;border-radius:0}
-.ticks{display:flex;justify-content:space-between;color:var(--dim);font-size:8px;margin-top:2px}
-.duo{display:grid;gap:2px}
-.duo button{display:flex;align-items:center;gap:9px;padding:6px 8px;border:1px solid transparent;color:var(--dim);text-align:left}
-.duo button.on{border-color:var(--hair);color:var(--fg)}
-.duo button:hover{color:var(--fg)}
-.sw{display:inline-flex;gap:0}
-.sw s{display:block;width:12px;height:12px;border-radius:50%;text-decoration:none;box-shadow:0 0 0 1px var(--faint)}
-.sw s+s{margin-left:-3px}
-.duo small{margin-left:auto;font-size:8px;opacity:.7}
-.tog{display:flex;justify-content:space-between;width:100%;padding:7px 8px;border:1px solid var(--faint);margin-bottom:4px;color:var(--dim)}
-.tog.on{color:var(--fg);border-color:var(--hair)}
-.tog:hover{color:var(--fg)}
-.note{color:var(--dim);font-size:8.5px;line-height:1.6;text-transform:none;letter-spacing:.03em}
+#tester{position:absolute;left:20px;top:16px;display:flex;align-items:center;gap:10px;z-index:3;color:var(--fg)}
+#tester label{opacity:.5}
+#txt{background:none;border:0;border-bottom:1px solid currentColor;padding:3px 0;width:min(280px,52vw);outline:none;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
 #lossCv{display:block;width:100%;height:46px;margin-bottom:8px}
-.kv{color:var(--dim);font-size:8.5px;line-height:1.65;text-transform:none;letter-spacing:.03em}
-.kv b{color:var(--fg);font-weight:500}
+.kv{color:var(--s-ink2);font-size:9px;line-height:1.7}
+.kv b{color:var(--s-ink);font-weight:400}
 .eye{display:flex;gap:10px;margin-top:10px;align-items:flex-start}
-#eyeCv{width:84px;height:84px;flex:none;box-shadow:0 0 0 1px var(--faint)}
-#eyeBars{flex:1;font-size:8.5px;color:var(--dim)}
+#eyeCv{width:84px;height:84px;flex:none;box-shadow:0 0 0 1px var(--s-rule)}
+#eyeBars{flex:1;font-size:8.5px;color:var(--s-ink2)}
 #eyeBars div{display:flex;justify-content:space-between;margin-bottom:2px}
-#eyeBars p{margin:0 0 6px;height:2px;background:var(--faint)}
-#eyeBars p i{display:block;height:2px;background:var(--fg)}
+#eyeBars p{margin:0 0 6px;height:2px;background:var(--s-rule)}
+#eyeBars p i{display:block;height:2px;background:var(--s-ink)}
 #eyeBars small{display:block;margin-bottom:6px;font-size:8px}
-#status{position:fixed;left:0;right:0;bottom:0;height:30px;border-top:1px solid var(--faint);display:flex;align-items:center;gap:22px;padding:0 18px;color:var(--dim);z-index:5;background:var(--bg);white-space:nowrap;overflow:hidden}
-#status b{color:var(--fg);font-weight:500}
-#st-r{margin-left:auto}
-#hint{position:fixed;left:0;right:252px;bottom:42px;text-align:center;color:var(--fg);z-index:6;pointer-events:none;font-size:10px;letter-spacing:.16em}
-#hint span{background:var(--bg);padding:3px 8px}
-#hint.gone{display:none}
-#panelBtn{display:none}
-@media (max-width:760px){
-  #top{gap:10px;padding:0 12px}
-  #mark span,#clock{display:none}
-  #tabs{margin-right:0;overflow-x:auto}
-  #tabs button{padding:6px 6px}
-  #tabs button i{display:none}
-  #stage{right:0;bottom:30px}
-  #panel{top:auto;bottom:30px;left:0;right:0;width:auto;height:62vh;border-left:0;border-top:1px solid var(--hair);transform:translateY(102%);transition:transform .28s cubic-bezier(.2,.7,.2,1)}
-  #panel.open{transform:none}
-  #panelBtn{display:block;margin-left:auto;padding:4px 0;color:var(--fg)}
-  #st-r,#st-m{display:none}
-  #hint{right:0;bottom:40px;font-size:9px;letter-spacing:.1em;padding:0 12px}
-  #tester{left:12px;top:10px}
-  #exportBtn{right:12px;bottom:12px}
-}
+@media (max-width:760px){#tester{left:12px;top:10px}}
 </style>
 </head>
 <body>
 <header id="top">
-  <div id="mark"><b>EVOLVED TYPE</b><span>E11 / bred by GA, read by MLP</span></div>
-  <nav id="tabs">
-    <button data-v="tester" class="on"><i>01</i>Tester</button>
-    <button data-v="glyphs"><i>02</i>Glyph set</button>
-    <button data-v="specimen"><i>03</i>Phylogeny</button>
-    <button data-v="poster"><i>04</i>Poster</button>
+  <a id="brand" href="../index.html"><b>REGULA</b><span>Type by natural law</span></a>
+  <nav id="faces" aria-label="Typefaces"><a href="../caustic/index.html">Caustic</a><a href="../eroded/index.html">Eroded</a><a href="../evolved/index.html" aria-current="page">Evolved</a></nav>
+  <nav id="tabs" aria-label="Chapters">
+    <button data-v="tester" class="on"><i>1</i>Tester</button>
+    <button data-v="glyphs"><i>2</i>Glyphs</button>
+    <button data-v="specimen"><i>3</i>3D</button>
   </nav>
-  <div id="clock">G 0 · 0 fps</div>
+  <div id="clock">G 0</div>
 </header>
 
 <main id="stage">
   <canvas id="cv"></canvas>
-  <div id="tester"><label for="txt">Set</label><input id="txt" maxlength="32" value="EVOLVED TYPE" spellcheck="false" autocomplete="off" aria-label="Type tester text"></div>
-  <div id="posterWrap"><canvas id="poster"></canvas><button id="exportBtn">Export PNG 2×</button></div>
+  <div id="tester"><label for="txt">Set</label><input id="txt" maxlength="32" value="EVOLVED" spellcheck="false" autocomplete="off" aria-label="Type tester text"></div>
 </main>
 
-<aside id="panel">
-  <div class="sec"><h3>01 — Weight <em id="wName">Lineage</em></h3><div class="wts" id="wts"></div></div>
-  <div class="sec"><h3>02 — Selection <em id="lamV">55</em></h3><input type="range" id="lam" min="0" max="100" value="45" aria-label="Selection pressure"><div class="ticks"><span>Legible</span><span>Strange</span></div></div>
-  <div class="sec"><h3>03 — Mutation <em id="mutV">100%</em></h3><input type="range" id="mut" min="25" max="250" value="100" aria-label="Mutation rate"><div class="ticks"><span>Careful</span><span>Wild</span></div></div>
-  <div class="sec"><h3>04 — Reader <em id="rdState">Loading</em></h3>
+<aside id="panel" aria-label="Axes">
+  <div class="face-head">
+    <h1>Evolved</h1>
+    <p>Letters bred without end, read by a machine.</p>
+  </div>
+  <div class="sec"><h3><s>A1</s>Generations <em id="wName">9 gen</em></h3><div class="wts" id="wts"></div></div>
+  <div class="sec"><h3><s>A2</s>Selection <em id="lamV">λ 45</em></h3><input type="range" id="lam" min="0" max="100" value="45" aria-label="Selection, legible to strange"><div class="ticks"><span>0 legible</span><span>100 strange</span></div></div>
+  <div class="sec"><h3><s>A3</s>Mutation rate <em id="mutV">100 %</em></h3><input type="range" id="mut" min="25" max="250" value="100" aria-label="Mutation rate, percent"><div class="ticks"><span>25 %</span><span>100 %</span><span>250 %</span></div></div>
+  <div class="sec"><h3><s>A4</s>Population <em id="popV">16 × 36</em></h3><div class="ticks" style="font-size:9px"><span>Born</span><span id="bornV">0</span></div></div>
+  <div class="sec"><h3><s>—</s>Reader <em id="rdState">Loading</em></h3>
     <canvas id="lossCv"></canvas>
-    <div class="kv" id="rdInfo">A small model trained in this page.</div>
+    <div class="kv" id="rdInfo"></div>
     <div class="eye"><canvas id="eyeCv" width="168" height="168"></canvas><div id="eyeBars"></div></div>
   </div>
-  <div class="sec"><h3>05 — Ink <em>Paper / fluor</em></h3><div class="duo" id="duo"></div></div>
-  <div class="sec"><h3>06 — Breeding</h3>
+  <div class="sec"><h3><s>—</s>Ink</h3><div class="duo" id="duo"></div></div>
+  <div class="sec"><h3><s>—</s>Breeding</h3>
     <button class="tog on" id="evoBtn"><span>Evolve [Space]</span><span>On</span></button>
     <button class="tog" id="clrBtn"><span>Clear picks</span><span id="pickN">0</span></button>
-    <button class="tog" id="reseedBtn"><span>Re-seed focus letter</span><span>[R]</span></button>
+    <button class="tog" id="reseedBtn"><span>Re-seed [R]</span><span>↺</span></button>
   </div>
-  <p class="note" id="duoNote"></p>
-  <p class="note">Each letter is a population of sixteen stroke genomes: nodes joined by tapered Bézier strokes. Every generation the reader (a small neural net trained in this page) scores how surely it reads the target letter; a second measure scores how far the raster sits from every training face of that letter. Fitness is reading × strangeness. Your picks get a breeding bonus, never die while picked, and pass a fading preference to their offspring. The weight axis is time: heavier weights overprint more ancestors of the same individual.</p>
+  <p class="note" id="duoNote" hidden></p>
 </aside>
 
 <footer id="status">
-  <span id="st-l">Reader <b id="stAcc">—</b> held-out</span>
-  <span id="st-m">Generations <b id="stG">0</b> · <b id="stE">0</b> evals/s</span>
-  <span id="st-r">Focus <b id="stF">E</b> · G<b id="stFG">0</b> · p <b id="stP">—</b> · strange <b id="stS">—</b> · picks <b id="stK">0</b></span>
-  <button id="panelBtn">Controls</button>
+  <span id="st-l">Reader <b id="stAcc">—</b></span>
+  <span id="st-m">Σ G <b id="stG">0</b> · <b id="stE">0</b> evals/s</span>
+  <span id="st-r">Focus <b id="stF">E</b> · G<b id="stFG">0</b> · p <b id="stP">—</b> · s <b id="stS">—</b> · picks <b id="stK">0</b></span>
+  <button id="panelBtn">Axes</button>
 </footer>
-<div id="hint"><span>Click the ones you like — the machine reads, you choose who breeds</span></div>
+<div id="hint"><span>Click to pick — picks breed</span></div>
 
 <script>
 (function(){
