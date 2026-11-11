@@ -115,6 +115,12 @@ input[type=range]::-moz-range-thumb{width:9px;height:9px;background:var(--fg);bo
   #exportBtn{right:12px;bottom:12px}
 }
 </style>
+<!-- bare mode (hub v2): only active with ?bare=1, otherwise inert -->
+<script>if(/[?&]bare=1(&|$)/.test(location.search))document.documentElement.classList.add('bare')</script>
+<style>
+html.bare #top,html.bare #panel,html.bare #status,html.bare #hint,html.bare #tester,html.bare #prog,html.bare #fallbackNote,html.bare #panelBtn,html.bare #labels{display:none!important}
+html.bare #stage{left:0!important;top:0!important;right:0!important;bottom:0!important}
+</style>
 </head>
 <body>
 <header id="top">
@@ -1166,6 +1172,56 @@ var r0=stage.getBoundingClientRect();W=Math.max(1,Math.round(r0.width));H=Math.m
 setView('tester');
 requestAnimationFrame(frame);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){if(view==='poster')renderPoster();if(view==='glyphs')glyphLabels()});
+})();
+</script>
+<!-- bare mode (hub v2): text + capture bridge, only active with ?bare=1 -->
+<script>
+(function(){
+  if(!document.documentElement.classList.contains('bare'))return;
+  var txt=document.getElementById('txt'),stage=document.getElementById('stage'),P=window.parent!==window?window.parent:null;
+  function send(m,t){if(P)try{P.postMessage(m,'*',t||[])}catch(e){}}
+  function setText(v){
+    if(!txt)return;var max=txt.maxLength>0?txt.maxLength:24;
+    v=String(v==null?'':v).toUpperCase().replace(/[^A-Z0-9 ]/g,'').slice(0,max);
+    if(!v.trim()||txt.value===v)return;
+    txt.value=v;txt.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  var q=null;try{q=new URLSearchParams(location.search).get('text')}catch(e){}
+  if(q)setText(q);
+  function snap(id,maxW){
+    requestAnimationFrame(function(){
+      var r=stage.getBoundingClientRect(),W=Math.max(1,r.width),H=Math.max(1,r.height),s=Math.min(1,(maxW||720)/W);
+      var c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*s));c.height=Math.max(1,Math.round(H*s));
+      var x=c.getContext('2d'),ok=false;
+      x.fillStyle=getComputedStyle(document.body).backgroundColor||'#000';x.fillRect(0,0,c.width,c.height);
+      [].forEach.call(stage.querySelectorAll('canvas'),function(k){
+        var b=k.getBoundingClientRect(),cs=getComputedStyle(k);
+        if(b.width<2||b.height<2||cs.display==='none'||cs.visibility==='hidden'||!k.width||!k.height)return;
+        try{x.drawImage(k,(b.left-r.left)*s,(b.top-r.top)*s,b.width*s,b.height*s);ok=true}catch(e){}
+      });
+      try{var d=x.getImageData(0,0,c.width,c.height).data,n=0;
+        for(var i=0;i<d.length;i+=4*61){if(Math.abs(d[i]-d[0])+Math.abs(d[i+1]-d[1])+Math.abs(d[i+2]-d[2])>30)n++}
+        ok=ok&&n>6}catch(e){ok=false}
+      if(window.createImageBitmap)createImageBitmap(c).then(function(bm){send({type:'snap',id:id,ok:ok,bitmap:bm},[bm])},function(){send({type:'snap',id:id,ok:ok,url:c.toDataURL()})});
+      else send({type:'snap',id:id,ok:ok,url:c.toDataURL()});
+    });
+  }
+  window.addEventListener('message',function(e){
+    var m=e.data;if(!m||typeof m!=='object')return;
+    if(m.type==='text')setText(m.value);
+    else if(m.type==='snap')snap(m.id,m.w);
+  });
+  /* keys belong to the hub in bare mode: forward them, keep the work's own shortcuts quiet */
+  window.addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    if(e.key.length===1||/^(Backspace|Enter|Escape|Tab|ArrowLeft|ArrowRight|Delete)$/.test(e.key)){
+      e.stopImmediatePropagation();if(e.key!=='Tab')e.preventDefault();
+      send({type:'key',key:e.key,shift:e.shiftKey});
+    }
+  },true);
+  window.addEventListener('pointerdown',function(){send({type:'touch'})},true);
+  function ready(){requestAnimationFrame(function(){requestAnimationFrame(function(){send({type:'ready',bg:getComputedStyle(document.body).backgroundColor})})})}
+  if(document.readyState==='complete')ready();else window.addEventListener('load',ready);
 })();
 </script>
 </body>
