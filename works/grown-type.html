@@ -1003,11 +1003,12 @@ if(document.fonts&&document.fonts.load){
 setTimeout(go,2500);
 })();
 </script>
-<!-- bare mode (hub v2): text + capture bridge, only active with ?bare=1 -->
+<!-- bare mode (hub v3): text, still capture, frame stream and pointer bridge; only active with ?bare=1 -->
 <script>
 (function(){
   if(!document.documentElement.classList.contains('bare'))return;
   var txt=document.getElementById('txt'),stage=document.getElementById('stage'),P=window.parent!==window?window.parent:null;
+  var KEY=(location.pathname.match(/([a-z]+)-type\.html/)||[])[1]||'';
   function send(m,t){if(P)try{P.postMessage(m,'*',t||[])}catch(e){}}
   function setText(v){
     if(!txt)return;var max=txt.maxLength>0?txt.maxLength:24;
@@ -1017,17 +1018,27 @@ setTimeout(go,2500);
   }
   var q=null;try{q=new URLSearchParams(location.search).get('text')}catch(e){}
   if(q)setText(q);
+  /* the canvases that carry the word: the GL layer alone when there is one (the overlay holds labels), else every canvas */
+  function layers(){
+    var gl=document.getElementById('gl'),all=[].slice.call(stage.querySelectorAll('canvas'));
+    return (gl&&gl.width&&gl.height)?[gl]:all;
+  }
+  function draw(x,list,s,r){
+    var ok=false;
+    list.forEach(function(k){
+      var b=k.getBoundingClientRect(),cs=getComputedStyle(k);
+      if(b.width<2||b.height<2||cs.display==='none'||cs.visibility==='hidden'||!k.width||!k.height)return;
+      try{x.drawImage(k,(b.left-r.left)*s,(b.top-r.top)*s,b.width*s,b.height*s);ok=true}catch(e){}
+    });
+    return ok;
+  }
   function snap(id,maxW){
     requestAnimationFrame(function(){
       var r=stage.getBoundingClientRect(),W=Math.max(1,r.width),H=Math.max(1,r.height),s=Math.min(1,(maxW||720)/W);
       var c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*s));c.height=Math.max(1,Math.round(H*s));
       var x=c.getContext('2d'),ok=false;
       x.fillStyle=getComputedStyle(document.body).backgroundColor||'#000';x.fillRect(0,0,c.width,c.height);
-      [].forEach.call(stage.querySelectorAll('canvas'),function(k){
-        var b=k.getBoundingClientRect(),cs=getComputedStyle(k);
-        if(b.width<2||b.height<2||cs.display==='none'||cs.visibility==='hidden'||!k.width||!k.height)return;
-        try{x.drawImage(k,(b.left-r.left)*s,(b.top-r.top)*s,b.width*s,b.height*s);ok=true}catch(e){}
-      });
+      ok=draw(x,[].slice.call(stage.querySelectorAll('canvas')),s,r);
       try{var d=x.getImageData(0,0,c.width,c.height).data,n=0;
         for(var i=0;i<d.length;i+=4*61){if(Math.abs(d[i]-d[0])+Math.abs(d[i+1]-d[1])+Math.abs(d[i+2]-d[2])>30)n++}
         ok=ok&&n>6}catch(e){ok=false}
@@ -1035,20 +1046,65 @@ setTimeout(go,2500);
       else send({type:'snap',id:id,ok:ok,url:c.toDataURL()});
     });
   }
+  /* where the word lives inside this law's stage (some laws draw a population or a map below it) */
+  function roi(W,H){
+    var mob=matchMedia('(max-width: 760px)').matches;
+    if(KEY==='evolved')return [0,0,1,(W<700?.33:.47)];
+    if(KEY==='latent'){var top=mob?52:62,mh=Math.round((H-top)*(mob?.5:.44));return [0,0,1,Math.min(1,(H-mh-(mob?40:46)+8)/H)]}
+    return [0,0,1,1];
+  }
+  /* frame stream: the hub restyles what the law draws, so it gets the law's pixels at a modest rate */
+  var st={on:false,w:720,fps:20,last:0,busy:false,bg:[0,0,0],bgT:0},fc=null,fx=null,tiny=null,tx=null;
+  function ground(c){
+    if(!tiny){tiny=document.createElement('canvas');tiny.width=48;tiny.height=32;tx=tiny.getContext('2d',{willReadFrequently:true})}
+    tx.drawImage(c,0,0,48,32);var d;try{d=tx.getImageData(0,0,48,32).data}catch(e){return}
+    var rs=[],gs=[],bs=[];
+    for(var y=0;y<32;y++)for(var x=0;x<48;x++){if(x>1&&x<46&&y>1&&y<30)continue;var i=(y*48+x)*4;rs.push(d[i]);gs.push(d[i+1]);bs.push(d[i+2])}
+    function med(a){a.sort(function(p,q){return p-q});return a[a.length>>1]}
+    st.bg=[med(rs),med(gs),med(bs)];
+  }
+  function tick(now){
+    if(!st.on)return;
+    requestAnimationFrame(tick);
+    if(st.busy||now-st.last<1000/st.fps-4)return;
+    st.last=now;
+    var r=stage.getBoundingClientRect(),W=Math.max(1,r.width),H=Math.max(1,r.height),s=Math.min(1,st.w/W),
+        cw=Math.max(2,Math.round(W*s)),ch=Math.max(2,Math.round(H*s));
+    if(!fc){fc=document.createElement('canvas');fx=fc.getContext('2d')}
+    if(fc.width!==cw||fc.height!==ch){fc.width=cw;fc.height=ch}
+    fx.fillStyle=getComputedStyle(document.body).backgroundColor||'#000';fx.fillRect(0,0,cw,ch);
+    if(!draw(fx,layers(),s,r))return;
+    if(now-st.bgT>900){st.bgT=now;ground(fc)}
+    var meta={type:'frame',bg:st.bg,roi:roi(W,H),w:cw,h:ch};
+    if(window.createImageBitmap){
+      st.busy=true;
+      createImageBitmap(fc).then(function(bm){st.busy=false;meta.bitmap=bm;send(meta,[bm])},function(){st.busy=false});
+    }
+  }
   window.addEventListener('message',function(e){
     var m=e.data;if(!m||typeof m!=='object')return;
     if(m.type==='text')setText(m.value);
     else if(m.type==='snap')snap(m.id,m.w);
+    else if(m.type==='stream'){
+      st.w=Math.max(160,Math.min(1280,m.w||720));st.fps=Math.max(4,Math.min(30,m.fps||20));
+      if(m.on&&!st.on){st.on=true;st.bgT=0;requestAnimationFrame(tick)}else if(!m.on)st.on=false;
+    }
   });
   /* keys belong to the hub in bare mode: forward them, keep the work's own shortcuts quiet */
   window.addEventListener('keydown',function(e){
     if(e.ctrlKey||e.metaKey||e.altKey)return;
-    if(e.key.length===1||/^(Backspace|Enter|Escape|Tab|ArrowLeft|ArrowRight|Delete)$/.test(e.key)){
+    if(e.key.length===1||/^(Backspace|Enter|Escape|Tab|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Delete)$/.test(e.key)){
       e.stopImmediatePropagation();if(e.key!=='Tab')e.preventDefault();
-      send({type:'key',key:e.key,shift:e.shiftKey});
+      send({type:'key',key:e.key,code:e.code,shift:e.shiftKey});
     }
   },true);
   window.addEventListener('pointerdown',function(){send({type:'touch'})},true);
+  /* the hand, so drawn eyes can follow it */
+  var pq=null;
+  window.addEventListener('pointermove',function(e){
+    if(!pq)requestAnimationFrame(function(){if(pq)send({type:'ptr',x:pq[0],y:pq[1]});pq=null});
+    pq=[e.clientX/Math.max(1,innerWidth),e.clientY/Math.max(1,innerHeight)];
+  },{capture:true,passive:true});
   function ready(){requestAnimationFrame(function(){requestAnimationFrame(function(){send({type:'ready',bg:getComputedStyle(document.body).backgroundColor})})})}
   if(document.readyState==='complete')ready();else window.addEventListener('load',ready);
 })();
