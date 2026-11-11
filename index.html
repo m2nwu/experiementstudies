@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Layout: a question, five works as plates, then one type instrument that switches between seven alphabets in place. */
+/* Layout: one screen, no page scroll. A menu bar on top, every work runs in the stage below it. */
 :root{
   --bg:#E7E9E4;--plate:#F3F4F0;--fg:#121412;--mute:#5D625C;--rule:#BFC4BC;--accent:#2E43D6;
   --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
@@ -19,161 +19,114 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111311;--plate:#1A1D1A;--fg:#E9ECE6;--mute:#9AA097;--rule:#343933;--accent:#8C9BFF;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#111311;--plate:#1A1D1A;--fg:#E9ECE6;--mute:#9AA097;--rule:#343933;--accent:#8C9BFF;color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:var(--display);margin:0;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1360px;margin:0 auto;padding-block:clamp(24px,5vw,56px) 72px}
-.mono{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);margin:0;overflow:hidden;
+  display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a{color:inherit}
-a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
-.bar{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--mute);border-bottom:1px solid var(--rule);padding-bottom:12px}
+.menu{display:flex;align-items:stretch;border-bottom:1px solid var(--fg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.home{font-weight:760;letter-spacing:-.03em;font-size:18px;padding:12px 18px 12px 0;border-right:1px solid var(--rule);white-space:nowrap}
+.home em{font-style:normal;color:var(--accent)}
+.tabs{display:flex;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button,.sub button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.tabs button{padding:12px 16px;border-right:1px solid var(--rule);color:var(--mute)}
+.tabs button .n{opacity:.55;margin-right:6px}
+.tabs button:hover{color:var(--fg);background:var(--plate)}
+.tabs button[aria-current="true"]{background:var(--fg);color:var(--bg)}
+.full{display:flex;align-items:center;padding:0 0 0 16px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;white-space:nowrap}
+.full[hidden]{display:none}
+.full:hover{color:var(--accent)}
 
-.hero{padding-block:clamp(40px,9vw,120px) clamp(16px,3vw,32px)}
-.kicker{font-size:clamp(22px,3vw,44px);font-weight:380;letter-spacing:-.02em;line-height:1.1;margin:0 0 clamp(14px,2vw,28px);color:var(--mute)}
-.q{font-weight:760;font-size:clamp(46px,10.4vw,168px);line-height:.88;letter-spacing:-.045em;margin:0;text-wrap:balance;font-variation-settings:"opsz" 96}
+.sub{display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--fg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sub::-webkit-scrollbar{display:none}
+.sub button{padding:9px 14px;color:var(--mute);border-right:1px solid var(--rule)}
+.sub button:hover{color:var(--fg)}
+.sub button[aria-current="true"]{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+
+.menu{grid-row:1}.sub{grid-row:2}
+.stage{grid-row:3;position:relative;min-height:0;overflow:hidden}
+.stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+
+.intro{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2vw,28px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px;max-width:1360px}
+.kicker{font-size:clamp(20px,2.8vw,40px);font-weight:380;letter-spacing:-.02em;line-height:1.1;margin:0;color:var(--mute)}
+.q{font-weight:760;font-size:clamp(42px,8.6vw,150px);line-height:.88;letter-spacing:-.045em;margin:0;text-wrap:balance;font-variation-settings:"opsz" 96}
 .q em{font-style:normal;color:var(--accent)}
-.steps{display:flex;flex-wrap:wrap;gap:8px 20px;margin:clamp(24px,3vw,40px) 0 0;padding:0;list-style:none;color:var(--mute)}
-.steps li+li::before{content:"\2192";color:var(--accent);margin-right:20px}
-
-.plates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(28px,4vw,56px) clamp(20px,3vw,40px);margin-top:clamp(48px,7vw,96px)}
-.plate{display:flex;flex-direction:column;gap:12px;text-decoration:none;border-top:1px solid var(--fg);padding-top:12px;min-width:0}
-.plate:first-child{grid-column:1 / -1}
-.plate .row{display:flex;justify-content:space-between;color:var(--mute)}
-.shot{display:block;background:var(--plate);border:1px solid var(--rule);overflow:hidden;aspect-ratio:16/10;max-width:100%}
-.plate:first-child .shot{aspect-ratio:21/9}
-.shot img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
-.plate:hover img{transform:scale(1.025)}
-.plate h2{font-size:clamp(30px,3.6vw,52px);line-height:.95;letter-spacing:-.035em;font-weight:760;margin:0}
-.plate .line{font-size:18px;color:var(--mute)}
-.plate .line b{font-weight:500;color:var(--fg)}
-.plate:hover h2{color:var(--accent)}
-
-/* type instrument */
-.type{margin-top:clamp(64px,9vw,128px);border-top:1px solid var(--fg);padding-top:12px}
-.type-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
-.type-head h2{font-size:clamp(30px,3.6vw,52px);line-height:.95;letter-spacing:-.035em;font-weight:760;margin:0}
-.type-head .mono{color:var(--mute)}
-.picker{display:flex;flex-wrap:wrap;gap:0;margin:20px 0 0;border:1px solid var(--fg)}
-.picker button{flex:1 1 0;min-width:0;font:inherit;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-  padding:14px 10px;background:transparent;color:var(--fg);border:0;border-right:1px solid var(--fg);cursor:pointer;white-space:nowrap}
-.picker button:last-child{border-right:0}
-.picker button:hover{background:var(--plate)}
-.picker button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
-.picker button .n{opacity:.5;margin-right:6px}
-.stage{position:relative;margin-top:-1px;border:1px solid var(--fg);background:#000;aspect-ratio:16/10;max-height:86vh;width:100%;overflow:hidden}
-.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left;opacity:.55}
-.stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
-.stage .load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:inherit;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-  color:#fff;background:transparent;border:0;cursor:pointer}
-.stage .load span{background:#000;padding:12px 16px;border:1px solid #fff}
-.under{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--mute)}
-.under b{color:var(--fg);font-weight:500}
-.under a{color:var(--fg)}
-
-footer{margin-top:clamp(64px,9vw,120px);border-top:1px solid var(--fg);padding-top:14px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--mute)}
-
-@media (max-width:760px){
-  .plates{grid-template-columns:minmax(0,1fr)}
-  .plate:first-child .shot{aspect-ratio:16/10}
-  .picker button{flex:1 1 22%;border-bottom:1px solid var(--fg)}
-  .stage{aspect-ratio:auto;height:78vh}
-}
-@media (prefers-reduced-motion:reduce){.shot img{transition:none}}
+.steps{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0;padding:0;list-style:none;color:var(--mute);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.steps li+li::before{content:"\2192";color:var(--accent);margin-right:18px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="bar mono"><span>One question · twelve works</span><span>2026</span></header>
-
-  <section class="hero">
+<nav class="menu" aria-label="Works">
+  <button class="home" type="button">Rule<em>.</em></button>
+  <div class="tabs" id="tabs">
+    <button type="button" data-go="scroll-song"><span class="n">01</span>Scroll Song</button>
+    <button type="button" data-go="return-line"><span class="n">02</span>Return Line</button>
+    <button type="button" data-go="room-type"><span class="n">03</span>Room Type</button>
+    <button type="button" data-go="chladni"><span class="n">04</span>Chladni</button>
+    <button type="button" data-go="souvenir"><span class="n">05</span>Souvenir</button>
+    <button type="button" data-go="type"><span class="n">06</span>Type</button>
+  </div>
+  <a class="full" id="full" href="#" target="_blank" rel="noopener" hidden>Full &#8599;</a>
+</nav>
+<div class="sub" id="sub" hidden>
+  <button type="button" data-t="field-type">Field</button>
+  <button type="button" data-t="grown-type">Grown</button>
+  <button type="button" data-t="evolved-type">Evolved</button>
+  <button type="button" data-t="slime-type">Slime</button>
+  <button type="button" data-t="caustic-type">Caustic</button>
+  <button type="button" data-t="latent-type">Latent</button>
+  <button type="button" data-t="eroded-type">Eroded</button>
+</div>
+<main class="stage" id="stage">
+  <section class="intro" id="intro">
     <p class="kicker">Something keeps happening in my head.</p>
     <h1 class="q">What if its rules became a <em>design process?</em></h1>
-    <ol class="steps mono"><li>Rule</li><li>Order</li><li>Pattern</li><li>Series</li></ol>
+    <ol class="steps"><li>Rule</li><li>Order</li><li>Pattern</li><li>Series</li></ol>
   </section>
-
-  <main class="plates">
-    <a class="plate" href="works/scroll-song.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/scroll-song.jpg" alt="Scroll Song"></span>
-      <span class="row mono"><span>01</span><span>Open &rarr;</span></span>
-      <h2>Scroll Song</h2><span class="line"><b>Reading pace</b> &rarr; a song</span>
-    </a>
-    <a class="plate" href="works/return-line.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/return-line.jpg" alt="Return Line" loading="lazy"></span>
-      <span class="row mono"><span>02</span><span>Open &rarr;</span></span>
-      <h2>Return Line</h2><span class="line"><b>Time you stay</b> &rarr; a transit line</span>
-    </a>
-    <a class="plate" href="works/room-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/room-type.jpg" alt="Room Type" loading="lazy"></span>
-      <span class="row mono"><span>03</span><span>Open &rarr;</span></span>
-      <h2>Room Type</h2><span class="line"><b>A room's echo</b> &rarr; a type weight</span>
-    </a>
-    <a class="plate" href="works/chladni.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/chladni.jpg" alt="Chladni" loading="lazy"></span>
-      <span class="row mono"><span>04</span><span>Open &rarr;</span></span>
-      <h2>Chladni</h2><span class="line"><b>A musical key</b> &rarr; a sand print</span>
-    </a>
-    <a class="plate" href="works/souvenir.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/souvenir.jpg" alt="Souvenir from Nowhere" loading="lazy"></span>
-      <span class="row mono"><span>05</span><span>Open &rarr;</span></span>
-      <h2>Souvenir</h2><span class="line"><b>A town that never was</b> &rarr; a fold</span>
-    </a>
-  </main>
-
-  <section class="type" id="type">
-    <div class="type-head"><h2>Type</h2><span class="mono">06 · seven laws, seven alphabets</span></div>
-    <div class="picker" role="group" aria-label="Choose a typeface">
-      <button type="button" data-k="field" aria-pressed="true"><span class="n">A</span>Field</button>
-      <button type="button" data-k="grown" aria-pressed="false"><span class="n">B</span>Grown</button>
-      <button type="button" data-k="evolved" aria-pressed="false"><span class="n">C</span>Evolved</button>
-      <button type="button" data-k="slime" aria-pressed="false"><span class="n">D</span>Slime</button>
-      <button type="button" data-k="caustic" aria-pressed="false"><span class="n">E</span>Caustic</button>
-      <button type="button" data-k="latent" aria-pressed="false"><span class="n">F</span>Latent</button>
-      <button type="button" data-k="eroded" aria-pressed="false"><span class="n">G</span>Eroded</button>
-    </div>
-    <div class="stage" id="stage">
-      <img id="still" src="img/field-type.jpg" alt="">
-      <button class="load" id="load" type="button"><span>Run it here</span></button>
-    </div>
-    <div class="under mono"><span id="law"><b>Magnetism</b> &rarr; letters of iron</span><a id="full" href="works/field-type.html" target="_blank" rel="noopener">Full screen &rarr;</a></div>
-  </section>
-
-  <footer class="mono"><span>Each work is one page</span><span>Sound on first click</span></footer>
-</div>
+</main>
 
 <script>
 (function(){
-  var T={
-    field:  {f:'field-type',   law:'Magnetism',        out:'letters of iron'},
-    grown:  {f:'grown-type',   law:'Reaction-diffusion',out:'grown letters'},
-    evolved:{f:'evolved-type', law:'Evolution',        out:'bred letters'},
-    slime:  {f:'slime-type',   law:'Slime mould',      out:'vein letters'},
-    caustic:{f:'caustic-type', law:'Refraction',       out:'letters of light'},
-    latent: {f:'latent-type',  law:'Latent space',     out:'typefaces that don’t exist'},
-    eroded: {f:'eroded-type',  law:'Erosion',          out:'worn letters'}
-  };
-  /* FULL[k] is replaced per host; default is the local file */
-  var FULL=window.TYPE_FULL||{};
-  var stage=document.getElementById('stage'),still=document.getElementById('still'),
-      law=document.getElementById('law'),full=document.getElementById('full'),
-      btns=[].slice.call(document.querySelectorAll('.picker button')),cur='field',running=false;
-  function frame(k){
-    var old=stage.querySelector('iframe'); if(old) old.remove();
-    var f=document.createElement('iframe');
-    f.src='works/'+T[k].f+'.html'; f.title=T[k].f.replace('-',' ');
-    f.setAttribute('allow','autoplay; fullscreen'); stage.appendChild(f);
-    document.getElementById('load').hidden=true; still.hidden=true; running=true;
+  var FULL=window.WORK_FULL||{};
+  var stage=document.getElementById('stage'),intro=document.getElementById('intro'),
+      sub=document.getElementById('sub'),full=document.getElementById('full'),
+      tabs=[].slice.call(document.querySelectorAll('#tabs button')),
+      subs=[].slice.call(document.querySelectorAll('#sub button')),
+      lastType='field-type',cur=null;
+  function show(file){
+    var f=stage.querySelector('iframe'); if(f) f.remove();
+    if(!file){intro.hidden=false;full.hidden=true;return}
+    intro.hidden=true;
+    f=document.createElement('iframe');
+    f.src='works/'+file+'.html'; f.title=file.replace('-',' ');
+    f.setAttribute('allow','autoplay; fullscreen');
+    stage.appendChild(f);
+    full.href=FULL[file]||('works/'+file+'.html'); full.hidden=false;
   }
-  function pick(k){
-    cur=k;
-    btns.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.k===k?'true':'false')});
-    law.innerHTML='<b>'+T[k].law+'</b> → '+T[k].out;
-    full.href=FULL[k]||('works/'+T[k].f+'.html');
-    still.src='img/'+T[k].f+'.jpg';
-    if(running) frame(k);
+  function go(key){
+    if(key==='type') key=lastType;
+    var isType=/-type$/.test(key)&&key!=='room-type';
+    if(isType) lastType=key;
+    var tab=isType?'type':key;
+    tabs.forEach(function(b){b.setAttribute('aria-current',(tab&&b.dataset.go===tab)?'true':'false')});
+    subs.forEach(function(b){b.setAttribute('aria-current',b.dataset.t===key?'true':'false')});
+    sub.hidden=!isType;
+    if(key===cur) return;
+    cur=key; show(key);
+    try{history.replaceState(null,'',key?'#'+key:location.pathname+location.search)}catch(e){}
   }
-  btns.forEach(function(b){b.addEventListener('click',function(){pick(b.dataset.k);frame(b.dataset.k)})});
-  document.getElementById('load').addEventListener('click',function(){frame(cur)});
-  pick('field');
+  document.querySelector('.home').addEventListener('click',function(){go('')});
+  tabs.forEach(function(b){b.addEventListener('click',function(){go(b.dataset.go)})});
+  subs.forEach(function(b){b.addEventListener('click',function(){go(b.dataset.t)})});
+  go((location.hash||'').slice(1));
+  window.addEventListener('hashchange',function(){go(location.hash.slice(1))});
 })();
 </script>
 </body>
