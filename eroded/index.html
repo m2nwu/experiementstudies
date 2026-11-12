@@ -74,6 +74,9 @@ html.cx input[type=range]::-webkit-slider-thumb{width:14px;height:14px;margin-to
 html.cx input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--lt)}
 html.cx input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 6px color-mix(in srgb,var(--lt) 26%,transparent)}
 #loader{background:var(--c0)}
+/* survey sheet: one fixed tile behind the field, so opening, chapters, bar, footer and loader line up */
+html.cx body,#ch-open,#ch-tester,#ch-glyphs,#ch-3d,.foot,.bar,#loader{background-image:var(--topo,none);background-size:640px 640px;background-attachment:fixed;background-repeat:repeat}
+html.embed body,html.embed #ch-tester{background-image:none}
 .foot{justify-content:space-between}
 html.embed body{background:var(--bg)}
 html.embed .ch:not(#ch-tester),html.embed .foot,html.embed #ch-tester>*:not(.slot){display:none!important}
@@ -97,6 +100,55 @@ html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
 </nav>
 
 <div id="loader" aria-hidden="true"><canvas></canvas></div>
+<script>/* ground: a survey sheet under everything. Seamless tile of contours (every 5th heavier), dashed ridge lines between
+   summits, spot-height marks; no figures. Built once, re-inked when the ground changes; the loader draws the same tile. */
+(function(){
+var de=document.documentElement;if(de.classList.contains('embed')){window.TOPO={ink:function(){}};return}
+var T=640,G=200,cs=T/G,DPR=Math.min(2,devicePixelRatio||1),H=new Float32Array(G*G);
+function hs(i,j,s){var h=(i*374761393+j*668265263+s*1442695041)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295}
+function vn(x,y,P,s){var i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j;fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+  var i0=((i%P)+P)%P,j0=((j%P)+P)%P,i1=(i0+1)%P,j1=(j0+1)%P,a=hs(i0,j0,s),b=hs(i1,j0,s),c=hs(i0,j1,s),d=hs(i1,j1,s);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+var HL=[[.22,.27,.15,1],[.68,.18,.12,.8],[.55,.66,.17,1.05],[.12,.78,.11,.7],[.86,.58,.1,.75],[.38,.48,.08,.5]],i,j,q;
+for(j=0;j<G;j++)for(i=0;i<G;i++){var u=i/G,w=j/G,h=0;
+  for(var k=0;k<HL.length;k++){var dx=Math.abs(u-HL[k][0]),dy=Math.abs(w-HL[k][1]);dx=Math.min(dx,1-dx);dy=Math.min(dy,1-dy);var s=HL[k][2];h+=HL[k][3]*Math.exp(-(dx*dx+dy*dy)/(2*s*s))}
+  h+=(vn(u*4,w*4,4,1)-.5)*.55+(vn(u*9,w*9,9,2)-.5)*.2+(vn(u*20,w*20,20,3)-.5)*.06;H[j*G+i]=h}
+var lo=1e9,hi=-1e9;for(q=0;q<G*G;q++){if(H[q]<lo)lo=H[q];if(H[q]>hi)hi=H[q]}for(q=0;q<G*G;q++)H[q]=(H[q]-lo)/(hi-lo);
+function at(i,j){return H[(((j%G)+G)%G)*G+(((i%G)+G)%G)]}
+function hb(x,y){var i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,a=at(i,j),b=at(i+1,j),c=at(i,j+1),d=at(i+1,j+1);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+// contours (wrapping grid so the tile repeats without a seam)
+var LV=26,CL=[];for(var l=1;l<LV;l++){var lv=l/LV,sg=[];
+  for(j=0;j<G;j++)for(i=0;i<G;i++){var a=at(i,j)-lv,b=at(i+1,j)-lv,c=at(i+1,j+1)-lv,d=at(i,j+1)-lv,p=[];
+    if((a>0)!==(b>0))p.push(i+a/(a-b),j);if((b>0)!==(c>0))p.push(i+1,j+b/(b-c));if((c>0)!==(d>0))p.push(i+1-c/(c-d),j+1);if((d>0)!==(a>0))p.push(i,j+1-d/(d-a));
+    if(p.length>=4)sg.push(p[0],p[1],p[2],p[3]);if(p.length===8)sg.push(p[4],p[5],p[6],p[7])}
+  CL.push({ix:l%5===0,s:sg})}
+// summits: climb from each hill centre to its local top
+var PK=[];HL.forEach(function(e){var x=e[0]*G,y=e[1]*G;for(var n=0;n<400;n++){var bx=x,by=y,bh=hb(x,y);
+  for(var a=0;a<8;a++){var nx=x+Math.cos(a*Math.PI/4),ny=y+Math.sin(a*Math.PI/4),nh=hb(nx,ny);if(nh>bh){bh=nh;bx=nx;by=ny}}if(bx===x&&by===y)break;x=bx;y=by}
+  x=((x%G)+G)%G;y=((y%G)+G)%G;if(!PK.some(function(p){return Math.hypot(p[0]-x,p[1]-y)<6}))PK.push([x,y,hb(x,y)])});
+// ridges: crawl from a summit towards a neighbour, always stepping onto the highest ground across the path
+var RG=[];PK.forEach(function(A,ia){var near=PK.map(function(B,ib){var dx=B[0]-A[0],dy=B[1]-A[1];dx-=Math.round(dx/G)*G;dy-=Math.round(dy/G)*G;return [Math.hypot(dx,dy),ib,dx,dy]}).filter(function(n){return n[1]!==ia}).sort(function(m,n){return m[0]-n[0]}).slice(0,2);
+  near.forEach(function(n){if(n[1]<ia&&near.length)return;var x=A[0],y=A[1],tx=A[0]+n[2],ty=A[1]+n[3],pts=[x,y],mn=1;
+    for(var s=0;s<300;s++){var dx=tx-x,dy=ty-y,L=Math.hypot(dx,dy);if(L<2)break;dx/=L;dy/=L;var bx=0,by=0,bh=-1;
+      for(var o=-1.5;o<=1.5;o+=.5){var nx=x+dx*1.2-dy*o,ny=y+dy*1.2+dx*o,nh=hb(nx,ny);if(nh>bh){bh=nh;bx=nx;by=ny}}x=bx;y=by;pts.push(x,y);if(bh<mn)mn=bh}
+    if(mn>.18)RG.push(pts)})});
+var cv=document.createElement('canvas');cv.width=cv.height=Math.round(T*DPR);var g=cv.getContext('2d'),url='';
+function wrapDraw(f){for(var oy=-1;oy<=1;oy++)for(var ox=-1;ox<=1;ox++){g.save();g.translate(ox*T,oy*T);f();g.restore()}}
+function ink(col){
+  g.setTransform(DPR,0,0,DPR,0,0);g.clearRect(0,0,T,T);g.strokeStyle=col;g.fillStyle=col;g.lineCap='round';g.lineJoin='round';
+  CL.forEach(function(c){g.globalAlpha=c.ix?.13:.075;g.lineWidth=c.ix?1.15:.6;g.beginPath();for(var p=0;p<c.s.length;p+=4){g.moveTo(c.s[p]*cs,c.s[p+1]*cs);g.lineTo(c.s[p+2]*cs,c.s[p+3]*cs)}g.stroke()});
+  g.globalAlpha=.1;g.lineWidth=.8;g.setLineDash([7,3,1.5,3]);
+  wrapDraw(function(){RG.forEach(function(r){g.beginPath();g.moveTo(r[0]*cs,r[1]*cs);for(var p=2;p<r.length;p+=2)g.lineTo(r[p]*cs,r[p+1]*cs);g.stroke()})});
+  g.setLineDash([]);g.globalAlpha=.16;
+  wrapDraw(function(){PK.forEach(function(p){var x=p[0]*cs,y=p[1]*cs;g.beginPath();g.moveTo(x,y-3.2);g.lineTo(x+2.8,y+1.8);g.lineTo(x-2.8,y+1.8);g.closePath();g.fill()});
+    for(var k=0;k<9;k++){var x=hs(k,7,9)*T,y=hs(k,3,9)*T;g.beginPath();g.arc(x,y,1.1,0,7);g.fill()}});
+  g.globalAlpha=1;
+  var put=function(u){if(url&&url.indexOf('blob:')===0)URL.revokeObjectURL(url);url=u;de.style.setProperty('--topo','url("'+u+'")')};
+  if(cv.toBlob)cv.toBlob(function(b){if(b)put(URL.createObjectURL(b))});else put(cv.toDataURL());
+}
+var c0=(getComputedStyle(de).getPropertyValue('--ink')||'').trim()||'#2b2117';ink(c0);var cur=c0;
+window.TOPO={tile:cv,size:T,dpr:DPR,ink:function(c){if(c&&c!==cur){cur=c;ink(c)}}};
+})();
+</script>
 <script>/* opening: a short storm. A cropped fragment of the source face (Rubik 900) rises as a shaded range; rain thickens,
    the slopes darken as they wet, droplets cut channels and carry sediment down to fans at the foot, saturated flanks
    slump, a pool fills the counter; then the worn range settles and fades into the ground. Runs before the page's
@@ -109,7 +161,7 @@ if(de.classList.contains('embed')){ld.style.display='none';return}
 var RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 var cv=ld.querySelector('canvas'),x=cv.getContext('2d'),VW=innerWidth,VH=innerHeight,DPR=Math.min(2,devicePixelRatio||1);
 cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR);
-var cs=Math.max(VW,VH)/Math.max(150,Math.min(240,Math.round(Math.max(VW,VH)/5.5))),gw=Math.ceil(VW/cs)+1,gh=Math.ceil(VH/cs)+1,N=gw*gh;
+var cs=Math.max(VW,VH)/Math.max(170,Math.min(380,Math.round(Math.max(VW,VH)/(VW<700?2.6:3.6)))),gw=Math.ceil(VW/cs)+1,gh=Math.ceil(VH/cs)+1,N=gw*gh;
 var H=new Float32Array(N),F=new Float32Array(N),SD=new Float32Array(N),HZ=new Float32Array(N),HZ2=new Float32Array(N),CT=new Uint8Array(N),H0=null;
 var st=getComputedStyle(de);function v(n,d){return (st.getPropertyValue(n)||'').trim()||d}
 function rgb(h){h=h.replace('#','');if(h.length<6)return [128,128,128];return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]}
@@ -123,7 +175,7 @@ function vn(px,py){var i=Math.floor(px),j=Math.floor(py),fx=px-i,fy=py-j;fx=fx*f
   var a=hsh(i,j),b=hsh(i+1,j),c=hsh(i,j+1),d=hsh(i+1,j+1);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
 function raise(){
   // the glyph is set big enough to be cropped by the screen; its counter is placed where the pool will fill
-  var port=VH>VW*1.1,fs=port?gw*2.5:gh*1.8,fam='900 '+fs+'px '+(fontOK?'Rubik,':'')+'sans-serif',ch='R';
+  var port=VH>VW*1.1,fs=port?Math.min(gw*.84,gh*.55):gh*.8,fam='900 '+fs+'px '+(fontOK?'Rubik,':'')+'sans-serif',ch='R';
   var m0=document.createElement('canvas').getContext('2d');m0.font=fam;var m=m0.measureText(ch),bl=m.actualBoundingBoxLeft,br=m.actualBoundingBoxRight,ba=m.actualBoundingBoxAscent;
   var pw=Math.ceil(bl+br)+8,ph=Math.ceil(ba+(m.actualBoundingBoxDescent||0))+8;
   var a=document.createElement('canvas');a.width=pw;a.height=ph;var g=a.getContext('2d',{willReadFrequently:true});g.font=fam;g.fillText(ch,4+bl,4+ba);
@@ -131,11 +183,11 @@ function raise(){
   for(i=0;i<pw;i++){stk.push(i,M-pw+i)}for(i=0;i<ph;i++){stk.push(i*pw,i*pw+pw-1)}
   while(stk.length){q=stk.pop();if(seen[q]||d[q*4+3]>127)continue;seen[q]=1;var qx=q%pw;if(qx>0)stk.push(q-1);if(qx<pw-1)stk.push(q+1);if(q>=pw)stk.push(q-pw);if(q<M-pw)stk.push(q+pw)}
   for(q=0;q<M;q++)if(!seen[q]&&d[q*4+3]<=127){sx+=q%pw;sy+=(q/pw)|0;sn++}
-  var cx=sn?sx/sn:pw*.4,cy=sn?sy/sn:ph*.3,ox0=gw*(port?.5:.42)-cx,oy0=gh*(port?.34:.36)-cy;
+  var ox0=gw*.5-pw/2,oy0=gh*(port?.47:.5)-ph/2;
   function lay(b){var c=document.createElement('canvas');c.width=gw;c.height=gh;var k=c.getContext('2d',{willReadFrequently:true});if(b)k.filter='blur('+b+'px)';k.drawImage(a,ox0,oy0);return k.getImageData(0,0,gw,gh).data}
-  var A=lay(0),S1=lay(Math.max(1,gw/170)),S2=lay(Math.max(2.5,gw/40)),mxH=1e-6;
+  var A=lay(0),S1=lay(Math.max(1,fs/90)),S2=lay(Math.max(2.5,fs/14)),mxH=1e-6;
   for(q=0;q<N;q++){var xx=q%gw,yy=(q/gw)|0,s1=S1[q*4+3]/255,s2=S2[q*4+3]/255,
-      n=vn(xx*.09,yy*.09)*.6+vn(xx*.23+7,yy*.23)*.4;
+      n=vn(xx*.12,yy*.12)*.6+vn(xx*.3+7,yy*.3)*.4;
     H[q]=sst(.25,.75,s1)*.62+Math.pow(s2,1.2)*.38+(n-.5)*.1*s1;if(H[q]<0)H[q]=0;if(H[q]>mxH)mxH=H[q]}
   for(q=0;q<N;q++)H[q]/=mxH;
   // counter cells on the grid: inside the bowl, not ink
@@ -143,10 +195,13 @@ function raise(){
   H0=new Float32Array(H);
   var lo=1,rim=0;for(q=0;q<N;q++)if(CT[q]){if(H[q]<lo)lo=H[q];if(H[q]>rim)rim=H[q]}PL0=lo;PL1=lo+(Math.max(rim,lo+.2)-lo)*.75;
 }
-var PL0=0,PL1=0;
+var PL0=0,PL1=0,TP=null;
+function sheet(){x.setTransform(DPR,0,0,DPR,0,0);x.globalAlpha=1;x.fillStyle=C0s;x.fillRect(0,0,VW,VH);
+  if(!TP&&window.TOPO&&TOPO.tile){TP=x.createPattern(TOPO.tile,'repeat');if(TP.setTransform&&window.DOMMatrix)TP.setTransform(new DOMMatrix().scale(1/TOPO.dpr))}
+  if(TP){x.fillStyle=TP;x.fillRect(0,0,VW,VH)}}
 // persistent droplets: each runs a few cells a frame, so the flow is visible; capacity cuts, excess drops in fans
-var ND=Math.round(Math.min(1800,N*.055)),DX=new Float32Array(ND),DY=new Float32Array(ND),DVX=new Float32Array(ND),DVY=new Float32Array(ND),DW=new Float32Array(ND),DS=new Float32Array(ND),DV=new Float32Array(ND),act=0;
-function spawn(k){for(var tr=0;tr<6;tr++){DX[k]=2+Math.random()*(gw-5);DY[k]=2+Math.random()*(gh-5);if(H[(DY[k]|0)*gw+(DX[k]|0)]>.08)break}DVX[k]=DVY[k]=0;DW[k]=1;DS[k]=0;DV[k]=1}
+var ND=Math.round(Math.min(2600,N*.045)),DX=new Float32Array(ND),DY=new Float32Array(ND),DVX=new Float32Array(ND),DVY=new Float32Array(ND),DW=new Float32Array(ND),DS=new Float32Array(ND),DV=new Float32Array(ND),act=0;
+function spawn(k){for(var tr=0;tr<14;tr++){DX[k]=2+Math.random()*(gw-5);DY[k]=2+Math.random()*(gh-5);if(H[(DY[k]|0)*gw+(DX[k]|0)]>.08)break}DVX[k]=DVY[k]=0;DW[k]=1;DS[k]=0;DV[k]=1}
 function addB(px,py,a){var i=px|0,j=py|0,fx=px-i,fy=py-j,q=j*gw+i;H[q]+=a*(1-fx)*(1-fy);H[q+1]+=a*fx*(1-fy);H[q+gw]+=a*(1-fx)*fy;H[q+gw+1]+=a*fx*fy}
 function addK(px,py,a){var q=Math.round(py)*gw+Math.round(px),b=a*.0625;H[q]+=a*.25;H[q-1]+=b*2;H[q+1]+=b*2;H[q-gw]+=b*2;H[q+gw]+=b*2;H[q-gw-1]+=b;H[q-gw+1]+=b;H[q+gw-1]+=b;H[q+gw+1]+=b}
 var G=[0,0,0];
@@ -162,7 +217,7 @@ function step(k,K){var px=DX[k],py=DY[k];
     var cap=Math.max(-dh,.004)*DV[k]*DW[k]*5;
     if(dh>0||DS[k]>cap){var dep=dh>0?Math.min(dh,DS[k]):(DS[k]-cap)*.35;DS[k]-=dep;addB(px,py,dep);SD[q]+=dep*22;HZ[q]+=dep*6}
     else{var er=Math.min((cap-DS[k])*.3*K,-dh*.6);addK(px,py,-er);DS[k]+=er;HZ[q]+=er*3}
-    DV[k]=Math.sqrt(Math.max(.05,DV[k]*DV[k]-dh*6));DW[k]*=.985;px=nx;py=ny}
+    DV[k]=Math.sqrt(Math.max(.05,DV[k]*DV[k]-dh*6));DW[k]*=.962;px=nx;py=ny}
   DX[k]=px;DY[k]=py}
 // saturated slopes slump: material above the (falling) angle of repose moves to the lowest neighbour
 function slump(T){for(var j=1;j<gh-1;j++)for(var i=1;i<gw-1;i++){var q=j*gw+i,h=H[q],lo=q,ld0=0,dd;
@@ -176,18 +231,21 @@ function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
 var Z=gw/22,LX=-.55,LY=-.62,LZ=.56,LF=LZ;
 function paint(grow,wet,pool,fade){
   for(var j=0;j<gh;j++)for(var i=0;i<gw;i++){var q=j*gw+i,o=q*4,h=H[q]*grow;
-    var hx=(H[i<gw-1?q+1:q]-H[i>0?q-1:q])*grow*Z,hy=(H[j<gh-1?q+gw:q]-H[j>0?q-gw:q])*grow*Z,nl=1/Math.sqrt(hx*hx+hy*hy+1),lam=(-hx*LX-hy*LY+LZ)*nl/LF;
+    var hx=(H[i<gw-2?q+2:q]-H[i>1?q-2:q])*grow*Z*.5,hy=(H[j<gh-2?q+gw*2:q]-H[j>1?q-gw*2:q])*grow*Z*.5,nl=1/Math.sqrt(hx*hx+hy*hy+1),lam=(-hx*LX-hy*LY+LZ)*nl/LF;
     var e=h<.3?h/.3:1,c=h<.3?mx3(C0,TI,e):h<.7?mx3(TI,DP,(h-.3)/.4):mx3(DP,DK,Math.min(1,(h-.7)/.3)*.55);
     var sh=lam<1?.42+.58*lam:1+(lam-1)*.5,mk=sst(.015,.12,h),r=c[0]*sh,gg=c[1]*sh,b=c[2]*sh;
     var dk=1-.32*wet*mk;r*=dk;gg*=dk;b*=dk*1.02;
-    var sd=Math.min(1,SD[q]*.35)*(1-sst(.25,.5,h));if(sd>0){r+=(SA[0]-r)*sd*.7;gg+=(SA[1]-gg)*sd*.7;b+=(SA[2]-b)*sd*.7}
+    var sd=Math.min(1,SD[q]*.22)*(1-sst(.25,.5,h));if(sd>0){r+=(SA[0]-r)*sd*.7;gg+=(SA[1]-gg)*sd*.7;b+=(SA[2]-b)*sd*.7}
     r+=(C0[0]-r)*(1-mk-sd*.7>0?1-mk-sd*.7:0);gg+=(C0[1]-gg)*(1-mk-sd*.7>0?1-mk-sd*.7:0);b+=(C0[2]-b)*(1-mk-sd*.7>0?1-mk-sd*.7:0);
-    var hz=Math.min(.45,HZ[q]*.9);if(hz>0){r+=(DP[0]-r)*hz;gg+=(DP[1]-gg)*hz;b+=(DP[2]-b)*hz}
-    var fl=Math.max(0,F[q]-.12),fw=Math.min(.9,fl*.8)*wet,dc=1-Math.min(.3,fl*.25)*wet;r*=dc;gg*=dc;b*=dc;
+    var Fs=(i>0&&j>0&&i<gw-1&&j<gh-1)?F[q]*.4+(F[q-1]+F[q+1]+F[q-gw]+F[q+gw])*.15:F[q];
+    var hz=Math.min(.3,HZ[q]*.5);if(hz>0){r+=(DP[0]-r)*hz;gg+=(DP[1]-gg)*hz;b+=(DP[2]-b)*hz}
+    var fl=Math.max(0,Fs-.2),fw=Math.min(.7,fl*.55)*wet,dc=1-Math.min(.25,fl*.2)*wet;r*=dc;gg*=dc;b*=dc;
     if(CT[q]&&pool>0){var pd=PL0+(PL1-PL0)*pool-H[q];if(pd>0)fw=Math.max(fw,Math.min(1,.45+pd*9))}
     if(fw>0){var wr=WT[0]*sh*.15+WT[0]*.85,wg=WT[1]*.85+WT[1]*sh*.15,wb=WT[2]*.85+WT[2]*sh*.15;fw*=.85;r+=(wr-r)*fw;gg+=(wg-gg)*fw;b+=(wb-b)*fw}
-    if(fade>0){r+=(C0[0]-r)*fade;gg+=(C0[1]-gg)*fade;b+=(C0[2]-b)*fade}
-    OD[o]=r;OD[o+1]=gg;OD[o+2]=b;OD[o+3]=255}
+    // coverage over the sheet: the bare paper stays transparent so the survey tile shows through
+    var dv=Math.max(Math.abs(r-C0[0]),Math.abs(gg-C0[1]),Math.abs(b-C0[2]))/38,al=Math.min(1,Math.max(mk,dv));
+    if(al>.002&&al<1){r=C0[0]+(r-C0[0])/al;gg=C0[1]+(gg-C0[1])/al;b=C0[2]+(b-C0[2])/al}
+    OD[o]=r;OD[o+1]=gg;OD[o+2]=b;OD[o+3]=255*al*(1-fade)}
   ox.putImageData(oimg,0,0);x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(ov,0,0,gw*cs,gh*cs);
   var L=12,segs=[];x.lineCap='round';
   for(var l=1;l<L;l++){var lv=l/L;if(lv>grow*1.02)break;segs.length=0;contours(lv/grow,segs);var ix=l%4===0;
@@ -197,13 +255,13 @@ function paint(grow,wet,pool,fade){
 function sim(K,T,dt){
   for(var k=0;k<act;k++)step(k,K);
   slump(T);
-  for(var j=1;j<gh-1;j++)for(var i=1;i<gw-1;i++){var p=j*gw+i;HZ2[p]=H[p]*.94+(H[p-1]+H[p+1]+H[p-gw]+H[p+gw])*.015}for(j=1;j<gh-1;j++)for(i=1;i<gw-1;i++){p=j*gw+i;H[p]=HZ2[p]}
+  for(var j=1;j<gh-1;j++)for(var i=1;i<gw-1;i++){var p=j*gw+i;HZ2[p]=H[p]*.92+(H[p-1]+H[p+1]+H[p-gw]+H[p+gw])*.02}for(j=1;j<gh-1;j++)for(i=1;i<gw-1;i++){p=j*gw+i;H[p]=HZ2[p]}
   // haze drifts downwind and thins
   for(var q=gw+1;q<N-gw-1;q++)HZ2[q]=(HZ[q]*.3+HZ[q-1]*.3+(HZ[q-2]+HZ[q+1]+HZ[q-gw]+HZ[q+gw])*.1)*.965;var tmp=HZ;HZ=HZ2;HZ2=tmp;
   for(q=0;q<N;q++){F[q]*=.86;SD[q]*=.998}}
 if(RM){
   ld.style.display='block';ld.style.transition='opacity .4s linear';var tS=0;
-  var still=function(){if(!H0)raise();act=ND;for(var k=0;k<act;k++)spawn(k);for(var f=0;f<26;f++)sim(1,.05,1/60);x.setTransform(DPR,0,0,DPR,0,0);paint(1,.5,1,0)};
+  var still=function(){if(!H0)raise();act=ND;for(var k=0;k<act;k++)spawn(k);for(var f=0;f<26;f++)sim(1,.05,1/60);sheet();paint(1,.5,1,0)};
   var wait=function(now){if(!tS){tS=now;setTimeout(still,0)}var t=(now-tS)/1000;
     if((RDY&&t>.8)||t>4.5){ld.style.opacity='0';setTimeout(function(){ld.style.display='none'},450);return}requestAnimationFrame(wait)};
   requestAnimationFrame(wait);return}
@@ -214,11 +272,13 @@ function frame(now){
   if(dStart<0&&((t>=2.25&&RDY)||t>=4.5))dStart=Math.max(t,2.25);
   var rain=sst(.12,1.0,t)*(1-sst(1.75,2.25,t)),fade=dStart<0?0:sst(dStart,dStart+.5,t),grow=.08+.92*(1-Math.pow(1-sst(0,.6,t),2));
   var wet=sst(.3,1.3,t)*(1-.35*sst(2,2.6,t));
-  x.setTransform(DPR,0,0,DPR,0,0);x.globalAlpha=1;x.fillStyle=C0s;x.fillRect(0,0,VW,VH);
+  sheet();
   if(H0){
+    // a slow pull-back while the storm plays
+    var zm=1+.08*Math.pow(1-sst(0,2.6,t),1.5);x.translate(VW/2,VH*.5);x.scale(zm,zm);x.translate(-VW/2,-VH*.5);
     var sp=dt*60,er=sst(.35,.8,t)*(1-sst(1.9,2.4,t));act=Math.round(ND*er);
     if(er>0){for(var it=0;it<Math.max(1,Math.round(sp));it++)sim(1.6,.13-.07*sst(.5,1.9,t),dt)}else{for(var q=0;q<N;q++){F[q]*=.86}}
-    paint(grow,wet,sst(.85,2.1,t),fade);
+    paint(grow,wet,sst(.85,2.1,t),fade);x.setTransform(DPR,0,0,DPR,0,0);
   }
   // rain: slanted streaks thickening into a downpour, then easing
   var want=Math.round(rain*Math.min(1500,VW*VH/700));while(RAIN.length<want)RAIN.push({x:Math.random()*VW*1.15,y:-Math.random()*VH*.4,v:VH*(1.5+Math.random()*1.1),l:.018+Math.random()*.03});
@@ -1057,7 +1117,7 @@ function applyMap(){
   if(d.theme)r.setAttribute('data-theme',d.theme);else r.removeAttribute('data-theme');
   st.setProperty('--bg',d.paper);st.setProperty('--fg',d.ui);
   st.setProperty('--c0',d.paper);
-  st.setProperty('--f-acc',d.paper);st.setProperty('--ink',d.ui);st.setProperty('--lt',d.water);st.setProperty('--ltg',rgba(d.water,.35));
+  st.setProperty('--f-acc',d.paper);st.setProperty('--ink',d.ui);if(window.TOPO)TOPO.ink(d.ui);st.setProperty('--lt',d.water);st.setProperty('--ltg',rgba(d.water,.35));
   if(T3.ok&&T3.grp){var u=palUniforms();T3.grp.traverse(function(o){if(o.material&&o.material.uniforms){for(var k in u)if(o.material.uniforms[k])o.material.uniforms[k].value=u[k].value}});var pl=pal();if(T3.rainM)T3.rainM.color.setRGB(pl.water[0],pl.water[1],pl.water[2])}
   [TT,TA,TS,T3.T].forEach(function(t){if(t)t.markAll()});fbDirty=true;OPEN.k1=OPEN.k2=OPEN.k3='';
 }
