@@ -79,16 +79,14 @@ html.cx input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
 #ch-3d input[type=range]::-webkit-slider-thumb{background:var(--c0)}
 :root[data-theme="paper"] #ch-3d .rng input{color:var(--ink)}
 :root[data-theme="paper"] #ch-3d input[type=range]::-webkit-slider-thumb{background:var(--ink)}
-#loader{background:var(--c0);color:var(--ink)}
-#loader .lg{display:block;width:min(70vh,62vw);height:min(70vh,62vw);font-size:16px}
-#loader .ln{font-family:Jost,var(--s-sans);font-weight:400;font-size:clamp(28px,4vw,64px)}
+#loader{background:var(--c0)}
 .foot{justify-content:space-between}
 html.embed body{background:var(--bg)}
 html.embed .ch:not(#ch-tester),html.embed .foot,html.embed #ch-tester>*:not(.slot){display:none!important}
 html.embed #ch-tester{padding:0;background:var(--bg)}
 html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
-@media (max-width:760px){#slot-tester{height:54vh}#slot-3d{height:72vh}.steps button,.sw2 button{font-size:17px}.txtin{font-size:24px}.tag,.btn{font-size:12px;padding:6px 9px}#loader .lg{width:86vw;height:86vw}}
-.cast .ft,.txtin,#loader{text-transform:uppercase}
+@media (max-width:760px){#slot-tester{height:54vh}#slot-3d{height:72vh}.steps button,.sw2 button{font-size:17px}.txtin{font-size:24px}.tag,.btn{font-size:12px;padding:6px 9px}}
+.cast .ft,.txtin{text-transform:uppercase}
 .txtin{letter-spacing:.02em}
 @media (max-width:760px){.bar .tag,.bar .btn{font-size:10.5px;padding:6px 7px}}
 </style>
@@ -103,11 +101,7 @@ html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
   <a class="btn" href="../caustic/index.html"><span class="cast">NEXT</span></a>
 </nav>
 
-<div id="loader" aria-hidden="true">
-  <div class="ln"><span class="cast">EVOLVED</span></div>
-  <canvas class="lg" id="ldG"></canvas>
-  <div class="ln"><span class="cast" id="ldS">LIGHT</span></div>
-</div>
+<div id="loader" aria-hidden="true"><canvas></canvas></div>
 
 <header class="ch" id="ch-open" data-tag="">
   <h1 class="huge"><span class="cast">EVOLVED</span></h1>
@@ -838,14 +832,44 @@ function up3(){if(!SP.drag)return;SP.drag=null;V3.slot.classList.remove('draggin
 V3.cv.addEventListener('pointerup',up3);V3.cv.addEventListener('pointercancel',up3);
 V3.cv.addEventListener('keydown',function(e){if(e.key==='ArrowLeft'||e.key==='ArrowRight'){SP.auto=false;SP.yaw+=e.key==='ArrowLeft'?-.12:.12;e.preventDefault()}else if(e.key==='ArrowUp'||e.key==='ArrowDown'){SP.auto=false;SP.pitch=clamp(SP.pitch+(e.key==='ArrowUp'?-.1:.1),-1.2,1.2);e.preventDefault()}});
 
-/* opening: the loader steps the founder through the four weights, then lifts */
+
+/* opening: a short run of selection. A population of stroke genomes (one gene layout, scattered values) is bred
+   for a few dozen generations towards a cropped fragment of a founder; survivors print solid, the culled flicker
+   out; the converged fragment swells to fill the field and fades into the ground, then the sheet lifts. */
 function loaderRun(){
   var ld=$('#loader');if(EMBED||!ld||matchMedia('(prefers-reduced-motion: reduce)').matches){if(ld)ld.style.display='none';return}
-  var k=0,L=LET[CH.indexOf('E')],cv=$('#ldG'),ls=$('#ldS');
-  function st(){var c=cvFit(cv),u=Math.min(c.w,c.h)*.8;c.x.clearRect(0,0,c.w,c.h);drawInd(c.x,L.pop[0],c.w*.06-L.seedBB.x0*u,(c.h-u)/2,u,k,PAL().ink,1.6);
-    ls.setAttribute('data-w',WEIGHTS[k].name.toUpperCase());ls.querySelector('.ft').textContent=WEIGHTS[k].name.toUpperCase();castEl(ls);
-    if(++k<4)setTimeout(st,430);else setTimeout(function(){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900)},560)}
-  st();
+  var cv=ld.querySelector('canvas'),x=cv.getContext('2d',{willReadFrequently:true}),VW=innerWidth,VH=innerHeight,D2=Math.min(2,devicePixelRatio||1);
+  cv.width=Math.round(VW*D2);cv.height=Math.round(VH*D2);
+  var port=VH>VW,cols=port?3:6,rows=port?6:4,NP=cols*rows,cw=VW/cols,chh=VH/rows,T=parseSeed(SK.G||SK[CH[6]],.11);
+  function vec(g){var a=[];g.n.forEach(function(p){a.push(p[0],p[1])});g.s.forEach(function(s){a.push(s.c1[0],s.c1[1],s.c2[0],s.c2[1],s.w0*3,s.w1*3)});return a}
+  function put(g,a){var k=0;g.n.forEach(function(p){p[0]=a[k++];p[1]=a[k++]});g.s.forEach(function(s){s.c1[0]=a[k++];s.c1[1]=a[k++];s.c2[0]=a[k++];s.c2[1]=a[k++];s.w0=Math.max(.02,a[k++]/3);s.w1=Math.max(.02,a[k++]/3)});return g}
+  var TV=vec(T),pop=[];
+  for(var i=0;i<NP;i++){var a=TV.map(function(v){return v+gauss()*.42});pop.push({a:a,g:put(cloneG(T),a),f:0,born:0,alive:1})}
+  function fit(d){var s=0;for(var k=0;k<TV.length;k++){var e=d.a[k]-TV[k];s+=e*e}return -s}
+  var t0=0,gen=0,lastG=0,dStart=-1,ink=PAL().ink,C0=getComputedStyle(document.documentElement).getPropertyValue('--c0')||'#070707';
+  function breed(t){
+    pop.forEach(function(d){d.f=fit(d)});var srt=pop.slice().sort(function(p,q){return q.f-p.f}),keep=Math.max(2,NP/4|0),sig=.12*Math.exp(-gen*.11)+.006;
+    srt.forEach(function(d,r){if(r<keep){d.alive=1;return}var A=srt[rnd()*keep|0],B=srt[rnd()*keep|0];
+      d.a=A.a.map(function(v,k){return (rnd()<.5?v:B.a[k])+gauss()*sig});put(d.g,d.a);d.born=t;d.alive=0});gen++}
+  function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
+  var LDRDY=function(){return !!LET.length};
+  function fr(now){
+    if(!t0)t0=now;var t=(now-t0)/1000;
+    if(t<1.45&&t-lastG>.075){lastG=t;breed(t)}
+    if(dStart<0&&((t>=1.9&&LDRDY())||t>=4.5))dStart=Math.max(t,1.9);
+    var mg=sst(1.35,1.9,t),fade=dStart<0?1:1-sst(dStart,dStart+.4,t),best=pop[0];pop.forEach(function(d){if(fit(d)>fit(best))best=d});
+    x.setTransform(D2,0,0,D2,0,0);x.globalAlpha=1;x.fillStyle=C0;x.fillRect(0,0,VW,VH);
+    var big=Math.max(VW,VH)*1.5;
+    pop.forEach(function(d,k){var cx=(k%cols)*cw,cy=(k/cols|0)*chh,u0=Math.max(cw,chh)*2.1,
+      X=cx*(1-mg),Y=cy*(1-mg),w=cw+(VW-cw)*mg,h=chh+(VH-chh)*mg,u=u0+(big-u0)*mg;
+      if(mg>0&&d!==best)return;
+      var age=t-d.born,al=d.alive?1:Math.min(1,.25+age*6)*(rnd()<.12?.3:1);
+      x.save();x.beginPath();x.rect(X+1,Y+1,w-2,h-2);x.clip();
+      drawGenome(x,d.g,X+w*.5-u*.46,Y+h*.5-u*.62,u,1,ink,al*fade,1.3);x.restore()});
+    if(dStart>=0&&t>=dStart+.4){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900);return}
+    requestAnimationFrame(fr);
+  }
+  requestAnimationFrame(fr);
 }
 
 /* ---------------------------------------------------------------

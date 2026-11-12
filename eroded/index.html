@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="../assets/site.css">
 <script>if(/[?&]embed/.test(location.search))document.documentElement.classList.add('embed')</script>
 <style>
-:root{--bg:#efe7d4;--fg:#2b2117;--c0:#efe7d4;--ink:#2b2117;--lt:#2a78b8;--ltg:rgba(42,120,184,.35);--f-acc:#efe7d4;
+:root{--bg:#efe7d4;--fg:#2b2117;--c0:#efe7d4;--ink:#2b2117;--lt:#2a78b8;--ltg:rgba(42,120,184,.35);--f-acc:#efe7d4;--line:#a06a38;--index:#6f4220;--dep:#a8743c;
   --ease:cubic-bezier(.4,0,.2,1)}
 html.cx body{background:var(--c0);color:var(--ink);font-family:Rubik,var(--s-sans);transition:background .5s}
 html.cx .ch,html.cx .foot{transition:background .5s,color .5s}
@@ -73,10 +73,7 @@ html.cx input[type=range]::-moz-range-track{height:1px;background:color-mix(in s
 html.cx input[type=range]::-webkit-slider-thumb{width:14px;height:14px;margin-top:-6.5px;background:var(--lt);box-shadow:0 0 0 3px color-mix(in srgb,var(--lt) 22%,transparent);transition:box-shadow .15s var(--ease)}
 html.cx input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--lt)}
 html.cx input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 6px color-mix(in srgb,var(--lt) 26%,transparent)}
-#loader{background:var(--c0);color:var(--ink)}
-#loader .lg{font-family:Rubik,var(--s-sans);font-weight:900;color:var(--ink);filter:url(#wear);transition:none}
-#loader .ln{font-family:Rubik,var(--s-sans);font-weight:700}
-#loader .ln #ldS{font-weight:400}
+#loader{background:var(--c0)}
 .foot{justify-content:space-between}
 html.embed body{background:var(--bg)}
 html.embed .ch:not(#ch-tester),html.embed .foot,html.embed #ch-tester>*:not(.slot){display:none!important}
@@ -84,13 +81,12 @@ html.embed #ch-tester{padding:0;background:var(--bg)}
 html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
 @media (max-width:760px){#slot-tester{height:64vh}#slot-3d{height:72vh}#slot-glyphs{height:860px}.steps button,.sw2 button{font-size:17px}.txtin{font-size:24px}.tag,.btn{font-size:12px;padding:6px 9px}.ctl{gap:18px 30px}}
 @media (prefers-reduced-motion:reduce){.tag,.btn,.steps button,.sw2 button,.idx a{transition:none}}
-.cast .ft,.txtin,#loader{text-transform:uppercase}
+.cast .ft,.txtin{text-transform:uppercase}
 .txtin{letter-spacing:.02em}
 @media (max-width:760px){.bar .tag,.bar .btn{font-size:10.5px;padding:6px 7px}}
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><filter id="wear" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="4" seed="7" result="n"/><feDisplacementMap id="wearD" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 <nav class="bar" aria-label="Site">
   <a class="tag series" href="../index.html"><span class="cast">TYPE EXPERIMENT</span></a>
   <a class="tag face" href="#ch-open"><span class="cast">ERODED</span></a>
@@ -100,11 +96,80 @@ html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
   <a class="btn" href="../evolved/index.html"><span class="cast">NEXT</span></a>
 </nav>
 
-<div id="loader" aria-hidden="true">
-  <div class="ln"><span class="cast">ERODED</span></div>
-  <div class="lg" id="ldG">A</div>
-  <div class="ln"><span id="ldS">LIGHT</span></div>
-</div>
+<div id="loader" aria-hidden="true"><canvas></canvas></div>
+<script>/* opening: a short storm. A cropped fragment of the source face (Rubik 900) is raised as a range, read as contours;
+   rain falls, droplets run downslope, cut channels and drop sediment; the water drains and the map fades into the
+   ground. Runs before the page's heavy setup and lifts once it has played and the page reports ready (window.LDR). */
+(function(){
+var ld=document.getElementById('loader'),de=document.documentElement,RDY=false;
+window.LDR={ready:function(){RDY=true}};
+if(!ld)return;
+if(de.classList.contains('embed')||matchMedia('(prefers-reduced-motion: reduce)').matches){ld.style.display='none';return}
+var cv=ld.querySelector('canvas'),x=cv.getContext('2d',{willReadFrequently:true}),VW=innerWidth,VH=innerHeight,DPR=Math.min(2,devicePixelRatio||1);
+cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR);
+var gw=Math.max(56,Math.min(190,Math.round(VW/7.5))),gh=Math.max(40,Math.round(gw*VH/VW)),N=gw*gh,cs=VW/gw;
+var H=new Float32Array(N),F=new Float32Array(N),SD=new Float32Array(N),H0=null;
+var st=getComputedStyle(de);function v(n,d){return (st.getPropertyValue(n)||'').trim()||d}
+var C0=v('--c0','#efe7d4'),LN=v('--line','#a06a38'),IX=v('--index','#6f4220'),WT=v('--lt','#2a78b8'),DP=v('--dep','#a8743c');
+function rgb(h){h=h.replace('#','');return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]}
+var wR=rgb(WT),dR=rgb(DP);
+var ov=document.createElement('canvas');ov.width=gw;ov.height=gh;var ox=ov.getContext('2d'),oimg=ox.createImageData(gw,gh);
+var fontOK=false;try{document.fonts.load('900 100px Rubik').then(function(f){fontOK=!!(f&&f.length)},function(){})}catch(e){}
+function raise(){
+  var c=document.createElement('canvas');c.width=gw;c.height=gh;var g=c.getContext('2d'),port=gh>gw*1.1,fs=port?gh*1.7:gh*2.7;
+  g.font='900 '+fs+'px '+(fontOK?'Rubik,':'')+'sans-serif';var m=g.measureText('R'),x0=-m.actualBoundingBoxLeft,x1=m.actualBoundingBoxRight,y0=-m.actualBoundingBoxAscent,y1=m.actualBoundingBoxDescent;
+  g.filter='blur('+Math.max(3,gw/16)+'px)';g.fillStyle='#000';g.fillText('R',gw*.5-(x0+(x1-x0)*.5),gh*.5-(y0+(y1-y0)*.55));
+  var d=g.getImageData(0,0,gw,gh).data,mx=1e-6;
+  for(var i=0;i<N;i++){var xx=i%gw,yy=(i/gw)|0;H[i]=d[i*4+3]/255;if(H[i]>mx)mx=H[i]}
+  for(i=0;i<N;i++)H[i]=Math.max(0,H[i]/mx);H0=new Float32Array(H);
+}
+function hg(px,py,o){var i=px|0,j=py|0,fx=px-i,fy=py-j,q=j*gw+i,a=H[q],b=H[q+1],c=H[q+gw],e=H[q+gw+1];
+  o[0]=(b-a)*(1-fy)+(e-c)*fy;o[1]=(c-a)*(1-fx)+(e-b)*fx;o[2]=a*(1-fx)*(1-fy)+b*fx*(1-fy)+c*(1-fx)*fy+e*fx*fy}
+var G=[0,0,0],G2=[0,0,0];
+function drop(px,py){var dx=0,dy=0,sp=1,wa=1,sed=0;
+  for(var s=0;s<28;s++){if(px<1||py<1||px>=gw-2||py>=gh-2)return;hg(px,py,G);
+    dx=dx*.3-G[0]*.7;dy=dy*.3-G[1]*.7;var l=Math.hypot(dx,dy);if(l<1e-5)return;dx/=l;dy/=l;
+    var nx=px+dx,ny=py+dy;if(nx<1||ny<1||nx>=gw-2||ny>=gh-2)return;hg(nx,ny,G2);var dh=G2[2]-G[2],q=(py|0)*gw+(px|0);
+    var cap=Math.max(-dh,.002)*sp*wa*3;F[q]+=wa*.12;
+    if(sed>cap||dh>0){var dep=dh>0?Math.min(dh,sed):(sed-cap)*.3;sed-=dep;H[q]+=dep;SD[q]+=dep*14}
+    else{var er=Math.min((cap-sed)*.12,-dh);H[q]-=er;sed+=er}
+    sp=Math.sqrt(Math.max(.01,sp*sp+dh*-4));wa*=.97;px=nx;py=ny}}
+function contours(lv){var segs=[];for(var j=0;j<gh-1;j++)for(var i=0;i<gw-1;i++){var q=j*gw+i,a=H[q]-lv,b=H[q+1]-lv,c=H[q+gw+1]-lv,d=H[q+gw]-lv,
+  k=(a>0?8:0)|(b>0?4:0)|(c>0?2:0)|(d>0?1:0);if(k===0||k===15)continue;
+  var P=[];if((a>0)!==(b>0))P.push(i+a/(a-b),j);if((b>0)!==(c>0))P.push(i+1,j+b/(b-c));if((c>0)!==(d>0))P.push(i+1-c/(c-d),j+1);if((d>0)!==(a>0))P.push(i,j+1-d/(d-a));
+  for(var p=0;p+3<P.length;p+=4)segs.push(P[p],P[p+1],P[p+2],P[p+3])}return segs}
+var RAIN=[];function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
+var t0=0,dStart=-1,last=0;
+function frame(now){
+  if(!t0){t0=now;last=now}var t=(now-t0)/1000,dt=Math.min(.05,(now-last)/1000);last=now;
+  if(!H0&&(fontOK||t>.25))raise();
+  if(dStart<0&&((t>=2&&RDY)||t>=4.8))dStart=Math.max(t,2);
+  var rain=dStart<0?sst(.25,.6,t)*(t<1.75||!RDY?1:1-sst(1.75,2,t)):0,fade=dStart<0?1:1-sst(dStart,dStart+.45,t),grow=sst(0,.55,t);
+  x.setTransform(DPR,0,0,DPR,0,0);x.globalAlpha=1;x.fillStyle=C0;x.fillRect(0,0,VW,VH);
+  if(H0){
+    var nd=Math.round(rain*N*.005*(dt*60));for(var k=0;k<nd;k++)drop(1+Math.random()*(gw-3),1+Math.random()*(gh-3));
+    if(nd){var T2=new Float32Array(H);for(var jj=1;jj<gh-1;jj++)for(var ii=1;ii<gw-1;ii++){var qq=jj*gw+ii;H[qq]=T2[qq]*.6+(T2[qq-1]+T2[qq+1]+T2[qq-gw]+T2[qq+gw])*.1}}
+    // water and sediment as one soft plate under the lines
+    var D=oimg.data;for(var q=0;q<N;q++){F[q]*=.88;var w=Math.min(1,Math.max(0,F[q]-.12)*1.6),s=Math.min(1,SD[q]),o=q*4;
+      D[o]=dR[0]+(wR[0]-dR[0])*w;D[o+1]=dR[1]+(wR[1]-dR[1])*w;D[o+2]=dR[2]+(wR[2]-dR[2])*w;D[o+3]=255*Math.min(1,w*.8+s*.3)*fade}
+    ox.putImageData(oimg,0,0);x.imageSmoothingEnabled=true;x.drawImage(ov,0,0,VW,VH);
+    var L=16;x.lineCap='round';
+    for(var l=1;l<L;l++){var lv=l/L;if(lv>grow*1.02)break;var sg=contours(lv),ix=l%4===0;
+      x.strokeStyle=ix?IX:LN;x.lineWidth=ix?1.6:.9;x.globalAlpha=fade*(ix?.9:.75);x.beginPath();
+      for(var p=0;p<sg.length;p+=4){x.moveTo(sg[p]*cs,sg[p+1]*cs);x.lineTo(sg[p+2]*cs,sg[p+3]*cs)}x.stroke()}
+  }
+  // rain: short falling strokes in the water colour
+  var want=Math.round(rain*Math.min(260,VW*VH/5000));while(RAIN.length<want)RAIN.push({x:Math.random()*VW*1.1,y:-Math.random()*VH,v:VH*(1.6+Math.random())});
+  x.strokeStyle=WT;x.lineWidth=1;x.globalAlpha=.7*fade;x.beginPath();
+  for(var r=RAIN.length-1;r>=0;r--){var R=RAIN[r];R.y+=R.v*dt;R.x-=R.v*dt*.12;x.moveTo(R.x,R.y);x.lineTo(R.x+R.v*.0024,R.y-R.v*.02);
+    if(R.y>VH){if(RAIN.length>want)RAIN.splice(r,1);else{R.y=-Math.random()*VH*.2;R.x=Math.random()*VW*1.1}}}
+  x.stroke();x.globalAlpha=1;
+  if(dStart>=0&&t>=dStart+.45){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900);return}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
 
 <header class="ch" id="ch-open" data-tag="">
   <h1 class="huge"><span class="cast">ERODED</span></h1>
@@ -961,13 +1026,6 @@ var pickT=0;window.addEventListener('scroll',function(){if(!pickT)pickT=requestA
 if('IntersectionObserver' in window){var rio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target)}})},{threshold:.15});document.querySelectorAll('.rv').forEach(function(el){rio.observe(el)})}
 else document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in')});
 
-/* opening: the loader wears one letter through the four stages, then lifts */
-(function(){
-  var ld=$('#loader');if(EMBED||!ld||matchMedia('(prefers-reduced-motion: reduce)').matches){if(ld)ld.style.display='none';return}
-  var k=0,dm=$('#wearD'),SC=[0,14,30,58];function st(){var g=$('#ldG'),fs=parseFloat(getComputedStyle(g).fontSize)||400;if(dm)dm.setAttribute('scale',(SC[k]*fs/700).toFixed(1));$('#ldS').textContent=AGES[k].name.toUpperCase();
-    if(++k<4)setTimeout(st,430);else setTimeout(function(){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900)},560)}
-  st();
-})();
 
 /* opening specimens: ① map ② water ③ relief, all of the same worn 'a' */
 var OPEN={T:null,tkey:'',k1:'',k2:'',k3:'',vis:true};
@@ -1089,7 +1147,7 @@ setView('tester');
 pick();
 requestAnimationFrame(frame);
 var started=false;
-function start(face){if(started)return;started=true;FM.face=face;measureFont();fontReady=true;ensureView()}
+function start(face){if(started)return;started=true;FM.face=face;measureFont();fontReady=true;ensureView();requestAnimationFrame(function(){if(window.LDR)LDR.ready()})}
 try{
   if(document.fonts&&document.fonts.load){
     Promise.race([document.fonts.load('900 100px Rubik').then(function(f){return f&&f.length?'Rubik':'fallback'}),new Promise(function(r){setTimeout(function(){r('fallback')},2200)})])

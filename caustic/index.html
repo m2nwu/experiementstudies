@@ -22,7 +22,7 @@
 <script>if(/[?&]embed/.test(location.search))document.documentElement.classList.add('embed')</script>
 <style>
 :root{--bg:#021c1f;--fg:#e4f4ef;--dim:rgba(228,244,239,.5);--faint:rgba(228,244,239,.12);--hair:rgba(228,244,239,.24);
-  --c0:#010c0e;--c1:#03272b;--c2:#0a3a3c;--c3:#d7f6ef;--ink:#f2fff9;--lt:#62d9c7;--ltg:rgba(98,217,199,.55);--f-acc:#03272b}
+  --c0:#010f11;--c1:#03272b;--c2:#0a3a3c;--c3:#d7f6ef;--ink:#f2fff9;--lt:#62d9c7;--ltg:rgba(98,217,199,.55);--f-acc:#03272b}
 :root[data-theme="paper"]{--fg:#152a4a;--dim:rgba(21,42,74,.58);--faint:rgba(21,42,74,.14);--hair:rgba(21,42,74,.3)}
 html.cx body{background:var(--c0);color:var(--ink);font-family:Unbounded,var(--s-sans);transition:background .5s}
 html.cx .ch,html.cx .foot{transition:background .5s,color .5s}
@@ -67,16 +67,14 @@ html.cast-ready .cast canvas{display:inline-block}
 .rng input{color:var(--lt)}
 html.cx input[type=range]::-webkit-slider-runnable-track{height:1px;background:color-mix(in srgb,currentColor 55%,transparent)}
 html.cx input[type=range]::-webkit-slider-thumb{width:14px;height:14px;margin-top:-6.5px;background:var(--ink);box-shadow:0 0 10px 3px var(--ltg),-2px 0 0 rgba(255,70,110,.5),2px 0 0 rgba(70,160,255,.5)}
-#loader{background:var(--c0);color:var(--ink)}
-#loader .lg{color:var(--ink);text-shadow:-.012em 0 rgba(255,70,110,.5),.012em 0 rgba(70,160,255,.5),0 0 .08em var(--ltg),0 0 .3em var(--ltg)}
-#loader .ln{font-family:Unbounded,var(--s-sans);font-weight:300}
+#loader{background:var(--c0)}
 .foot{justify-content:space-between}
 html.embed body{background:var(--bg)}
 html.embed .ch:not(#ch-tester),html.embed .foot,html.embed #ch-tester>*:not(.slot){display:none!important}
 html.embed #ch-tester{padding:0;background:var(--bg)}
 html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
 @media (max-width:760px){#slot-tester{height:64vh}#slot-3d{height:72vh}.steps button,.sw2 button{font-size:17px}.txtin{font-size:24px}.tag,.btn{font-size:12px;padding:6px 9px}}
-.cast .ft,.txtin,#loader{text-transform:uppercase}
+.cast .ft,.txtin{text-transform:uppercase}
 .txtin{letter-spacing:.02em}
 @media (max-width:760px){.bar .tag,.bar .btn{font-size:10.5px;padding:6px 7px}}
 </style>
@@ -91,11 +89,97 @@ html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
   <a class="btn" href="../eroded/index.html"><span class="cast">NEXT</span></a>
 </nav>
 
-<div id="loader" aria-hidden="true">
-  <div class="ln"><span class="cast">CAUSTIC</span></div>
-  <div class="lg" id="ldG">A</div>
-  <div class="ln"><span id="ldS">LIGHT</span></div>
-</div>
+<div id="loader" aria-hidden="true"><canvas></canvas></div>
+<script>/* opening: a short caustic. Sunlight through a moving surface is refracted by its slope onto the floor, splatted
+   in three spectral bands (dispersion always on); the web then is transported (a Knothe-Rosenblatt map, the cheap
+   cousin of the page's optimal transport) into a cropped fragment of the cast letter, and fades into the ground.
+   Runs before the page's heavy setup and lifts once it has played and the page reports ready (window.LDR). */
+(function(){
+var ld=document.getElementById('loader'),de=document.documentElement,RDY=false;
+window.LDR={ready:function(){RDY=true}};
+if(!ld)return;
+if(de.classList.contains('embed')||matchMedia('(prefers-reduced-motion: reduce)').matches){ld.style.display='none';return}
+var cv=ld.querySelector('canvas'),x=cv.getContext('2d'),VW=innerWidth,VH=innerHeight;
+var bw=Math.max(200,Math.min(520,Math.round(VW/2.8))),bh=Math.max(120,Math.round(bw*VH/VW));
+if(bh>560){bh=560;bw=Math.round(bh*VW/VH)}
+cv.width=bw;cv.height=bh;
+var img=x.createImageData(bw,bh),D=img.data,N=bw*bh;
+var AR=new Float32Array(N),AG=new Float32Array(N),AB=new Float32Array(N),ACC=[AR,AG,AB];
+// rays: a regular grid on the glass, a little wider than the floor so edges stay lit
+var M=Math.round(Math.min(bw,bh)*.08),rw=bw+2*M,rh=bh+2*M,NR=rw*rh,RHO=1;
+var TX=null,TY=null;
+// the surface: a few travelling waves, gradient evaluated separably (cos(A+B)=cosA cosB - sinA sinB)
+var S=Math.min(bw,bh),WV=[],nw=6,i,j,k;
+function rnd(s){return function(){s=(s*16807)%2147483647;return (s-1)/2147483646}}
+var R=rnd(29);
+for(i=0;i<nw;i++){var lam=S*(.16+.26*R()),a=R()*6.283,kk=6.283/lam,str=.34+.18*R();
+  WV.push({kx:Math.cos(a)*kk,ky:Math.sin(a)*kk,c:str/kk,ux:Math.cos(a),uy:Math.sin(a),w:1.6+1.6*R(),p:R()*6.283,cA:new Float32Array(rw),sA:new Float32Array(rw),cB:new Float32Array(rh),sB:new Float32Array(rh)})}
+WV.forEach(function(w){for(var q=0;q<rw;q++){var A=w.kx*(q-M);w.cA[q]=Math.cos(A);w.sA[q]=Math.sin(A)}});
+var DX=new Float32Array(NR),DY=new Float32Array(NR);
+function col(v,d){v=(v||'').trim();var m=/^#([0-9a-f]{6})$/i.exec(v);if(m)return [parseInt(m[1].substr(0,2),16),parseInt(m[1].substr(2,2),16),parseInt(m[1].substr(4,2),16)];
+  m=/rgba?\(([^)]+)\)/.exec(v);if(m){var p=m[1].split(',').map(parseFloat);return [p[0],p[1],p[2]]}return d}
+var C0,TI,CO;function colours(){var s=getComputedStyle(de);C0=col(s.getPropertyValue('--c0'),[1,15,17]);TI=col(s.getPropertyValue('--lt'),[98,217,199]);CO=col(s.getPropertyValue('--ink'),[242,255,249])}
+colours();
+// the target: a cropped fragment of the cast face (Unbounded), as a floor brightness map
+var fontOK=false;try{document.fonts.load('400 100px Unbounded').then(function(f){fontOK=!!(f&&f.length)},function(){})}catch(e){}
+function target(){
+  var c=document.createElement('canvas');c.width=bw;c.height=bh;var g=c.getContext('2d');
+  var fam=fontOK?'Unbounded,sans-serif':'sans-serif',port=bh>bw*1.1,fs=port?bh*1.05:Math.max(bh*1.75,bw*.95);
+  g.font='500 '+fs+'px '+fam;var m=g.measureText('a'),gx0=-m.actualBoundingBoxLeft,gx1=m.actualBoundingBoxRight,gy0=-m.actualBoundingBoxAscent,gy1=m.actualBoundingBoxDescent;
+  // crop: the bowl and the foot of the stem, off-centre; the letter is only implied
+  var ox=bw*(port?.62:.6)-(gx0+(gx1-gx0)*.62),oy=bh*.5-(gy0+(gy1-gy0)*.6);
+  g.filter='blur('+Math.max(1,S/160)+'px)';g.fillStyle='#fff';g.fillText('a',ox,oy);
+  var d=g.getImageData(0,0,bw,bh).data,den=new Float32Array(N),fl=.07;
+  for(var q=0;q<N;q++)den[q]=fl+(1-fl)*d[q*4+3]/255;
+  // Knothe-Rosenblatt: rows by the marginal, then columns by the conditional row
+  var row=new Float64Array(bh),cy=new Float64Array(bh+1),tot=0;
+  for(var y=0;y<bh;y++){var s=0;for(var xx=0;xx<bw;xx++)s+=den[y*bw+xx];row[y]=s;tot+=s;cy[y+1]=tot}
+  TX=new Float32Array(NR);TY=new Float32Array(NR);var cx=new Float64Array(bw+1),yj=0;
+  for(var r=0;r<rh;r++){
+    var v=(r+.5)/rh*tot;while(yj<bh-1&&cy[yj+1]<v)yj++;
+    var fy=row[yj]>0?(v-cy[yj])/row[yj]:.5,ty=yj+fy,y0=yj,y1=Math.min(bh-1,yj+1),wy=fy;
+    var ct=0;cx[0]=0;for(var q2=0;q2<bw;q2++){ct+=den[y0*bw+q2]*(1-wy)+den[y1*bw+q2]*wy;cx[q2+1]=ct}
+    var xi=0;for(var cc=0;cc<rw;cc++){var u=(cc+.5)/rw*ct;while(xi<bw-1&&cx[xi+1]<u)xi++;var dd=cx[xi+1]-cx[xi];
+      TX[r*rw+cc]=xi+(dd>0?(u-cx[xi])/dd:.5);TY[r*rw+cc]=ty}}
+}
+function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
+var t0=0,dStart=-1,tReady=-1,fr=0,TG=-1;
+function frame(now){
+  if(!t0)t0=now;var t=(now-t0)/1000;fr++;
+  if(fr%20===0)colours();
+  if(RDY&&tReady<0)tReady=t;
+  if(dStart<0&&((t>=1.75&&RDY)||t>=4.6))dStart=Math.max(t,1.75);
+  var foc=.4+.85*sst(0,1,t),gUp=sst(.8,1.45,t),g=gUp*(dStart<0&&t>1.75?Math.exp(-(t-1.75)*1.6):dStart>0?Math.exp(-(dStart-1.75)*1.6):1);
+  var fade=sst(0,.3,t)*(dStart<0?1:1-sst(dStart,dStart+.5,t));
+  if(g>0&&!TX)target();
+  // surface gradient -> displacement for every ray
+  for(var w=0;w<nw;w++){var W=WV[w],ph=W.w*t+W.p;for(var r=0;r<rh;r++){var B=W.ky*(r-M)+ph;W.cB[r]=Math.cos(B);W.sB[r]=Math.sin(B)}}
+  DX.fill(0);DY.fill(0);
+  for(w=0;w<nw;w++){W=WV[w];var cA=W.cA,sA=W.sA,cB=W.cB,sB=W.sB,ax=W.c*W.ux*foc,ay=W.c*W.uy*foc;
+    for(r=0;r<rh;r++){var cb=cB[r],sb=sB[r],o=r*rw;for(var c=0;c<rw;c++){var cs=cA[c]*cb-sA[c]*sb;DX[o+c]+=ax*cs;DY[o+c]+=ay*cs}}}
+  AR.fill(0);AG.fill(0);AB.fill(0);
+  var hx=bw/2,hy=bh/2,gw=g*.82,keep=1-g*.78;
+  for(var b=0;b<3;b++){var A=ACC[b],disp=1+(b-1)*.085,mag=1+(b-1)*.014*g;
+    for(r=0;r<rh;r++){var o2=r*rw,py=r-M;for(c=0;c<rw;c++){var id=o2+c,dx=DX[id]*disp,dy=DY[id]*disp,X,Y;
+      if(gw>0){X=(c-M+dx)*(1-gw)+(hx+(TX[id]-hx)*mag)*gw+dx*keep*.0;Y=(py+dy)*(1-gw)+(hy+(TY[id]-hy)*mag)*gw;X+=dx*g*.22;Y+=dy*g*.22}
+      else{X=c-M+dx;Y=py+dy}
+      if(X<0||Y<0||X>=bw-1||Y>=bh-1)continue;var xi=X|0,yi=Y|0,fx=X-xi,fy=Y-yi,q=yi*bw+xi;
+      A[q]+=(1-fx)*(1-fy);A[q+1]+=fx*(1-fy);A[q+bw]+=(1-fx)*fy;A[q+bw+1]+=fx*fy}}}
+  // tone: dim where the light is spread, the tint where it gathers, white at the folds; R/G/B carry the three bands
+  var e=fade*(1+.25*g);
+  for(var p=0;p<N;p++){var lr=AR[p]*e,lg=AG[p]*e,lb=AB[p]*e,o4=p*4;
+    lr=1-Math.exp(-.16*lr*lr*lr);lg=1-Math.exp(-.16*lg*lg*lg);lb=1-Math.exp(-.16*lb*lb*lb);var lm=(lr+lg+lb)/3;
+    var h=lm>.5?(lm-.5)*2:0,m2=lm*1.6>1?1:lm*1.6;
+    D[o4]=C0[0]+(TI[0]-C0[0])*m2+(CO[0]-TI[0])*h+(lr-lm)*520;
+    D[o4+1]=C0[1]+(TI[1]-C0[1])*m2+(CO[1]-TI[1])*h+(lg-lm)*260;
+    D[o4+2]=C0[2]+(TI[2]-C0[2])*m2+(CO[2]-TI[2])*h+(lb-lm)*520;D[o4+3]=255}
+  x.putImageData(img,0,0);
+  if(dStart>=0&&t>=dStart+.5){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900);return}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
 
 <header class="ch" id="ch-open" data-tag="">
   <h1 class="huge"><span class="cast">CAUSTIC</span></h1>
@@ -1183,13 +1267,6 @@ var pickT=0;window.addEventListener('scroll',function(){if(!pickT)pickT=requestA
 if('IntersectionObserver' in window){var rio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target)}})},{threshold:.15});document.querySelectorAll('.rv').forEach(function(el){rio.observe(el)})}
 else document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in')});
 
-/* opening: loader steps through the four indices, then lifts */
-(function(){
-  var ld=$('#loader');if(EMBED||!ld||matchMedia('(prefers-reduced-motion: reduce)').matches){if(ld)ld.style.display='none';return}
-  var k=0;function st(){var w=WEIGHTS[k];$('#ldG').style.fontWeight=w.fw;$('#ldS').textContent=w.step.toUpperCase();
-    if(++k<4)setTimeout(st,430);else setTimeout(function(){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900)},560)}
-  st();
-})();
 
 /* opening specimens: ① construction ② light ③ glass, all of the same computed 'a' */
 var OPEN={k1:'',k2:'',k3:'',vis:true};
@@ -1328,6 +1405,7 @@ function boot(){
   if(ready)return;ready=true;
   FONT_OK=!!(document.fonts&&document.fonts.check&&document.fonts.check('400 40px Unbounded'));
   syncUI();applyPal();resize();updateTester();queueTiles();enqueue(tilePlate(P.w,'a'),'G',95,TILE_IT);castQueue();drawOpen(true);
+  requestAnimationFrame(function(){if(window.LDR)LDR.ready()});
 }
 castInit();build();castInit();syncUI();applyPal();sizeGlyphSlot();stickTops();
 slots.tester.appendChild(stage);
