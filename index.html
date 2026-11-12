@@ -1,278 +1,62 @@
 <!doctype html>
-<html lang="en">
+<!--
+  TYPE EXPERIMENT — typefaces as standards for natural processes.
+  Site faces (whole series): Jost, a Futura revival - geometry built from circle, square and triangle, the
+  emblem of standardised form - for names and headings; B612 Mono, drawn as a legibility standard for Airbus
+  cockpit displays - a typeface as a working instrument - for axis readouts, units and numbers.
+  The home is one screen: the opening and its index; each name opens its typeface page.
+-->
+<html lang="en" class="f2" style="--f-acc:#ffffff">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Let the Rule Design</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="One question, twelve works. Imagined things given a rule, sorted, repeated into patterns and grown into a series.">
+<title>TYPE EXPERIMENT</title>
+<meta name="description" content="Type Experiment: typefaces as standards for natural processes.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=B612+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
 <style>
-/* Layout: a rulebook. A huge question, a three-column ledger (rule / your hand / what it makes), six full plates, then the type series as a tight specimen grid. */
-:root{
-  --bg:#E7E9E4;
-  --plate:#F3F4F0;
-  --fg:#121412;
-  --mute:#5D625C;
-  --rule:#BFC4BC;
-  --accent:#2E43D6;
-  --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
-  --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
-}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#111311;--plate:#1A1D1A;--fg:#E9ECE6;--mute:#9AA097;--rule:#343933;--accent:#8C9BFF;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#111311;--plate:#1A1D1A;--fg:#E9ECE6;--mute:#9AA097;--rule:#343933;--accent:#8C9BFF;color-scheme:dark}
+.idx .t{text-transform:uppercase;letter-spacing:.01em}
+body,.tag,.btn,.lede{text-transform:uppercase}
+.lede{letter-spacing:.005em}
+.huge.hx{font-size:min(12.6vw,26vh);line-height:.92;letter-spacing:-.01em}
+@media (max-width:760px){.huge.hx{font-size:14.2vw}}
 
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:var(--display);margin:0;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1360px;margin:0 auto;padding-block:clamp(24px,5vw,56px) 72px}
-.mono{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-a{color:inherit}
-a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+html,body{height:100%}
+html{background:var(--f-acc)}
+body{display:flex;flex-direction:column;min-height:100%;background:var(--f-acc)}
+#ch-open{flex:1 0 auto;position:relative}
 
-.bar{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--mute);border-bottom:1px solid var(--rule);padding-bottom:12px}
-
-.hero{padding-block:clamp(40px,9vw,120px) clamp(24px,4vw,48px)}
-.q{font-weight:760;font-size:clamp(46px,10.4vw,168px);line-height:.88;letter-spacing:-.045em;margin:0;text-wrap:balance;font-variation-settings:"opsz" 96}
-.q em{font-style:normal;color:var(--accent)}
-.kicker{font-size:clamp(22px,3vw,44px);font-weight:380;letter-spacing:-.02em;line-height:1.1;margin:0 0 clamp(14px,2vw,28px);color:var(--mute)}
-.lede{max-width:54ch;font-size:clamp(17px,1.6vw,21px);line-height:1.45;margin:clamp(24px,3vw,40px) 0 0;font-weight:380}
-
-.ledger{margin-top:clamp(36px,5vw,64px)}
-.lhead,.ledger a{display:grid;grid-template-columns:3ch minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) 14ch;gap:16px;align-items:baseline}
-.lhead{color:var(--mute);padding-bottom:8px;border-bottom:1px solid var(--fg)}
-.lgroup{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);padding:22px 0 6px;border-bottom:1px solid var(--rule)}
-.ledger a{padding:11px 0;border-bottom:1px solid var(--rule);text-decoration:none}
-.ledger .n{font-family:var(--mono);font-size:12px;color:var(--mute)}
-.ledger .r{font-size:clamp(16px,1.7vw,22px);font-weight:650;letter-spacing:-.01em}
-.ledger .h{font-size:clamp(15px,1.5vw,19px);color:var(--mute)}
-.ledger .m{font-size:clamp(15px,1.5vw,19px)}
-.ledger .m::before{content:"\2192\00a0";color:var(--accent)}
-.ledger .w{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-align:right}
-.ledger a:hover .r{color:var(--accent)}
-
-.section-h{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;border-top:1px solid var(--fg);padding-top:14px;margin-top:clamp(64px,9vw,128px)}
-.section-h h2{font-size:clamp(28px,3.4vw,48px);letter-spacing:-.03em;font-weight:720;margin:0}
-.section-h span{color:var(--mute)}
-.plates{display:flex;flex-direction:column;gap:clamp(40px,6vw,88px);margin-top:clamp(28px,4vw,48px)}
-.plate{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:clamp(20px,3vw,44px);align-items:start;border-top:1px solid var(--rule);padding-top:16px}
-.plate:nth-child(even){grid-template-columns:minmax(0,1fr) minmax(0,1.65fr)}
-.plate:nth-child(even) .shot{order:2}
-.shot{display:block;background:var(--plate);border:1px solid var(--rule);overflow:hidden;aspect-ratio:16/10;max-width:100%}
-.shot img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
-.shot:hover img{transform:scale(1.025)}
-.txt{display:flex;flex-direction:column;gap:18px;min-width:0}
-.txt .top{display:flex;justify-content:space-between;color:var(--mute)}
-.txt h3{font-size:clamp(34px,4.4vw,64px);line-height:.92;letter-spacing:-.035em;font-weight:760;margin:0;text-wrap:balance}
-.trio{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;margin:0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:12px 0}
-.trio dt{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);padding-top:4px}
-.trio dd{margin:0;font-size:18px;line-height:1.3}
-.trio dd.rule{font-weight:650}
-.trio dd.made::before{content:"\2192\00a0";color:var(--accent)}
-.txt p{margin:0;font-size:16px;line-height:1.5;max-width:46ch;font-weight:380}
-.unit{font-family:var(--mono);font-size:12px;background:var(--plate);border:1px solid var(--rule);padding:8px 10px;align-self:flex-start;font-variant-numeric:tabular-nums}
-.open{display:inline-flex;align-items:center;gap:10px;align-self:flex-start;text-decoration:none;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:var(--fg);color:var(--bg);padding:12px 16px}
-.open:hover{background:var(--accent);color:#fff}
-.how{color:var(--mute);font-family:var(--mono);font-size:11px;line-height:1.7;letter-spacing:.02em}
-
-.types{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(20px,2.4vw,32px);margin-top:clamp(28px,4vw,48px)}
-.tcard{display:flex;flex-direction:column;gap:12px;text-decoration:none;min-width:0}
-.tcard .shot{aspect-ratio:4/3}
-.tcard .row{display:flex;justify-content:space-between;color:var(--mute)}
-.tcard h3{font-size:clamp(24px,2.3vw,32px);letter-spacing:-.025em;font-weight:720;margin:0;line-height:1}
-.tcard .line{font-size:16px;line-height:1.35}
-.tcard .line b{font-weight:650}
-.tcard .line span{color:var(--accent)}
-.tcard .hand{font-family:var(--mono);font-size:11px;color:var(--mute);letter-spacing:.02em}
-.tcard:hover h3{color:var(--accent)}
-.shot.pending{display:flex;align-items:center;justify-content:center;color:var(--mute);background:repeating-linear-gradient(135deg,var(--plate) 0 10px,var(--bg) 10px 20px)}
-
-footer{margin-top:clamp(64px,9vw,120px);border-top:1px solid var(--fg);padding-top:14px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--mute)}
-
-@media (max-width:980px){.types{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:760px){
-  .plate,.plate:nth-child(even){grid-template-columns:minmax(0,1fr)}
-  .plate:nth-child(even) .shot{order:0}
-  .lhead{display:none}
-  .ledger a{grid-template-columns:3ch minmax(0,1fr) auto;row-gap:2px}
-  .ledger .r{grid-column:2}
-  .ledger .w{grid-column:3;grid-row:1}
-  .ledger .h{display:none}
-  .ledger .m{grid-column:2}
-  .types{grid-template-columns:minmax(0,1fr)}
-}
-@media (prefers-reduced-motion:reduce){.shot img{transition:none}}
+:root{--f-acc:#ffffff}
+.bar{background:#fff}
+.bar .btn{background:#fff;box-shadow:inset 0 0 0 1px #000}
+.tag.series{box-shadow:inset 0 0 0 1px #000}
 </style>
 </head>
 <body>
+<nav class="bar" aria-label="Site">
+  <a class="tag series" href="index.html">TYPE EXPERIMENT</a>
+  <span class="sp"></span>
+  <a class="btn" href="caustic/index.html">TRY</a>
+  <a class="btn" href="caustic/index.html">NEXT</a>
+</nav>
 
-<div class="wrap">
-  <header class="bar mono">
-    <span>One question · twelve works</span>
-    <span>Prototypes · 2026</span>
-  </header>
+<header class="ch f-acc" id="ch-open" data-tag="">
+  <h1 class="huge hx">TYPE EXPERIMENT</h1>
+  <p class="lede rv" style="margin-top:clamp(36px,6vh,72px)">EACH TYPEFACE IS A STANDARD FOR A NATURAL PROCESS. THE LAW IS THE SYSTEM; ITS PARAMETERS ARE THE AXES.</p>
+  <div class="idx">
+    <a href="caustic/index.html" class="rv"><span class="t">CAUSTIC</span></a>
+    <a href="eroded/index.html" class="rv"><span class="t">ERODED</span></a>
+    <a href="evolved/index.html" class="rv"><span class="t">EVOLVED</span></a>
+  </div>
+</header>
 
-  <section class="hero">
-    <p class="kicker">Something keeps happening in my head.</p>
-    <h1 class="q">What if its rules became a <em>design process?</em></h1>
-    <p class="lede">The things I imagine never stay loose. I give them a rule, sort them into rows, repeat them until a pattern shows, then make another and another until there is a series. Sand settles on the same lines every time. Letters grow, wear down and breed. A map learns where I linger. Each work lets one rule run, and my hand only sets it moving.</p>
-
-    <div class="ledger">
-      <div class="lhead mono"><span></span><span>The rule</span><span>Your hand</span><span>What it makes</span><span style="text-align:right">Work</span></div>
-
-      <div class="lgroup">Six works</div>
-      <a href="#scroll-song"><span class="n">01</span><span class="r">Harmony and tempo</span><span class="h">Your reading pace</span><span class="m">a song</span><span class="w">Scroll Song</span></a>
-      <a href="#return-line"><span class="n">02</span><span class="r">A listening model</span><span class="h">How long you stay</span><span class="m">a transit line</span><span class="w">Return Line</span></a>
-      <a href="#room-type"><span class="n">03</span><span class="r">Room acoustics</span><span class="h">Choosing a room</span><span class="m">a type weight</span><span class="w">Room Type</span></a>
-      <a href="#chladni"><span class="n">04</span><span class="r">Plate vibration</span><span class="h">Pressing a key</span><span class="m">a sand print</span><span class="w">Chladni</span></a>
-      <a href="#field-type"><span class="n">05</span><span class="r">Magnetism</span><span class="h">A cursor magnet</span><span class="m">letters of iron</span><span class="w">Field Type</span></a>
-      <a href="#souvenir"><span class="n">06</span><span class="r">The geometry of a fold</span><span class="h">Folding a sheet</span><span class="m">a souvenir</span><span class="w">Souvenir</span></a>
-
-      <div class="lgroup">Type series</div>
-      <a href="#grown-type"><span class="n">07</span><span class="r">Reaction&ndash;diffusion</span><span class="h">Painting chemicals</span><span class="m">grown letters</span><span class="w">Grown Type</span></a>
-      <a href="#evolved-type"><span class="n">08</span><span class="r">Evolution</span><span class="h">Picking survivors</span><span class="m">bred letters</span><span class="w">Evolved Type</span></a>
-      <a href="#slime-type"><span class="n">09</span><span class="r">A slime mould's network</span><span class="h">Placing food</span><span class="m">vein letters</span><span class="w">Slime Type</span></a>
-      <a href="#caustic-type"><span class="n">10</span><span class="r">Refraction</span><span class="h">Tilting glass</span><span class="m">letters of light</span><span class="w">Caustic Type</span></a>
-      <a href="#latent-type"><span class="n">11</span><span class="r">A learned latent space</span><span class="h">Walking a map</span><span class="m">typefaces that don't exist</span><span class="w">Latent Type</span></a>
-      <a href="#eroded-type"><span class="n">12</span><span class="r">Water erosion</span><span class="h">Making it rain</span><span class="m">worn letters</span><span class="w">Eroded Type</span></a>
-    </div>
-  </section>
-
-  <div class="section-h"><h2>Six works</h2><span class="mono">01&ndash;06</span></div>
-  <main class="plates">
-    <article class="plate" id="scroll-song">
-      <a class="shot" href="works/scroll-song.html" target="_blank" rel="noopener"><img src="img/scroll-song.jpg" alt="Scroll Song: an interview set in large serif type, with a chord column and a volume knob" loading="lazy"></a>
-      <div class="txt">
-        <div class="top mono"><span>01</span><span>Sound · reading</span></div>
-        <h3>Scroll Song</h3>
-        <dl class="trio"><dt>Rule</dt><dd class="rule">Harmony and tempo</dd><dt>Hand</dt><dd>Your reading pace</dd><dt>Makes</dt><dd class="made">A bossa song your scrolling plays</dd></dl>
-        <p>Three musicians talk about their records. The page is the score: the line under the red playhead is the bar being played, and the speed you read at sets the tempo.</p>
-        <span class="unit">1228 wpm &rarr; 148 bpm +28%</span>
-        <a class="open" href="works/scroll-song.html" target="_blank" rel="noopener">Open the work &rarr;</a>
-        <span class="how">Scroll to play · stay 10 s to open a margin note · Space stops · M mutes</span>
-      </div>
-    </article>
-
-    <article class="plate" id="return-line">
-      <a class="shot" href="works/return-line.html" target="_blank" rel="noopener"><img src="img/return-line.jpg" alt="Return Line: a mustard transit map of seven lines with a style card on the right" loading="lazy"></a>
-      <div class="txt">
-        <div class="top mono"><span>02</span><span>Map · learning</span></div>
-        <h3>Return Line</h3>
-        <dl class="trio"><dt>Rule</dt><dd class="rule">A small listening model</dd><dt>Hand</dt><dd>How long you stay</dd><dt>Makes</dt><dd class="made">Land on a transit map, and a line of your own</dd></dl>
-        <p>The model runs in the page. It times how long you stay at each station, learns a style from it, and composes Your Line. Drag from the border to annex the land you listened to.</p>
-        <span class="unit">3.1 s stayed &rarr; +1 parcel</span>
-        <a class="open" href="works/return-line.html" target="_blank" rel="noopener">Open the work &rarr;</a>
-        <span class="how">Hover a station and stay · drag from the border to annex · Space plays · M mutes</span>
-      </div>
-    </article>
-
-    <article class="plate" id="room-type">
-      <a class="shot" href="works/room-type.html" target="_blank" rel="noopener"><img src="img/room-type.jpg" alt="Room Type: a poster whose serif weight and echo copies follow a room's reverb" loading="lazy"></a>
-      <div class="txt">
-        <div class="top mono"><span>03</span><span>Sound · type</span></div>
-        <h3>Room Type</h3>
-        <dl class="trio"><dt>Rule</dt><dd class="rule">Room acoustics</dd><dt>Hand</dt><dd>Choosing a room</dd><dt>Makes</dt><dd class="made">The weight and spacing of a poster's type</dd></dl>
-        <p>Each room's reverb is generated in the page. Its length sets the weight, optical size and echo copies of the headline, so you read the room before you hear it.</p>
-        <span class="unit">reverb 0.2 s &rarr; 6.0 s</span>
-        <a class="open" href="works/room-type.html" target="_blank" rel="noopener">Open the work &rarr;</a>
-        <span class="how">Pick a room on the map · hear its reverb set the type · Space stops · M mutes</span>
-      </div>
-    </article>
-
-    <article class="plate" id="chladni">
-      <a class="shot" href="works/chladni.html" target="_blank" rel="noopener"><img src="img/chladni.jpg" alt="Chladni: sand on a vibrating plate settling into a figure, beside printed record labels" loading="lazy"></a>
-      <div class="txt">
-        <div class="top mono"><span>04</span><span>Sound · print</span></div>
-        <h3>Chladni</h3>
-        <dl class="trio"><dt>Rule</dt><dd class="rule">Plate vibration</dd><dt>Hand</dt><dd>Pressing a key</dd><dt>Makes</dt><dd class="made">A sand figure printed as a record label</dd></dl>
-        <p>Press a key and the plate rings. Sand leaves the moving parts and settles on the still lines. Print the figure, press the same key again, and see if the two marks match.</p>
-        <span class="unit">G4 · 392.0 Hz &rarr; plate mode 7 : 5</span>
-        <a class="open" href="works/chladni.html" target="_blank" rel="noopener">Open the work &rarr;</a>
-        <span class="how">Keys A&ndash;K ring the plate · double-click to print · drag labels to the disc · Space plays</span>
-      </div>
-    </article>
-
-    <article class="plate" id="field-type">
-      <a class="shot" href="works/field-type.html" target="_blank" rel="noopener"><img src="img/field-type.jpg" alt="Field Type: the words FIELD TYPE drawn in red and steel iron filings on black" loading="lazy"></a>
-      <div class="txt">
-        <div class="top mono"><span>05</span><span>Physics · type</span></div>
-        <h3>Field Type</h3>
-        <dl class="trio"><dt>Rule</dt><dd class="rule">Magnetism</dd><dt>Hand</dt><dd>Your cursor is a magnet</dd><dt>Makes</dt><dd class="made">Letters drawn by iron filings</dd></dl>
-        <p>The field is computed in the page and 110,000 filings follow it into letters. Pull them apart and let go to watch them return.</p>
-        <span class="unit">Maxwell · Gauss · Weber · Tesla</span>
-        <a class="open" href="works/field-type.html" target="_blank" rel="noopener">Open the work &rarr;</a>
-        <span class="how">Move the cursor to pull · type in the tester · keys 1&ndash;4 switch views</span>
-      </div>
-    </article>
-
-    <article class="plate" id="souvenir">
-      <a class="shot" href="works/souvenir.html" target="_blank" rel="noopener"><img src="img/souvenir.jpg" alt="Souvenir from Nowhere: a folded paper lighthouse model beside a postcard from Tamwick-on-Sea" loading="lazy"></a>
-      <div class="txt">
-        <div class="top mono"><span>06</span><span>Object · packaging</span></div>
-        <h3>Souvenir from Nowhere</h3>
-        <dl class="trio"><dt>Rule</dt><dd class="rule">The geometry of a die-cut net</dd><dt>Hand</dt><dd>Folding the sheet</dd><dt>Makes</dt><dd class="made">A souvenir from a town that never existed</dd></dl>
-        <p>A seaside town no one has visited, printed in three spot inks on a die-cut sheet. The 3D view folds the exact net, and the postcard is written to you by someone you never met.</p>
-        <span class="unit">1 sheet · 3 spot inks · 0 visitors</span>
-        <a class="open" href="works/souvenir.html" target="_blank" rel="noopener">Open the work &rarr;</a>
-        <span class="how">Drag to turn the model · fold and unfold the net · make another town</span>
-      </div>
-    </article>
-  </main>
-
-  <div class="section-h"><h2>Type series</h2><span class="mono">07&ndash;12 · one law, one alphabet</span></div>
-  <section class="types">
-    <a class="tcard" id="grown-type" href="works/grown-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/grown-type.jpg" alt="Grown Type: coral and labyrinth patterns growing inside letterforms" loading="lazy"></span>
-      <span class="row mono"><span>07</span><span>Seed &rarr; Overgrown</span></span>
-      <h3>Grown Type</h3>
-      <span class="line"><b>Reaction&ndash;diffusion</b> <span>&rarr;</span> letters that grow spots, mazes and coral</span>
-      <span class="hand">Hand: paint feed and kill rates with a brush</span>
-    </a>
-    <a class="tcard" id="evolved-type" href="works/evolved-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/evolved-type.jpg" alt="Evolved Type: generations of stroke-built letters judged by a classifier" loading="lazy"></span>
-      <span class="row mono"><span>08</span><span>Generations</span></span>
-      <h3>Evolved Type</h3>
-      <span class="line"><b>Evolution</b> <span>&rarr;</span> letters a machine can read and a person finds strange</span>
-      <span class="hand">Hand: pick the survivors · a classifier trained in the page judges</span>
-    </a>
-    <a class="tcard" id="slime-type" href="works/slime-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/slime-type.jpg" alt="Slime Type: golden slime mould veins linking the nodes of letters" loading="lazy"></span>
-      <span class="row mono"><span>09</span><span>Agents · trail decay</span></span>
-      <h3>Slime Type</h3>
-      <span class="line"><b>A slime mould's network</b> <span>&rarr;</span> letters drawn as gold veins</span>
-      <span class="hand">Hand: place food on the letter's nodes</span>
-    </a>
-    <a class="tcard" id="caustic-type" href="works/caustic-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/caustic-type.jpg" alt="Caustic Type: light through shaped glass focusing into letters" loading="lazy"></span>
-      <span class="row mono"><span>10</span><span>Refraction · focus</span></span>
-      <h3>Caustic Type</h3>
-      <span class="line"><b>Refraction</b> <span>&rarr;</span> letters made of focused light under glass</span>
-      <span class="hand">Hand: tilt the glass, move the light</span>
-    </a>
-    <a class="tcard" id="latent-type" href="works/latent-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/latent-type.jpg" alt="Latent Type: a map of typefaces with interpolated letters between them" loading="lazy"></span>
-      <span class="row mono"><span>11</span><span>Latent distance</span></span>
-      <h3>Latent Type</h3>
-      <span class="line"><b>A learned latent space</b> <span>&rarr;</span> typefaces that exist between typefaces</span>
-      <span class="hand">Hand: walk the map · an autoencoder trained in the page draws</span>
-    </a>
-    <a class="tcard" id="eroded-type" href="works/eroded-type.html" target="_blank" rel="noopener">
-      <span class="shot"><img src="img/eroded-type.jpg" alt="Eroded Type: letters as terrain, cut by rain into valleys and contour lines" loading="lazy"></span>
-      <span class="row mono"><span>12</span><span>Fresh &rarr; Ancient</span></span>
-      <h3>Eroded Type</h3>
-      <span class="line"><b>Water erosion</b> <span>&rarr;</span> letters worn into valleys and contour maps</span>
-      <span class="hand">Hand: press and hold to make it rain</span>
-    </a>
-  </section>
-
-  <footer class="mono">
-    <span>Every work runs in a single page, in your browser</span>
-    <span>Sound starts on your first click</span>
-  </footer>
-</div>
-
+<script>
+(function(){
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.15});document.querySelectorAll('.rv').forEach(function(el){io.observe(el)})}
+  else document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in')});
+})();
+</script>
 </body>
 </html>
