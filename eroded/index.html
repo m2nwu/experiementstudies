@@ -910,7 +910,7 @@ function castBuild(){
   // alpha = crisp letter core (the original mask, sharpened) bitten only lightly by the worn height field
   for(var py=0;py<dh;py++)for(var px=0;px<dw;px++){var o=(py*dw+px)*4,gx=(px+.5)*s,gy=(py+.5)*s,h=bil(T.H,T.gw,T.gh,gx,gy),a=(h-a0)/(a1-a0);a=a<0?0:a>1?1:a;
     var mk=(bil(T.mask,T.gw,T.gh,gx,gy)-.5)*3+.5;mk=mk<0?0:mk>1?1:mk;a=Math.max(mk*(.82+.18*a),a*.22);
-    for(var k=0;k<3;k++){var v=d[o+k];d[o+k]=v+(ink[k]-v)*.62}
+    for(var k=0;k<3;k++){var v=d[o+k];v=v+(ink[k]-v)*.22;d[o+k]=v+(255-v)*.12}
     d[o+3]=a*255}
   x.putImageData(id,0,0);
   var map={};for(var q=0;q<ch.length;q++){var sx=(q%cols)*TS,sy=Math.floor(q/cols)*TS,xl=-1,xr=-1;
