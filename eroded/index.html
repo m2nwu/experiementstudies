@@ -97,74 +97,136 @@ html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
 </nav>
 
 <div id="loader" aria-hidden="true"><canvas></canvas></div>
-<script>/* opening: a short storm. A cropped fragment of the source face (Rubik 900) is raised as a range, read as contours;
-   rain falls, droplets run downslope, cut channels and drop sediment; the water drains and the map fades into the
-   ground. Runs before the page's heavy setup and lifts once it has played and the page reports ready (window.LDR). */
+<script>/* opening: a short storm. A cropped fragment of the source face (Rubik 900) rises as a shaded range; rain thickens,
+   the slopes darken as they wet, droplets cut channels and carry sediment down to fans at the foot, saturated flanks
+   slump, a pool fills the counter; then the worn range settles and fades into the ground. Runs before the page's
+   heavy setup and lifts once it has played and the page reports ready (window.LDR). Reduced motion: one still. */
 (function(){
 var ld=document.getElementById('loader'),de=document.documentElement,RDY=false;
 window.LDR={ready:function(){RDY=true}};
 if(!ld)return;
-if(de.classList.contains('embed')||matchMedia('(prefers-reduced-motion: reduce)').matches){ld.style.display='none';return}
-var cv=ld.querySelector('canvas'),x=cv.getContext('2d',{willReadFrequently:true}),VW=innerWidth,VH=innerHeight,DPR=Math.min(2,devicePixelRatio||1);
+if(de.classList.contains('embed')){ld.style.display='none';return}
+var RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+var cv=ld.querySelector('canvas'),x=cv.getContext('2d'),VW=innerWidth,VH=innerHeight,DPR=Math.min(2,devicePixelRatio||1);
 cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR);
-var gw=Math.max(56,Math.min(190,Math.round(VW/7.5))),gh=Math.max(40,Math.round(gw*VH/VW)),N=gw*gh,cs=VW/gw;
-var H=new Float32Array(N),F=new Float32Array(N),SD=new Float32Array(N),H0=null;
+var cs=Math.max(VW,VH)/Math.max(150,Math.min(240,Math.round(Math.max(VW,VH)/5.5))),gw=Math.ceil(VW/cs)+1,gh=Math.ceil(VH/cs)+1,N=gw*gh;
+var H=new Float32Array(N),F=new Float32Array(N),SD=new Float32Array(N),HZ=new Float32Array(N),HZ2=new Float32Array(N),CT=new Uint8Array(N),H0=null;
 var st=getComputedStyle(de);function v(n,d){return (st.getPropertyValue(n)||'').trim()||d}
-var C0=v('--c0','#efe7d4'),LN=v('--line','#a06a38'),IX=v('--index','#6f4220'),WT=v('--lt','#2a78b8'),DP=v('--dep','#a8743c');
-function rgb(h){h=h.replace('#','');return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]}
-var wR=rgb(WT),dR=rgb(DP);
-var ov=document.createElement('canvas');ov.width=gw;ov.height=gh;var ox=ov.getContext('2d'),oimg=ox.createImageData(gw,gh);
+function rgb(h){h=h.replace('#','');if(h.length<6)return [128,128,128];return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]}
+function mx3(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]}
+var C0s=v('--c0','#efe7d4'),C0=rgb(C0s),LN=v('--line','#a06a38'),IXs=v('--index','#6f4220'),IX=rgb(IXs),WTs=v('--lt','#2a78b8'),WT=rgb(WTs),DP=rgb(v('--dep','#a8743c'));
+var TI=mx3(C0,DP,.42),SA=mx3(DP,C0,.45),DK=mx3(IX,[0,0,0],.35);
+var ov=document.createElement('canvas');ov.width=gw;ov.height=gh;var ox=ov.getContext('2d'),oimg=ox.createImageData(gw,gh),OD=oimg.data;
 var fontOK=false;try{document.fonts.load('900 100px Rubik').then(function(f){fontOK=!!(f&&f.length)},function(){})}catch(e){}
+function hsh(i,j){var h=(i*374761393+j*668265263)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295}
+function vn(px,py){var i=Math.floor(px),j=Math.floor(py),fx=px-i,fy=py-j;fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+  var a=hsh(i,j),b=hsh(i+1,j),c=hsh(i,j+1),d=hsh(i+1,j+1);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
 function raise(){
-  var c=document.createElement('canvas');c.width=gw;c.height=gh;var g=c.getContext('2d'),port=gh>gw*1.1,fs=port?gh*1.7:gh*2.7;
-  g.font='900 '+fs+'px '+(fontOK?'Rubik,':'')+'sans-serif';var m=g.measureText('R'),x0=-m.actualBoundingBoxLeft,x1=m.actualBoundingBoxRight,y0=-m.actualBoundingBoxAscent,y1=m.actualBoundingBoxDescent;
-  g.filter='blur('+Math.max(3,gw/16)+'px)';g.fillStyle='#000';g.fillText('R',gw*.5-(x0+(x1-x0)*.5),gh*.5-(y0+(y1-y0)*.55));
-  var d=g.getImageData(0,0,gw,gh).data,mx=1e-6;
-  for(var i=0;i<N;i++){var xx=i%gw,yy=(i/gw)|0;H[i]=d[i*4+3]/255;if(H[i]>mx)mx=H[i]}
-  for(i=0;i<N;i++)H[i]=Math.max(0,H[i]/mx);H0=new Float32Array(H);
+  // the glyph is set big enough to be cropped by the screen; its counter is placed where the pool will fill
+  var port=VH>VW*1.1,fs=port?gw*2.5:gh*1.8,fam='900 '+fs+'px '+(fontOK?'Rubik,':'')+'sans-serif',ch='R';
+  var m0=document.createElement('canvas').getContext('2d');m0.font=fam;var m=m0.measureText(ch),bl=m.actualBoundingBoxLeft,br=m.actualBoundingBoxRight,ba=m.actualBoundingBoxAscent;
+  var pw=Math.ceil(bl+br)+8,ph=Math.ceil(ba+(m.actualBoundingBoxDescent||0))+8;
+  var a=document.createElement('canvas');a.width=pw;a.height=ph;var g=a.getContext('2d',{willReadFrequently:true});g.font=fam;g.fillText(ch,4+bl,4+ba);
+  var d=g.getImageData(0,0,pw,ph).data,M=pw*ph,seen=new Uint8Array(M),stk=[],sx=0,sy=0,sn=0,q,i;
+  for(i=0;i<pw;i++){stk.push(i,M-pw+i)}for(i=0;i<ph;i++){stk.push(i*pw,i*pw+pw-1)}
+  while(stk.length){q=stk.pop();if(seen[q]||d[q*4+3]>127)continue;seen[q]=1;var qx=q%pw;if(qx>0)stk.push(q-1);if(qx<pw-1)stk.push(q+1);if(q>=pw)stk.push(q-pw);if(q<M-pw)stk.push(q+pw)}
+  for(q=0;q<M;q++)if(!seen[q]&&d[q*4+3]<=127){sx+=q%pw;sy+=(q/pw)|0;sn++}
+  var cx=sn?sx/sn:pw*.4,cy=sn?sy/sn:ph*.3,ox0=gw*(port?.5:.42)-cx,oy0=gh*(port?.34:.36)-cy;
+  function lay(b){var c=document.createElement('canvas');c.width=gw;c.height=gh;var k=c.getContext('2d',{willReadFrequently:true});if(b)k.filter='blur('+b+'px)';k.drawImage(a,ox0,oy0);return k.getImageData(0,0,gw,gh).data}
+  var A=lay(0),S1=lay(Math.max(1,gw/170)),S2=lay(Math.max(2.5,gw/40)),mxH=1e-6;
+  for(q=0;q<N;q++){var xx=q%gw,yy=(q/gw)|0,s1=S1[q*4+3]/255,s2=S2[q*4+3]/255,
+      n=vn(xx*.09,yy*.09)*.6+vn(xx*.23+7,yy*.23)*.4;
+    H[q]=sst(.25,.75,s1)*.62+Math.pow(s2,1.2)*.38+(n-.5)*.1*s1;if(H[q]<0)H[q]=0;if(H[q]>mxH)mxH=H[q]}
+  for(q=0;q<N;q++)H[q]/=mxH;
+  // counter cells on the grid: inside the bowl, not ink
+  for(q=0;q<N;q++){xx=q%gw;yy=(q/gw)|0;var u=Math.round(xx-ox0),w=Math.round(yy-oy0);if(u>=0&&w>=0&&u<pw&&w<ph){var p=w*pw+u;CT[q]=(!seen[p]&&d[p*4+3]<=127)?1:0}}
+  H0=new Float32Array(H);
+  var lo=1,rim=0;for(q=0;q<N;q++)if(CT[q]){if(H[q]<lo)lo=H[q];if(H[q]>rim)rim=H[q]}PL0=lo;PL1=lo+(Math.max(rim,lo+.2)-lo)*.75;
 }
-function hg(px,py,o){var i=px|0,j=py|0,fx=px-i,fy=py-j,q=j*gw+i,a=H[q],b=H[q+1],c=H[q+gw],e=H[q+gw+1];
-  o[0]=(b-a)*(1-fy)+(e-c)*fy;o[1]=(c-a)*(1-fx)+(e-b)*fx;o[2]=a*(1-fx)*(1-fy)+b*fx*(1-fy)+c*(1-fx)*fy+e*fx*fy}
-var G=[0,0,0],G2=[0,0,0];
-function drop(px,py){var dx=0,dy=0,sp=1,wa=1,sed=0;
-  for(var s=0;s<28;s++){if(px<1||py<1||px>=gw-2||py>=gh-2)return;hg(px,py,G);
-    dx=dx*.3-G[0]*.7;dy=dy*.3-G[1]*.7;var l=Math.hypot(dx,dy);if(l<1e-5)return;dx/=l;dy/=l;
-    var nx=px+dx,ny=py+dy;if(nx<1||ny<1||nx>=gw-2||ny>=gh-2)return;hg(nx,ny,G2);var dh=G2[2]-G[2],q=(py|0)*gw+(px|0);
-    var cap=Math.max(-dh,.002)*sp*wa*3;F[q]+=wa*.12;
-    if(sed>cap||dh>0){var dep=dh>0?Math.min(dh,sed):(sed-cap)*.3;sed-=dep;H[q]+=dep;SD[q]+=dep*14}
-    else{var er=Math.min((cap-sed)*.12,-dh);H[q]-=er;sed+=er}
-    sp=Math.sqrt(Math.max(.01,sp*sp+dh*-4));wa*=.97;px=nx;py=ny}}
-function contours(lv){var segs=[];for(var j=0;j<gh-1;j++)for(var i=0;i<gw-1;i++){var q=j*gw+i,a=H[q]-lv,b=H[q+1]-lv,c=H[q+gw+1]-lv,d=H[q+gw]-lv,
+var PL0=0,PL1=0;
+// persistent droplets: each runs a few cells a frame, so the flow is visible; capacity cuts, excess drops in fans
+var ND=Math.round(Math.min(1800,N*.055)),DX=new Float32Array(ND),DY=new Float32Array(ND),DVX=new Float32Array(ND),DVY=new Float32Array(ND),DW=new Float32Array(ND),DS=new Float32Array(ND),DV=new Float32Array(ND),act=0;
+function spawn(k){for(var tr=0;tr<6;tr++){DX[k]=2+Math.random()*(gw-5);DY[k]=2+Math.random()*(gh-5);if(H[(DY[k]|0)*gw+(DX[k]|0)]>.08)break}DVX[k]=DVY[k]=0;DW[k]=1;DS[k]=0;DV[k]=1}
+function addB(px,py,a){var i=px|0,j=py|0,fx=px-i,fy=py-j,q=j*gw+i;H[q]+=a*(1-fx)*(1-fy);H[q+1]+=a*fx*(1-fy);H[q+gw]+=a*(1-fx)*fy;H[q+gw+1]+=a*fx*fy}
+function addK(px,py,a){var q=Math.round(py)*gw+Math.round(px),b=a*.0625;H[q]+=a*.25;H[q-1]+=b*2;H[q+1]+=b*2;H[q-gw]+=b*2;H[q+gw]+=b*2;H[q-gw-1]+=b;H[q-gw+1]+=b;H[q+gw-1]+=b;H[q+gw+1]+=b}
+var G=[0,0,0];
+function hg(px,py){var i=px|0,j=py|0,fx=px-i,fy=py-j,q=j*gw+i,a=H[q],b=H[q+1],c=H[q+gw],e=H[q+gw+1];
+  G[0]=(b-a)*(1-fy)+(e-c)*fy;G[1]=(c-a)*(1-fx)+(e-b)*fx;G[2]=a*(1-fx)*(1-fy)+b*fx*(1-fy)+c*(1-fx)*fy+e*fx*fy}
+function step(k,K){var px=DX[k],py=DY[k];
+  for(var s=0;s<3;s++){
+    if(px<2||py<2||px>=gw-3||py>=gh-3||DW[k]<.05){spawn(k);return}
+    hg(px,py);var h=G[2];var vx=DVX[k]*.55-G[0],vy=DVY[k]*.55-G[1],l=Math.hypot(vx,vy);
+    if(l<1e-6){addB(px,py,DS[k]);spawn(k);return}vx/=l;vy/=l;DVX[k]=vx;DVY[k]=vy;
+    var nx=px+vx,ny=py+vy;if(nx<2||ny<2||nx>=gw-3||ny>=gh-3){spawn(k);return}
+    hg(nx,ny);var dh=G[2]-h,q=(py|0)*gw+(px|0);F[q]+=DW[k]*.35;
+    var cap=Math.max(-dh,.004)*DV[k]*DW[k]*5;
+    if(dh>0||DS[k]>cap){var dep=dh>0?Math.min(dh,DS[k]):(DS[k]-cap)*.35;DS[k]-=dep;addB(px,py,dep);SD[q]+=dep*22;HZ[q]+=dep*6}
+    else{var er=Math.min((cap-DS[k])*.3*K,-dh*.6);addK(px,py,-er);DS[k]+=er;HZ[q]+=er*3}
+    DV[k]=Math.sqrt(Math.max(.05,DV[k]*DV[k]-dh*6));DW[k]*=.985;px=nx;py=ny}
+  DX[k]=px;DY[k]=py}
+// saturated slopes slump: material above the (falling) angle of repose moves to the lowest neighbour
+function slump(T){for(var j=1;j<gh-1;j++)for(var i=1;i<gw-1;i++){var q=j*gw+i,h=H[q],lo=q,ld0=0,dd;
+  dd=h-H[q-1];if(dd>ld0){ld0=dd;lo=q-1}dd=h-H[q+1];if(dd>ld0){ld0=dd;lo=q+1}dd=h-H[q-gw];if(dd>ld0){ld0=dd;lo=q-gw}dd=h-H[q+gw];if(dd>ld0){ld0=dd;lo=q+gw}
+  if(ld0>T){var mv=(ld0-T)*.4;H[q]-=mv;H[lo]+=mv;SD[lo]+=mv*6}}}
+function contours(lv,segs){for(var j=0;j<gh-1;j++)for(var i=0;i<gw-1;i++){var q=j*gw+i,a=H[q]-lv,b=H[q+1]-lv,c=H[q+gw+1]-lv,d=H[q+gw]-lv,
   k=(a>0?8:0)|(b>0?4:0)|(c>0?2:0)|(d>0?1:0);if(k===0||k===15)continue;
-  var P=[];if((a>0)!==(b>0))P.push(i+a/(a-b),j);if((b>0)!==(c>0))P.push(i+1,j+b/(b-c));if((c>0)!==(d>0))P.push(i+1-c/(c-d),j+1);if((d>0)!==(a>0))P.push(i,j+1-d/(d-a));
-  for(var p=0;p+3<P.length;p+=4)segs.push(P[p],P[p+1],P[p+2],P[p+3])}return segs}
-var RAIN=[];function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
-var t0=0,dStart=-1,last=0;
+  if((a>0)!==(b>0))segs.push(i+a/(a-b),j);if((b>0)!==(c>0))segs.push(i+1,j+b/(b-c));if((c>0)!==(d>0))segs.push(i+1-c/(c-d),j+1);if((d>0)!==(a>0))segs.push(i,j+1-d/(d-a));
+  if(segs.length&2)segs.length-=2}}
+function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
+var Z=gw/22,LX=-.55,LY=-.62,LZ=.56,LF=LZ;
+function paint(grow,wet,pool,fade){
+  for(var j=0;j<gh;j++)for(var i=0;i<gw;i++){var q=j*gw+i,o=q*4,h=H[q]*grow;
+    var hx=(H[i<gw-1?q+1:q]-H[i>0?q-1:q])*grow*Z,hy=(H[j<gh-1?q+gw:q]-H[j>0?q-gw:q])*grow*Z,nl=1/Math.sqrt(hx*hx+hy*hy+1),lam=(-hx*LX-hy*LY+LZ)*nl/LF;
+    var e=h<.3?h/.3:1,c=h<.3?mx3(C0,TI,e):h<.7?mx3(TI,DP,(h-.3)/.4):mx3(DP,DK,Math.min(1,(h-.7)/.3)*.55);
+    var sh=lam<1?.42+.58*lam:1+(lam-1)*.5,mk=sst(.015,.12,h),r=c[0]*sh,gg=c[1]*sh,b=c[2]*sh;
+    var dk=1-.32*wet*mk;r*=dk;gg*=dk;b*=dk*1.02;
+    var sd=Math.min(1,SD[q]*.35)*(1-sst(.25,.5,h));if(sd>0){r+=(SA[0]-r)*sd*.7;gg+=(SA[1]-gg)*sd*.7;b+=(SA[2]-b)*sd*.7}
+    r+=(C0[0]-r)*(1-mk-sd*.7>0?1-mk-sd*.7:0);gg+=(C0[1]-gg)*(1-mk-sd*.7>0?1-mk-sd*.7:0);b+=(C0[2]-b)*(1-mk-sd*.7>0?1-mk-sd*.7:0);
+    var hz=Math.min(.45,HZ[q]*.9);if(hz>0){r+=(DP[0]-r)*hz;gg+=(DP[1]-gg)*hz;b+=(DP[2]-b)*hz}
+    var fl=Math.max(0,F[q]-.12),fw=Math.min(.9,fl*.8)*wet,dc=1-Math.min(.3,fl*.25)*wet;r*=dc;gg*=dc;b*=dc;
+    if(CT[q]&&pool>0){var pd=PL0+(PL1-PL0)*pool-H[q];if(pd>0)fw=Math.max(fw,Math.min(1,.45+pd*9))}
+    if(fw>0){var wr=WT[0]*sh*.15+WT[0]*.85,wg=WT[1]*.85+WT[1]*sh*.15,wb=WT[2]*.85+WT[2]*sh*.15;fw*=.85;r+=(wr-r)*fw;gg+=(wg-gg)*fw;b+=(wb-b)*fw}
+    if(fade>0){r+=(C0[0]-r)*fade;gg+=(C0[1]-gg)*fade;b+=(C0[2]-b)*fade}
+    OD[o]=r;OD[o+1]=gg;OD[o+2]=b;OD[o+3]=255}
+  ox.putImageData(oimg,0,0);x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(ov,0,0,gw*cs,gh*cs);
+  var L=12,segs=[];x.lineCap='round';
+  for(var l=1;l<L;l++){var lv=l/L;if(lv>grow*1.02)break;segs.length=0;contours(lv/grow,segs);var ix=l%4===0;
+    x.strokeStyle=ix?IXs:LN;x.lineWidth=ix?1.1:.7;x.globalAlpha=(1-fade)*(ix?.42:.26);x.beginPath();
+    for(var p=0;p+3<segs.length;p+=4){x.moveTo(segs[p]*cs,segs[p+1]*cs);x.lineTo(segs[p+2]*cs,segs[p+3]*cs)}x.stroke()}
+  x.globalAlpha=1}
+function sim(K,T,dt){
+  for(var k=0;k<act;k++)step(k,K);
+  slump(T);
+  for(var j=1;j<gh-1;j++)for(var i=1;i<gw-1;i++){var p=j*gw+i;HZ2[p]=H[p]*.94+(H[p-1]+H[p+1]+H[p-gw]+H[p+gw])*.015}for(j=1;j<gh-1;j++)for(i=1;i<gw-1;i++){p=j*gw+i;H[p]=HZ2[p]}
+  // haze drifts downwind and thins
+  for(var q=gw+1;q<N-gw-1;q++)HZ2[q]=(HZ[q]*.3+HZ[q-1]*.3+(HZ[q-2]+HZ[q+1]+HZ[q-gw]+HZ[q+gw])*.1)*.965;var tmp=HZ;HZ=HZ2;HZ2=tmp;
+  for(q=0;q<N;q++){F[q]*=.86;SD[q]*=.998}}
+if(RM){
+  ld.style.display='block';ld.style.transition='opacity .4s linear';var tS=0;
+  var still=function(){if(!H0)raise();act=ND;for(var k=0;k<act;k++)spawn(k);for(var f=0;f<26;f++)sim(1,.05,1/60);x.setTransform(DPR,0,0,DPR,0,0);paint(1,.5,1,0)};
+  var wait=function(now){if(!tS){tS=now;setTimeout(still,0)}var t=(now-tS)/1000;
+    if((RDY&&t>.8)||t>4.5){ld.style.opacity='0';setTimeout(function(){ld.style.display='none'},450);return}requestAnimationFrame(wait)};
+  requestAnimationFrame(wait);return}
+var RAIN=[],t0=0,dStart=-1,last=0;
 function frame(now){
   if(!t0){t0=now;last=now}var t=(now-t0)/1000,dt=Math.min(.05,(now-last)/1000);last=now;
-  if(!H0&&(fontOK||t>.25))raise();
-  if(dStart<0&&((t>=2&&RDY)||t>=4.8))dStart=Math.max(t,2);
-  var rain=dStart<0?sst(.25,.6,t)*(t<1.75||!RDY?1:1-sst(1.75,2,t)):0,fade=dStart<0?1:1-sst(dStart,dStart+.45,t),grow=sst(0,.55,t);
-  x.setTransform(DPR,0,0,DPR,0,0);x.globalAlpha=1;x.fillStyle=C0;x.fillRect(0,0,VW,VH);
+  if(!H0&&(fontOK||t>.25)){raise();for(var k=0;k<ND;k++)spawn(k)}
+  if(dStart<0&&((t>=2.25&&RDY)||t>=4.5))dStart=Math.max(t,2.25);
+  var rain=sst(.12,1.0,t)*(1-sst(1.75,2.25,t)),fade=dStart<0?0:sst(dStart,dStart+.5,t),grow=.08+.92*(1-Math.pow(1-sst(0,.6,t),2));
+  var wet=sst(.3,1.3,t)*(1-.35*sst(2,2.6,t));
+  x.setTransform(DPR,0,0,DPR,0,0);x.globalAlpha=1;x.fillStyle=C0s;x.fillRect(0,0,VW,VH);
   if(H0){
-    var nd=Math.round(rain*N*.005*(dt*60));for(var k=0;k<nd;k++)drop(1+Math.random()*(gw-3),1+Math.random()*(gh-3));
-    if(nd){var T2=new Float32Array(H);for(var jj=1;jj<gh-1;jj++)for(var ii=1;ii<gw-1;ii++){var qq=jj*gw+ii;H[qq]=T2[qq]*.6+(T2[qq-1]+T2[qq+1]+T2[qq-gw]+T2[qq+gw])*.1}}
-    // water and sediment as one soft plate under the lines
-    var D=oimg.data;for(var q=0;q<N;q++){F[q]*=.88;var w=Math.min(1,Math.max(0,F[q]-.12)*1.6),s=Math.min(1,SD[q]),o=q*4;
-      D[o]=dR[0]+(wR[0]-dR[0])*w;D[o+1]=dR[1]+(wR[1]-dR[1])*w;D[o+2]=dR[2]+(wR[2]-dR[2])*w;D[o+3]=255*Math.min(1,w*.8+s*.3)*fade}
-    ox.putImageData(oimg,0,0);x.imageSmoothingEnabled=true;x.drawImage(ov,0,0,VW,VH);
-    var L=16;x.lineCap='round';
-    for(var l=1;l<L;l++){var lv=l/L;if(lv>grow*1.02)break;var sg=contours(lv),ix=l%4===0;
-      x.strokeStyle=ix?IX:LN;x.lineWidth=ix?1.6:.9;x.globalAlpha=fade*(ix?.9:.75);x.beginPath();
-      for(var p=0;p<sg.length;p+=4){x.moveTo(sg[p]*cs,sg[p+1]*cs);x.lineTo(sg[p+2]*cs,sg[p+3]*cs)}x.stroke()}
+    var sp=dt*60,er=sst(.35,.8,t)*(1-sst(1.9,2.4,t));act=Math.round(ND*er);
+    if(er>0){for(var it=0;it<Math.max(1,Math.round(sp));it++)sim(1.6,.13-.07*sst(.5,1.9,t),dt)}else{for(var q=0;q<N;q++){F[q]*=.86}}
+    paint(grow,wet,sst(.85,2.1,t),fade);
   }
-  // rain: short falling strokes in the water colour
-  var want=Math.round(rain*Math.min(260,VW*VH/5000));while(RAIN.length<want)RAIN.push({x:Math.random()*VW*1.1,y:-Math.random()*VH,v:VH*(1.6+Math.random())});
-  x.strokeStyle=WT;x.lineWidth=1;x.globalAlpha=.7*fade;x.beginPath();
-  for(var r=RAIN.length-1;r>=0;r--){var R=RAIN[r];R.y+=R.v*dt;R.x-=R.v*dt*.12;x.moveTo(R.x,R.y);x.lineTo(R.x+R.v*.0024,R.y-R.v*.02);
-    if(R.y>VH){if(RAIN.length>want)RAIN.splice(r,1);else{R.y=-Math.random()*VH*.2;R.x=Math.random()*VW*1.1}}}
+  // rain: slanted streaks thickening into a downpour, then easing
+  var want=Math.round(rain*Math.min(1500,VW*VH/700));while(RAIN.length<want)RAIN.push({x:Math.random()*VW*1.15,y:-Math.random()*VH*.4,v:VH*(1.5+Math.random()*1.1),l:.018+Math.random()*.03});
+  x.strokeStyle=WTs;x.lineWidth=1;x.globalAlpha=.55*(1-fade);x.beginPath();
+  for(var r=RAIN.length-1;r>=0;r--){var R=RAIN[r];R.y+=R.v*dt;R.x-=R.v*dt*.14;x.moveTo(R.x,R.y);x.lineTo(R.x+R.v*R.l*.14,R.y-R.v*R.l);
+    if(R.y>VH+20){if(RAIN.length>want)RAIN.splice(r,1);else{R.y=-Math.random()*VH*.15;R.x=Math.random()*VW*1.15}}}
   x.stroke();x.globalAlpha=1;
-  if(dStart>=0&&t>=dStart+.45){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900);return}
+  if(dStart>=0&&t>=dStart+.5){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900);return}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
