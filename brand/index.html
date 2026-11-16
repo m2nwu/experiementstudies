@@ -1,0 +1,768 @@
+<!doctype html>
+<!--
+  M2NWU / MOTION SYSTEM
+  One brand device: sunlight refracted through computed glass (the Caustic engine, running live).
+  Every panel below is the same optics: an inverse-caustic glass surface solved once in the browser,
+  then a mesh of rays refracted through it on the GPU in three spectral bands, every frame.
+  Panels differ only in what the glass was solved for, how it is tilted / rippled, and how the light
+  is mapped (natural or thermal) and masked. Two field colours (INK, COBALT) + light as the effect colour.
+  One shared 8 s clock, four 2 s beats; cuts land on beats.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>M2NWU — MOTION SYSTEM</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* field colours: the only two grounds in the system */
+  --ink:#05070f;
+  --cobalt:#1c2bff;
+  /* effect colour: light (natural) */
+  --light:#f3fbff;
+  --halo:#9fe9ff;
+  /* effect colour: light (thermal ramp, intensity 0 -> 1) */
+  --heat0:#05070f;--heat1:#1c2bff;--heat2:#14d2ff;--heat3:#d6ff3d;--heat4:#ffffff;
+  --display:'Syne','Arial Black','Helvetica Neue',Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  --bar:30px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--ink);color:var(--light);overflow:hidden}
+body{font-family:var(--mono);text-transform:uppercase;-webkit-font-smoothing:antialiased}
+#gl{position:fixed;left:0;top:0;width:100vw;height:calc(100% - var(--bar));display:block;z-index:0;pointer-events:none}
+.reel{position:absolute;left:0;top:0;right:0;bottom:var(--bar);display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;z-index:1}
+.reel::-webkit-scrollbar{display:none}
+.pn{position:relative;flex:1 0 0;min-width:0;height:100%;scroll-snap-align:start;overflow:hidden;border-right:1px solid rgba(5,7,15,.9)}
+.pn:last-child{border-right:0}
+.pn[data-p=logo]{flex-grow:1.45}
+.nogl .pn{background:var(--f,var(--ink))}
+.tag{position:absolute;font-size:9px;letter-spacing:.08em;line-height:1;opacity:.82;white-space:nowrap}
+.tl{left:12px;top:12px}.tr{right:12px;top:12px}.bl{left:12px;bottom:12px}.br{right:12px;bottom:12px}
+.emb{position:absolute;left:50%;top:9%;width:30px;height:30px;transform:translateX(-50%)}
+.tagline{position:absolute;left:0;right:0;bottom:9%;text-align:center;font-size:10px;letter-spacing:.32em}
+/* data layer */
+.data .row{position:absolute;left:12px;right:12px;display:flex;justify-content:space-between;font-size:9px;letter-spacing:.06em;line-height:1}
+.data .row b{font-weight:600}
+.data .box{border:1px solid currentColor;padding:2px 3px;margin:-3px 0}
+.win{position:absolute;border:1px solid rgba(243,251,255,.55)}
+.win i{position:absolute;width:5px;height:5px;border-color:var(--light);border-style:solid}
+.win .c1{left:-3px;top:-3px;border-width:1px 0 0 1px}.win .c2{right:-3px;top:-3px;border-width:1px 1px 0 0}
+.win .c3{left:-3px;bottom:-3px;border-width:0 0 1px 1px}.win .c4{right:-3px;bottom:-3px;border-width:0 1px 1px 0}
+.xh{position:absolute;width:15px;height:15px;margin:-7px 0 0 -7px;pointer-events:none}
+.xh:before,.xh:after{content:'';position:absolute;background:var(--light)}
+.xh:before{left:7px;top:0;width:1px;height:15px}.xh:after{top:7px;left:0;height:1px;width:15px}
+.xh span{position:absolute;left:12px;top:-11px;font-size:8px;letter-spacing:.04em}
+.ruler{position:absolute;left:12px;right:12px;height:22px}
+.ruler .tk{position:absolute;bottom:0;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,currentColor 0 1px,transparent 1px 10%)}
+.ruler .tk2{position:absolute;bottom:0;left:5%;right:0;height:3px;background:repeating-linear-gradient(90deg,currentColor 0 1px,transparent 1px 10.53%)}
+.ruler .nm{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;font-size:8px}
+.bars{position:absolute;left:12px;right:12px;display:flex;gap:6px;align-items:center;font-size:9px}
+.bars u{display:block;flex:0 0 34px;height:8px;border:1px solid currentColor;position:relative;text-decoration:none}
+.bars u s{position:absolute;left:0;top:0;bottom:0;background:currentColor;width:0}
+.bars em{font-style:normal;margin-left:auto}
+.bar{position:fixed;left:0;right:0;bottom:0;height:var(--bar);display:flex;align-items:center;gap:18px;padding:0 12px;font-size:9px;letter-spacing:.08em;background:var(--ink);border-top:1px solid rgba(243,251,255,.14);z-index:2;white-space:nowrap;overflow:hidden}
+.bar b{font-weight:600}
+.sw{display:inline-flex;align-items:center;gap:6px}
+.sw i{display:inline-block;width:10px;height:10px;border:1px solid rgba(243,251,255,.3)}
+.ramp{display:inline-block;width:46px;height:10px;background:linear-gradient(90deg,var(--heat0),var(--heat1),var(--heat2),var(--heat3),var(--heat4))}
+.beats{display:inline-flex;gap:3px;margin-left:auto}
+.beats i{display:inline-block;width:14px;height:6px;border:1px solid var(--light)}
+.beats i.on{background:var(--light)}
+.clk{min-width:120px;text-align:right}
+@media (max-width:900px){.sw.hide{display:none}}
+@media (max-width:760px){
+  .pn{flex:0 0 76vw}
+  .bar{gap:12px}.bar .hide2{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-hidden="true"></canvas>
+<main class="reel" id="reel" aria-label="M2NWU motion system: six live panels">
+  <section class="pn" data-p="logo" style="--f:var(--ink)">
+    <span class="tag tl">01</span><span class="tag tr">LOGO</span>
+    <canvas class="emb" width="60" height="60" aria-hidden="true"></canvas>
+    <h1 class="tagline" aria-label="M2NWU. Bend the light.">BEND THE LIGHT</h1>
+    <span class="tag bl">M2NWU</span><span class="tag br">N 1.522</span>
+  </section>
+  <section class="pn" data-p="emblem" style="--f:var(--cobalt)">
+    <span class="tag tl">02</span><span class="tag tr">EMBLEM</span>
+    <span class="tag bl">M2 / CIRCLE</span><span class="tag br">RIPPLE</span>
+  </section>
+  <section class="pn" data-p="field" style="--f:var(--ink)">
+    <span class="tag tl">03</span><span class="tag tr" id="fieldMode">LIGHT FIELD</span>
+    <span class="tag bl">NO TYPE</span><span class="tag br">3 BANDS</span>
+  </section>
+  <section class="pn" data-p="giant" style="--f:var(--cobalt)">
+    <span class="tag tl">04</span><span class="tag tr">GIANT TYPE</span>
+  </section>
+  <section class="pn data" data-p="data" style="--f:var(--cobalt)">
+    <div class="row" style="top:12px"><b class="box">M2NWU</b><span>05</span><span>DATA</span></div>
+    <div class="row" style="top:34px"><span>GLASS</span><span>CROWN</span><span>N 1.522</span></div>
+    <div class="row" style="top:50px"><span>ABBE V</span><span>58.6</span><span>BANDS R G B</span></div>
+    <div class="row" id="rowFocus"><span>FOCUS</span><span id="fx">X 0.000</span><span id="fy">Y 0.000</span></div>
+    <div class="row" id="rowTilt"><span>TILT</span><span id="tx">0.00&deg;</span><span id="ty">0.00&deg;</span></div>
+    <div class="win" id="win"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i></div>
+    <div class="xh" id="xh"><span id="xhl">F</span></div>
+    <div class="ruler" id="ruler"><div class="nm"><span>-4</span><span>-3</span><span>-2</span><span>-1</span><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span></div><div class="tk"></div><div class="tk2"></div></div>
+    <div class="bars" id="bars"><u><s></s></u><u><s></s></u><u><s></s></u><em id="tclk">T 0.00</em></div>
+  </section>
+  <section class="pn" data-p="tagline" style="--f:var(--ink)">
+    <span class="tag tl">06</span><span class="tag tr">TAGLINE</span>
+  </section>
+</main>
+<footer class="bar">
+  <b>M2NWU</b><span class="hide2">MOTION SYSTEM</span>
+  <span class="sw"><i style="background:var(--ink)"></i>INK</span>
+  <span class="sw"><i style="background:var(--cobalt)"></i>COBALT</span>
+  <span class="sw hide"><i style="background:var(--light)"></i>LIGHT</span>
+  <span class="sw hide"><span class="ramp"></span>HEAT</span>
+  <span class="beats" id="beats"><i></i><i></i><i></i><i></i></span>
+  <span class="clk" id="clk">T 0.000 / 8.000</span>
+</footer>
+<script>/* ---------------------------------------------------------------
+   INVERSE CAUSTIC SOLVER (runs in a Web Worker; also usable inline)
+   1. Transport by redistribution: a (nx+1)x(ny+1) mesh on the glass
+      is relaxed so each cell's area equals the target brightness of
+      the floor pixel it must light (light in = area, uniform sun).
+      Each pass solves a Neumann Poisson equation  lap(phi) = t - a
+      with a DCT and moves vertices along grad(phi), with the step
+      clipped so no triangle inverts (after M. Ferraro's method; a
+      discrete approximation of the Monge-Ampere / optimal-transport
+      problem, not an exact solution).
+   2. The inverse map is rasterised back onto a regular glass grid,
+      Snell's law (top face sculpted, bottom face flat) gives the
+      surface slope each point needs to reach its floor point.
+   3. The slope field is integrated into a height field by a second
+      least-squares Poisson solve; the curl it cannot honour is
+      reported as the integrability residual.
+---------------------------------------------------------------- */
+function makeSolverAPI(){
+  var mats={};
+  function dctMat(N){
+    if(mats[N])return mats[N];
+    var C=new Float64Array(N*N);
+    for(var k=0;k<N;k++){var a=k===0?Math.sqrt(1/N):Math.sqrt(2/N);
+      for(var n=0;n<N;n++)C[k*N+n]=a*Math.cos(Math.PI*(n+.5)*k/N)}
+    return mats[N]=C;
+  }
+  // Solve 5-point Neumann Laplacian lap(u)=f on ny x nx grid (row-major). Mean of u = 0.
+  function poisson(f,nx,ny,out){
+    var Cx=dctMat(nx),Cy=dctMat(ny),A=new Float64Array(nx*ny),B=new Float64Array(nx*ny),i,j,k,s,row,crow;
+    // A = f * Cx^T   (A[y][l] = sum_x f[y][x] Cx[l][x])
+    for(j=0;j<ny;j++){row=j*nx;for(k=0;k<nx;k++){crow=k*nx;s=0;for(i=0;i<nx;i++)s+=f[row+i]*Cx[crow+i];A[row+k]=s}}
+    // B = Cy * A     (B[m][l] = sum_y Cy[m][y] A[y][l])
+    B.fill(0);
+    for(k=0;k<ny;k++){var bo=k*nx;for(j=0;j<ny;j++){var c=Cy[k*ny+j];if(c===0)continue;var ao=j*nx;for(i=0;i<nx;i++)B[bo+i]+=c*A[ao+i]}}
+    for(k=0;k<ny;k++){var ly=2*Math.cos(Math.PI*k/ny)-2;for(i=0;i<nx;i++){var lx=2*Math.cos(Math.PI*i/nx)-2,d=lx+ly;B[k*nx+i]=d===0?0:B[k*nx+i]/d}}
+    // inverse: A = Cy^T * B ; out = A * Cx
+    A.fill(0);
+    for(k=0;k<ny;k++){var bo2=k*nx;for(j=0;j<ny;j++){var c2=Cy[k*ny+j];if(c2===0)continue;var ao2=j*nx;for(i=0;i<nx;i++)A[ao2+i]+=c2*B[bo2+i]}}
+    out=out||new Float64Array(nx*ny);out.fill(0);
+    for(j=0;j<ny;j++){row=j*nx;for(k=0;k<nx;k++){var av=A[row+k];if(av===0)continue;crow=k*nx;for(i=0;i<nx;i++)out[row+i]+=av*Cx[crow+i]}}
+    return out;
+  }
+  function triArea(ax,ay,bx,by,cx,cy){return .5*((bx-ax)*(cy-ay)-(cx-ax)*(by-ay))}
+  // smallest positive t where area(p+t v) of triangle hits 0
+  function tCollapse(p,v,a,b,c){
+    var ax=p[a*2],ay=p[a*2+1],bx=p[b*2],by=p[b*2+1],cx=p[c*2],cy=p[c*2+1];
+    var avx=v[a*2],avy=v[a*2+1],bvx=v[b*2],bvy=v[b*2+1],cvx=v[c*2],cvy=v[c*2+1];
+    var e1x=bx-ax,e1y=by-ay,e2x=cx-ax,e2y=cy-ay,d1x=bvx-avx,d1y=bvy-avy,d2x=cvx-avx,d2y=cvy-avy;
+    var A=d1x*d2y-d2x*d1y,B=e1x*d2y+d1x*e2y-e2x*d1y-d2x*e1y,C=e1x*e2y-e2x*e1y; // 2*area(t)=A t^2+B t+C, C>0
+    var best=Infinity;
+    if(Math.abs(A)<1e-12){if(B<0)best=-C/B}
+    else{var D=B*B-4*A*C;if(D>=0){var q=Math.sqrt(D),t1=(-B-q)/(2*A),t2=(-B+q)/(2*A);if(t1>1e-9)best=Math.min(best,t1);if(t2>1e-9)best=Math.min(best,t2)}}
+    return best;
+  }
+  /* job: {nx,ny,t:Float32Array(nx*ny) target, ior, cs:cell size(world), T:thickness, Hp:floor distance, iters}
+     returns a stepper: step() -> {it,res}; field() -> Float32Array((nx+1)(ny+1)*4) [hx,hy,h,ior] */
+  /* job: {nx,ny,t:Float32Array(nx*ny) coverage 0..1, floor, ior, cs:cell size (world), T:glass thickness, Hp:floor distance}
+     The glass is a regular (nx+1)x(ny+1) grid; each glass cell carries one unit of sunlight.
+     A mesh on the FLOOR (vertex k = where glass vertex k lands) is relaxed until every floor
+     cell holds exactly one unit of target brightness: cells shrink inside the letter, swell outside. */
+  function createJob(job){
+    // coarse-to-fine: large plates first relax on a half-resolution grid
+    if(job.nx*job.ny>9000&&!job._fine){
+      var nx2=Math.ceil(job.nx/2),ny2=Math.ceil(job.ny/2),tc=new Float32Array(nx2*ny2),cnt=new Float32Array(nx2*ny2);
+      for(var y=0;y<job.ny;y++)for(var x=0;x<job.nx;x++){var o=(y>>1)*nx2+(x>>1);tc[o]+=job.t[y*job.nx+x];cnt[o]++}
+      for(var z=0;z<tc.length;z++)tc[z]/=cnt[z];
+      var cj={};for(var key in job)cj[key]=job[key];cj.nx=nx2;cj.ny=ny2;cj.t=tc;cj.cs=job.cs*job.nx/nx2;cj._fine=1;
+      var coarse=createJob(cj),fine=null,nC=job.coarseIters||Math.round((job.iters||60)*.6),total=0;
+      return {step:function(){
+          total++;
+          if(!fine){var r=coarse.step();if(coarse.it>=nC){var fj={};for(var key2 in job)fj[key2]=job[key2];fj._fine=1;fj.init=coarse.P();fj.initN=[nx2,ny2];fine=createJob(fj)}return r}
+          return fine.step()},
+        field:function(){return fine?fine.field():coarse.field()},
+        level:function(){return fine?1:0},
+        get it(){return total},get res(){return fine?fine.res:coarse.res}};
+    }
+    var nx=job.nx,ny=job.ny,NX=nx+1,NY=ny+1,NV=NX*NY,P=new Float64Array(NV*2),V=new Float64Array(NV*2);
+    for(var j=0;j<=ny;j++)for(var i=0;i<=nx;i++){var q=(j*NX+i)*2;P[q]=i;P[q+1]=j}
+    if(job.init){ // upsample a coarse floor mesh
+      var cnx=job.initN[0],cny=job.initN[1],CI=job.init,CX=cnx+1,sx=cnx/nx,sy=cny/ny;
+      for(var j0=0;j0<=ny;j0++)for(var i0=0;i0<=nx;i0++){
+        var gx=Math.min(cnx-1e-9,i0*sx),gy=Math.min(cny-1e-9,j0*sy),ci=gx|0,cj2=gy|0,fx=gx-ci,fy=gy-cj2,c0=(cj2*CX+ci)*2;
+        var px=(CI[c0]*(1-fx)+CI[c0+2]*fx)*(1-fy)+(CI[c0+CX*2]*(1-fx)+CI[c0+CX*2+2]*fx)*fy;
+        var py=(CI[c0+1]*(1-fx)+CI[c0+3]*fx)*(1-fy)+(CI[c0+CX*2+1]*(1-fx)+CI[c0+CX*2+3]*fx)*fy;
+        var q0=(j0*NX+i0)*2;P[q0]=i0===0?0:i0===nx?nx:px/sx;P[q0+1]=j0===0?0:j0===ny?ny:py/sy;
+      }
+      job.floor0=job.floor;
+    }
+    var t=new Float64Array(nx*ny),k,fl0=job.floor0||.35,fl1=job.floor||.05,curFloor=-1;
+    function setFloor(fl){if(Math.abs(fl-curFloor)<1e-6)return;curFloor=fl;var sum=0;
+      for(k=0;k<nx*ny;k++){t[k]=fl+(1-fl)*job.t[k];sum+=t[k]}var sc=nx*ny/sum;for(k=0;k<nx*ny;k++)t[k]*=sc}
+    function tAt(x,y){ // bilinear sample of target brightness; (x,y) in floor-cell units
+      x-=.5;y-=.5;if(x<0)x=0;if(y<0)y=0;if(x>nx-1.0001)x=nx-1.0001;if(y>ny-1.0001)y=ny-1.0001;
+      var i=x|0,j=y|0,fx=x-i,fy=y-j,o=j*nx+i;
+      if(nx===1||ny===1)return t[o];
+      return (t[o]*(1-fx)+t[o+1]*fx)*(1-fy)+(t[o+nx]*(1-fx)+t[o+nx+1]*fx)*fy;
+    }
+    var L=new Float64Array(nx*ny),phi=new Float64Array(nx*ny),it=0,res=1,SUB=[.17,.5,.83];
+    function vid(i,j){return j*NX+i}
+    function loss(){
+      var m=0;
+      for(var j=0;j<ny;j++)for(var i=0;i<nx;i++){
+        var a=vid(i,j)*2,b=vid(i+1,j)*2,c=vid(i+1,j+1)*2,d=vid(i,j+1)*2;
+        var ar=triArea(P[a],P[a+1],P[b],P[b+1],P[c],P[c+1])+triArea(P[a],P[a+1],P[c],P[c+1],P[d],P[d+1]);
+        var acc=0;
+        for(var sy=0;sy<3;sy++)for(var sx=0;sx<3;sx++){var u=SUB[sx],v=SUB[sy];
+          var x=(P[a]*(1-u)+P[b]*u)*(1-v)+(P[d]*(1-u)+P[c]*u)*v,y=(P[a+1]*(1-u)+P[b+1]*u)*(1-v)+(P[d+1]*(1-u)+P[c+1]*u)*v;acc+=tAt(x,y)}
+        var mass=ar*acc/9,l=1-mass;L[j*nx+i]=l;m+=Math.abs(l);
+      }
+      return m/(nx*ny);
+    }
+    function step(){
+      setFloor(Math.max(fl1,fl0*Math.pow(job.decay||.84,it)));
+      res=loss();
+      poisson(L,nx,ny,phi);
+      for(var j=0;j<=ny;j++)for(var i=0;i<=nx;i++){
+        var q=vid(i,j)*2,vx=0,vy=0,n,r;
+        if(i>0&&i<nx){n=0;for(r=j-1;r<=j;r++){if(r<0||r>=ny)continue;vx+=phi[r*nx+i]-phi[r*nx+i-1];n++}vx/=n}
+        if(j>0&&j<ny){n=0;for(r=i-1;r<=i;r++){if(r<0||r>=nx)continue;vy+=phi[j*nx+r]-phi[(j-1)*nx+r];n++}vy/=n}
+        V[q]=vx;V[q+1]=vy;
+      }
+      var tmin=Infinity;
+      for(var j2=0;j2<ny;j2++)for(var i2=0;i2<nx;i2++){
+        var a=vid(i2,j2),b=vid(i2+1,j2),c=vid(i2+1,j2+1),d=vid(i2,j2+1);
+        var t1=tCollapse(P,V,a,b,c),t2=tCollapse(P,V,a,c,d);if(t1<tmin)tmin=t1;if(t2<tmin)tmin=t2;
+      }
+      var dt=Math.min(1,tmin*.5);
+      for(k=0;k<NV*2;k++)P[k]+=V[k]*dt;
+      it++;
+      return {it:it,res:res,dt:dt,floor:curFloor};
+    }
+    function field(){
+      var n=job.ior,T=job.T,Hp=job.Hp,cs=job.cs,smax=1/n-1e-4;
+      var GX=new Float64Array(NV),GY=new Float64Array(NV);
+      for(var id=0;id<NV;id++){
+        var x=id%NX,y=(id/NX)|0,dx=(P[id*2]-x)*cs,dy=(P[id*2+1]-y)*cs,D=Math.sqrt(dx*dx+dy*dy);
+        if(D<1e-12){GX[id]=0;GY[id]=0;continue}
+        // f(s)= s/sqrt(1-s^2)*T + n s/sqrt(1-n^2 s^2)*Hp = D   (s = sine of the ray inside the glass)
+        var lo=0,hi=smax;for(var it2=0;it2<40;it2++){var s=(lo+hi)/2,f=s/Math.sqrt(1-s*s)*T+n*s/Math.sqrt(1-n*n*s*s)*Hp;if(f<D)lo=s;else hi=s}
+        var s2=(lo+hi)/2,nz=Math.max(.05,n*Math.sqrt(1-s2*s2)-1);
+        GX[id]=n*s2*dx/D/nz;GY[id]=n*s2*dy/D/nz;
+      }
+      var f2=new Float64Array(NV);
+      for(var y2=0;y2<NY;y2++)for(var x2=0;x2<NX;x2++){
+        var id2=y2*NX+x2,dv=0;
+        if(x2<NX-1)dv+=(GX[id2]+GX[id2+1])*.5;if(x2>0)dv-=(GX[id2]+GX[id2-1])*.5;
+        if(y2<NY-1)dv+=(GY[id2]+GY[id2+NX])*.5;if(y2>0)dv-=(GY[id2]+GY[id2-NX])*.5;
+        f2[id2]=dv*cs;
+      }
+      var h=poisson(f2,NX,NY);
+      var out=new Float32Array(NV*4),e2=0,g2=0,hmin=Infinity,hmax=-Infinity;
+      for(var y3=0;y3<NY;y3++)for(var x3=0;x3<NX;x3++){
+        var id3=y3*NX+x3,hx,hy;
+        hx=x3===0?(h[id3+1]-h[id3])/cs:x3===NX-1?(h[id3]-h[id3-1])/cs:(h[id3+1]-h[id3-1])/(2*cs);
+        hy=y3===0?(h[id3+NX]-h[id3])/cs:y3===NY-1?(h[id3]-h[id3-NX])/cs:(h[id3+NX]-h[id3-NX])/(2*cs);
+        out[id3*4]=hx;out[id3*4+1]=hy;out[id3*4+2]=h[id3];out[id3*4+3]=n;
+        e2+=(hx-GX[id3])*(hx-GX[id3])+(hy-GY[id3])*(hy-GY[id3]);g2+=GX[id3]*GX[id3]+GY[id3]*GY[id3];
+        if(h[id3]<hmin)hmin=h[id3];if(h[id3]>hmax)hmax=h[id3];
+      }
+      for(var z=0;z<NV;z++)out[z*4+2]-=hmin; // lowest point of the top face = minimum glass thickness
+      return {f:out,NX:NX,NY:NY,curl:Math.sqrt(e2/Math.max(g2,1e-12)),relief:hmax-hmin};
+    }
+    return {step:step,field:field,P:function(){return P},level:function(){return 1},get it(){return it},get res(){return res}};
+  }
+  return {createJob:createJob,poisson:poisson};
+}
+</script>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var de=document.documentElement;
+var REDUCE=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var CYCLE=8,BEAT=2;
+var FAM_D="Syne,'Arial Black','Helvetica Neue',Arial,sans-serif";
+function css(v){return getComputedStyle(de).getPropertyValue(v).trim()}
+function hexRGB(h){h=h.replace('#','');return [parseInt(h.substr(0,2),16)/255,parseInt(h.substr(2,2),16)/255,parseInt(h.substr(4,2),16)/255]}
+var TOK={};['ink','cobalt','light','halo','heat0','heat1','heat2','heat3','heat4'].forEach(function(k){TOK[k]=hexRGB(css('--'+k))});
+function sm(a,b,x){x=(x-a)/(b-a);x=x<0?0:x>1?1:x;return x*x*(3-2*x)}
+function bump(t,a,b,c,d){return sm(a,b,t)*(1-sm(c,d,t))}
+function eOut(x){x=x<0?0:x>1?1:x;return 1-Math.pow(1-x,4)}
+var TAU=Math.PI*2;
+
+/* ---------------------------------------------------------------
+   1. GLASS — the same optics as Caustic (crown glass, n 1.522, V 58.6)
+---------------------------------------------------------------- */
+var IOR=1.522,ABBE=58.6,DISP=(IOR-1)/ABBE*1.4;   // three spectral bands: n - dn, n, n + dn
+var HPK=1.8,TK=.14,FLOOR_SPILL=.05;
+function Plate(key,nx,ny,t,capC){
+  this.key=key;this.nx=nx;this.ny=ny;this.t=t;this.ior=IOR;this.capC=capC||ny/2;
+  this.hpC=HPK*this.capC;this.tC=TK*this.capC;
+  this.NX=2;this.NY=2;this.field=new Float32Array([0,0,0,IOR,0,0,0,IOR,0,0,0,IOR,0,0,0,IOR]);
+  this.tex=null;this.ver=0;this.up=-1;this.done=!t;this.it=0;this.fade=t?0:1;this.solvedAt=0;
+}
+Plate.prototype.setField=function(f,NX,NY){this.field=f;this.NX=NX;this.NY=NY;this.ver++};
+Plate.prototype.sample=function(u,v,o){
+  var NX=this.NX,NY=this.NY,f=this.field,x=Math.max(0,Math.min(NX-1.0001,u*(NX-1))),y=Math.max(0,Math.min(NY-1.0001,v*(NY-1)));
+  var i=x|0,j=y|0,fx=x-i,fy=y-j,a=(j*NX+i)*4,b=a+4,c=a+NX*4,d=c+4;
+  for(var k=0;k<4;k++)o[k]=(f[a+k]*(1-fx)+f[b+k]*fx)*(1-fy)+(f[c+k]*(1-fx)+f[d+k]*fx)*fy;return o;
+};
+var FLAT=new Plate('flat',1,1,null);
+
+/* targets: what the light must become (coverage 0..1), rasterised supersampled then pooled */
+var rc=document.createElement('canvas'),rx=rc.getContext('2d',{willReadFrequently:true});
+function pool(nx,ny,SS){
+  var d=rx.getImageData(0,0,nx*SS,ny*SS).data,t=new Float32Array(nx*ny),k=1/(SS*SS*255);
+  for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){var s=0;for(var j=0;j<SS;j++){var o=((y*SS+j)*nx*SS+x*SS)*4+3;for(var i=0;i<SS;i++)s+=d[o+i*4]}t[y*nx+x]=s*k}
+  return t;
+}
+function capRatio(){rx.font='800 100px '+FAM_D;var m=rx.measureText('H');return (m.actualBoundingBoxAscent||72)/100}
+function wordTarget(){
+  // plate sized to the wordmark's own box (cap + margins), so the strokes get enough glass cells
+  var cr=capRatio();rx.font='800 100px '+FAM_D;var w100=rx.measureText('M2NWU').width,cap100=100*cr,mg=.28*cap100,mgy=cap100;
+  var pw=w100+2*mg,ph=cap100+2*mgy,nx=200,ny=Math.round(nx*ph/pw),SS=3,k=nx*SS/pw;
+  rc.width=nx*SS;rc.height=ny*SS;rx.clearRect(0,0,rc.width,rc.height);rx.font='800 '+(100*k)+'px '+FAM_D;
+  rx.fillStyle='#fff';rx.textBaseline='alphabetic';rx.fillText('M2NWU',mg*k,(mgy+cap100)*k);
+  return wide(new Plate('word',nx,ny,pool(nx,ny,SS),cap100*k/SS));
+}
+/* a plate that must throw light across several letters: lift the floor so slopes stay gentle (as Caustic does) */
+function wide(pl){pl.hpC=Math.max(pl.hpC,1.1*Math.max(pl.nx,pl.ny));return pl}
+/* the emblem: a disc of light with the M2 monogram held back as shadow, inside a thin orbit */
+function drawEmblem(x,S,col){
+  var c=S/2;x.fillStyle=col;x.strokeStyle=col;
+  x.beginPath();x.arc(c,c,S*.468,0,TAU);x.lineWidth=S*.036;x.stroke();
+  x.beginPath();x.arc(c,c,S*.39,0,TAU);x.fill();
+  x.save();x.globalCompositeOperation='destination-out';
+  var cr=capRatio(),cap=S*.3,sz=cap/cr;x.font='800 '+sz+'px '+FAM_D;var w=x.measureText('M2').width;
+  if(w>S*.6){sz*=S*.6/w;cap=sz*cr;x.font='800 '+sz+'px '+FAM_D;w=x.measureText('M2').width}
+  x.textBaseline='alphabetic';x.fillStyle='#000';x.fillText('M2',c-w/2,c+cap/2);x.restore();
+}
+function emblemTarget(){
+  var N=92,SS=3;rc.width=rc.height=N*SS;rx.clearRect(0,0,N*SS,N*SS);drawEmblem(rx,N*SS,'#fff');
+  return wide(new Plate('emblem',N,N,pool(N,N,SS),N*.3));
+}
+
+/* solver workers (makeSolverAPI is copied verbatim from Caustic) */
+function workerMain(){
+  var api=makeSolverAPI();
+  self.onmessage=function(e){
+    var J=e.data,job=api.createJob(J);
+    for(var i=0;i<J.iters;i++){
+      var r=job.step(),last=i===J.iters-1;
+      if(last||(J.snap&&(i+1)%J.snap===0)){var F=job.field();self.postMessage({key:J.key,it:i+1,f:F.f,NX:F.NX,NY:F.NY,done:last},[F.f.buffer])}
+    }
+  };
+}
+function FakeWorker(){
+  var self=this,api=makeSolverAPI(),gen=0;
+  this.postMessage=function(J){var g=++gen,job=api.createJob(J),i=0;
+    (function run(){if(g!==gen)return;var s=performance.now();
+      while(i<J.iters&&performance.now()-s<8){job.step();i++;var last=i===J.iters;
+        if(last||(J.snap&&i%J.snap===0)){var F=job.field();self.onmessage&&self.onmessage({data:{key:J.key,it:i,f:F.f,NX:F.NX,NY:F.NY,done:last}})}}
+      if(i<J.iters)setTimeout(run,0)})()};
+  this.terminate=function(){gen++};
+}
+var WSRC=null;
+function newWorker(){try{if(!WSRC)WSRC=URL.createObjectURL(new Blob(['var makeSolverAPI='+makeSolverAPI.toString()+';('+workerMain.toString()+')();'],{type:'text/javascript'}));return new Worker(WSRC)}catch(e){return new FakeWorker()}}
+function solve(pl,iters){
+  var msg={key:pl.key,nx:pl.nx,ny:pl.ny,t:pl.t,floor:FLOOR_SPILL,floor0:.35,decay:.84,ior:pl.ior,cs:1,T:pl.tC,Hp:pl.hpC,iters:iters,snap:6};
+  function on(e){var d=e.data;if(d.key!==pl.key)return;pl.setField(d.f,d.NX,d.NY);pl.it=d.it;if(d.done){pl.done=true;pl.solvedAt=performance.now()}}
+  var w=newWorker();w.onmessage=on;
+  w.onerror=function(){var f=new FakeWorker();f.onmessage=on;f.postMessage(msg)};
+  w.postMessage(msg);
+}
+
+/* CPU ray (same law as the shader): where the centre of a plate lands on the floor */
+function rotMat(ax,ay){var cx=Math.cos(ax),sx=Math.sin(ax),cy=Math.cos(ay),sy=Math.sin(ay);return [cy,sy*sx,sy*cx,0,cx,-sx,-sy,cy*sx,cy*cx]}
+function mv(R,v){return [R[0]*v[0]+R[1]*v[1]+R[2]*v[2],R[3]*v[0]+R[4]*v[1]+R[5]*v[2],R[6]*v[0]+R[7]*v[1]+R[8]*v[2]]}
+function nrm(v){var l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l]}
+function refr(I,N,eta){var d=I[0]*N[0]+I[1]*N[1]+I[2]*N[2],k=1-eta*eta*(1-d*d);if(k<0)return null;var s=eta*d+Math.sqrt(k);return [eta*I[0]-s*N[0],eta*I[1]-s*N[1],eta*I[2]-s*N[2]]}
+var _s=[0,0,0,0];
+function traceC(pl,rc,u,v,R,sun,Hp,T,HS){
+  var s=pl.sample(u,v,_s),n=s[3];
+  var Pl=[(u-.5)*rc.W,(v-.5)*rc.H,T+s[2]*HS],up=mv(R,[0,0,1]),Pw=mv(R,Pl);Pw[0]+=rc.cx;Pw[1]+=rc.cy;Pw[2]+=Hp;
+  var N=nrm(mv(R,[-s[0],-s[1],1])),r1=refr(sun,N,1/n);if(!r1)return null;
+  var den=r1[0]*up[0]+r1[1]*up[1]+r1[2]*up[2];if(den>-1e-4)return null;
+  var tt=((rc.cx-Pw[0])*up[0]+(rc.cy-Pw[1])*up[1]+(Hp-Pw[2])*up[2])/den,Q=[Pw[0]+r1[0]*tt,Pw[1]+r1[1]*tt,Pw[2]+r1[2]*tt];
+  var r2=refr(r1,up,n);if(!r2||r2[2]>-1e-4)return null;var s2=-Q[2]/r2[2];return [Q[0]+r2[0]*s2,Q[1]+r2[1]*s2];
+}
+
+/* ---------------------------------------------------------------
+   2. GPU — photon mesh refracted per vertex (Caustic's law), brightness =
+   ray-tube area ratio; plus a procedural ripple added to the solved slope
+---------------------------------------------------------------- */
+var VS_C=`#version 300 es
+precision highp float;precision highp sampler2D;
+in vec2 aP;
+uniform sampler2D uTex;uniform vec2 uTexN;uniform vec4 uRect;uniform float uHp,uT,uHS,uDn;uniform mat3 uRot;uniform vec3 uSun;uniform vec4 uView;
+uniform vec4 uWA;uniform vec4 uWB;uniform float uRP;
+out vec2 vO;out vec2 vN;out float vOk;out float vFlux;out vec2 vUv;
+void main(){
+ vec2 uv=aP;vUv=aP;vec2 tc=(uv*(uTexN-1.)+.5)/uTexN;vec4 s=texture(uTex,tc);float n=s.w+uDn;
+ vec2 p=vec2((uv.x-.5)*uRect.z,(uv.y-.5)*uRect.w);
+ float tau=6.2831853*uWA.w,K=6.2831853/uWA.z,sd=uWB.w;
+ vec2 d1=vec2(.8,.6),d2=vec2(-.5,.866),d3=vec2(.2,-.98),d4=vec2(-.95,-.31);
+ vec2 g=d1*cos(dot(d1,p)*K+tau+sd)+d2*.8*cos(dot(d2,p)*K*1.37-2.*tau+sd*1.7)+d3*.9*cos(dot(d3,p)*K*.71+tau+sd*2.3)+d4*.45*cos(dot(d4,p)*K*1.93+3.*tau+sd*.6);
+ s.xy+=g*uWA.x*.45;
+ vec2 dr=p-uWB.xy;float r=length(dr);float Kr=6.2831853/uWB.z;
+ s.xy+=uWA.y*cos(r*Kr-uRP)*dr/max(r,1.)*smoothstep(0.,uWB.z*.6,r)*exp(-r/(uWB.z*3.5));
+ vec3 Pl=vec3(p,uT+s.z*uHS);
+ vec3 up=uRot*vec3(0.,0.,1.);vec3 P=uRot*Pl+vec3(uRect.xy,uHp);
+ vec3 N=normalize(uRot*vec3(-s.x,-s.y,1.));
+ vec3 r1=refract(uSun,N,1./n);float ok=step(.5,dot(r1,r1));
+ float den=min(dot(r1,up),-1e-4);float tt=dot(vec3(uRect.xy,uHp)-P,up)/den;vec3 Q=P+r1*tt;
+ vec3 r2=refract(r1,up,n);ok*=step(.5,dot(r2,r2));float rz=min(r2.z,-1e-4);
+ vec3 F=Q+r2*(-Q.z/rz);
+ vO=Pl.xy;vN=F.xy;vOk=ok;vFlux=max(0.,-dot(uSun,up));
+ gl_Position=vec4((F.x-uView.x)/uView.z*2.-1.,1.-(F.y-uView.y)/uView.w*2.,0.,1.);
+}`;
+var FS_C=`#version 300 es
+precision highp float;
+in vec2 vO;in vec2 vN;in float vOk;in float vFlux;in vec2 vUv;
+uniform vec3 uMask;uniform float uGain;uniform float uEdge;
+out vec4 o;
+void main(){
+ if(vOk<.999)discard;
+ vec2 a=dFdx(vO),b=dFdy(vO),c=dFdx(vN),d=dFdy(vN);
+ float aO=abs(a.x*b.y-a.y*b.x),aN=abs(c.x*d.y-c.y*d.x);
+ float I=min(aO/max(aN,1e-12),70.)*vFlux;
+ if(uEdge>0.){vec2 e=min(vUv,1.-vUv);I*=smoothstep(0.,uEdge,e.x)*smoothstep(0.,uEdge,e.y);}
+ o=vec4(uMask*I*uGain,1.);
+}`;
+var VS_Q=`#version 300 es
+in vec2 aP;out vec2 vUv;void main(){vUv=aP*.5+.5;gl_Position=vec4(aP,0.,1.);}`;
+var FS_BLUR=`#version 300 es
+precision highp float;in vec2 vUv;uniform sampler2D uS;uniform vec2 uD;out vec4 o;
+void main(){vec4 s=texture(uS,vUv)*.2270;
+ s+=(texture(uS,vUv+uD*1.3846)+texture(uS,vUv-uD*1.3846))*.3162;
+ s+=(texture(uS,vUv+uD*3.2308)+texture(uS,vUv-uD*3.2308))*.0703;o=s;}`;
+/* tone map: Caustic's (ground -> tint -> core, colour fringes kept) + a thermal ramp,
+   + optional type mask (light inside the letters, flat field outside) and a sweeping band */
+var FS_COMP=`#version 300 es
+precision highp float;in vec2 vUv;
+uniform sampler2D uA,uH,uM;uniform vec3 uG,uTint,uCore,uOut;uniform float uExp,uInv,uHalo,uThermal,uMaskOn,uMaskRep,uMaskOff,uFringe;
+uniform vec4 uSweep;uniform vec3 uK0,uK1,uK2,uK3,uK4;uniform vec2 uPx;
+out vec4 o;
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+vec3 ramp(float e){
+ if(e<.25)return mix(uK0,uK1,e/.25);
+ if(e<.5)return mix(uK1,uK2,(e-.25)/.25);
+ if(e<.75)return mix(uK2,uK3,(e-.5)/.25);
+ return mix(uK3,uK4,(e-.75)/.25);}
+void main(){
+ vec3 I=texture(uA,vUv).rgb*uInv;vec3 Hh=texture(uH,vUv).rgb*uInv;
+ vec2 px=vUv*uPx;
+ if(uSweep.x>0.){float q=vUv.x*.55+(1.-vUv.y)*uPx.y/uPx.x*.18;float b=exp(-pow((q-uSweep.y)/uSweep.z,2.));float k=mix(1.,uSweep.w+2.2*b,uSweep.x);I*=k;Hh*=k;}
+ float g=hash(gl_FragCoord.xy);float sand=vn(px*.035)*.6+vn(px*.11)*.4;
+ I*=.9+.2*sand;
+ vec3 v=1.-exp(-I*uExp);float L=dot(v,vec3(.3333));
+ float hl=1.-exp(-dot(Hh,vec3(.3333))*uExp*.8);
+ vec3 ground=uG*(.95+.08*sand)+(g-.5)*.018;
+ vec3 col=ground+uTint*hl*uHalo*.45;
+ col=mix(col,uTint,smoothstep(0.,.7,L));
+ col=mix(col,uCore,smoothstep(.5,.97,L));
+ col+=(v-vec3(L))*uFringe;
+ float e=clamp(L*1.12+hl*uHalo*.42,0.,1.);
+ vec3 th=ramp(e)+(v-vec3(L))*.7;
+ col=mix(col,th,uThermal);
+ if(uMaskOn>.5){float m=texture(uM,vec2(vUv.x,fract((1.-vUv.y)*uMaskRep+uMaskOff))).a;col=mix(uOut+(g-.5)*.012,col,m);}
+ o=vec4(clamp(col,0.,1.),1.);
+}`;
+
+var cv=$('#gl'),gl=null;
+try{gl=cv.getContext('webgl2',{antialias:false,alpha:false,preserveDrawingBuffer:true,powerPreference:'high-performance'})}catch(e){gl=null}
+if(!gl){de.classList.add('nogl')}
+var floatOK=false,GAIN=1;
+function sh(type,src){var s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s}
+function prog(vs,fs){var p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,vs));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.bindAttribLocation(p,0,'aP');gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));
+  var u={},n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(var i=0;i<n;i++){var a=gl.getActiveUniform(p,i);u[a.name]=gl.getUniformLocation(p,a.name)}return {p:p,u:u}}
+var PC,PB,PQ,quadVAO,geo={};
+if(gl){
+  try{
+    floatOK=!!gl.getExtension('EXT_color_buffer_float');gl.getExtension('OES_texture_float_linear');GAIN=floatOK?1:1/28;
+    PC=prog(VS_C,FS_C);PB=prog(VS_Q,FS_BLUR);PQ=prog(VS_Q,FS_COMP);
+    quadVAO=gl.createVertexArray();gl.bindVertexArray(quadVAO);var qb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,qb);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);gl.bindVertexArray(null);
+  }catch(e){console.warn('gl init',e);gl=null;de.classList.add('nogl')}
+}
+function mesh(mx,my){
+  var k=mx+'x'+my;if(geo[k])return geo[k];
+  var pos=new Float32Array((mx+1)*(my+1)*2),idx=new Uint32Array(mx*my*6),p=0,q=0;
+  for(var j=0;j<=my;j++)for(var i=0;i<=mx;i++){pos[p++]=i/mx;pos[p++]=j/my}
+  for(var j2=0;j2<my;j2++)for(var i2=0;i2<mx;i2++){var a=j2*(mx+1)+i2,b=a+1,c=a+mx+1,d=c+1;idx[q++]=a;idx[q++]=b;idx[q++]=d;idx[q++]=a;idx[q++]=d;idx[q++]=c}
+  var vao=gl.createVertexArray();gl.bindVertexArray(vao);
+  var vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,pos,gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  var ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);gl.bindVertexArray(null);
+  var ks=Object.keys(geo);if(ks.length>16){var o=geo[ks[0]];gl.deleteVertexArray(o.vao);gl.deleteBuffer(o.vb);gl.deleteBuffer(o.ib);delete geo[ks[0]]}
+  return geo[k]={vao:vao,vb:vb,ib:ib,n:idx.length};
+}
+function upload(pl){
+  if(pl.up===pl.ver&&pl.tex)return;
+  if(!pl.tex){pl.tex=gl.createTexture()}
+  gl.bindTexture(gl.TEXTURE_2D,pl.tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,pl.NX,pl.NY,0,gl.RGBA,gl.FLOAT,pl.field);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  pl.up=pl.ver;
+}
+function rt(w,h,fl){
+  var t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+  if(fl&&floatOK)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,w,h,0,gl.RGBA,gl.HALF_FLOAT,null);else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  var f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  return {t:t,f:f,w:w,h:h};
+}
+function freeRT(r){if(r){gl.deleteTexture(r.t);gl.deleteFramebuffer(r.f)}}
+function maskTex(c){
+  var t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+  return t;
+}
+var BANDS=[[1,0,0,-DISP],[0,1,0,0],[0,0,1,DISP]];
+/* light pass: one panel, all its plates, three bands, into its accumulation target; then the halo */
+function lightPass(P,S){
+  var T=P.T;gl.bindFramebuffer(gl.FRAMEBUFFER,T.acc.f);gl.viewport(0,0,T.acc.w,T.acc.h);gl.disable(gl.SCISSOR_TEST);
+  gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.blendEquation(gl.FUNC_ADD);
+  gl.useProgram(PC.p);var u=PC.u;
+  var R=S.R;gl.uniformMatrix3fv(u.uRot,false,[R[0],R[3],R[6],R[1],R[4],R[7],R[2],R[5],R[8]]);
+  gl.uniform3f(u.uSun,S.sun[0],S.sun[1],S.sun[2]);gl.uniform4f(u.uView,0,0,P.w,P.h);gl.uniform1f(u.uGain,GAIN);
+  S.plates.forEach(function(q){
+    var pl=q.pl,rc=q.rect;upload(pl);
+    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,pl.tex);gl.uniform1i(u.uTex,0);
+    gl.uniform2f(u.uTexN,pl.NX,pl.NY);gl.uniform4f(u.uRect,rc.cx,rc.cy,rc.W,rc.H);
+    var cw=rc.W/pl.nx,fk=q.fk||1;
+    gl.uniform1f(u.uHp,q.hp?q.hp*fk:pl.hpC*cw*fk);gl.uniform1f(u.uT,q.hp?q.hp*.08:pl.tC*cw);gl.uniform1f(u.uHS,rc.W/Math.max(1,pl.NX-1));
+    var w=q.wave||{};gl.uniform4f(u.uWA,w.dir||0,w.rad||0,w.lam||100,w.ph||0);gl.uniform4f(u.uWB,w.rx||0,w.ry||0,w.lamR||80,w.seed||0);gl.uniform1f(u.uRP,w.rp||0);
+    gl.uniform1f(u.uEdge,q.edge||0);var g=mesh(q.mx,q.my);gl.bindVertexArray(g.vao);
+    BANDS.forEach(function(b){gl.uniform1f(u.uDn,b[3]);gl.uniform3f(u.uMask,b[0],b[1],b[2]);gl.drawElements(gl.TRIANGLES,g.n,gl.UNSIGNED_INT,0)});
+  });
+  gl.disable(gl.BLEND);
+  gl.useProgram(PB.p);gl.bindVertexArray(quadVAO);gl.uniform1i(PB.u.uS,0);gl.activeTexture(gl.TEXTURE0);
+  var hw=T.h1.w,hh=T.h1.h;
+  [[T.acc,T.h1,1.5/hw,0],[T.h1,T.h2,0,1.5/hh],[T.h2,T.h1,3/hw,0],[T.h1,T.h2,0,3/hh]].forEach(function(s){
+    gl.bindFramebuffer(gl.FRAMEBUFFER,s[1].f);gl.viewport(0,0,s[1].w,s[1].h);gl.bindTexture(gl.TEXTURE_2D,s[0].t);gl.uniform2f(PB.u.uD,s[2],s[3]);gl.drawArrays(gl.TRIANGLE_STRIP,0,4)});
+}
+function composite(P,S,vx,vy,vw,vh){
+  var c=S.comp,u=PQ.u;gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(vx,vy,vw,vh);gl.enable(gl.SCISSOR_TEST);gl.scissor(vx,vy,vw,vh);
+  gl.useProgram(PQ.p);gl.bindVertexArray(quadVAO);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,P.T.acc.t);gl.uniform1i(u.uA,0);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,P.T.h2.t);gl.uniform1i(u.uH,1);
+  gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,c.mask?c.mask:P.T.h2.t);gl.uniform1i(u.uM,2);
+  gl.uniform3fv(u.uG,c.G);gl.uniform3fv(u.uTint,c.tint||TOK.halo);gl.uniform3fv(u.uCore,TOK.light);gl.uniform3fv(u.uOut,c.out||TOK.cobalt);
+  gl.uniform1f(u.uExp,c.exp||.36);gl.uniform1f(u.uInv,1/GAIN);gl.uniform1f(u.uHalo,c.halo==null?.55:c.halo);gl.uniform1f(u.uThermal,c.thermal||0);gl.uniform1f(u.uFringe,c.fringe||1.25);
+  gl.uniform1f(u.uMaskOn,c.mask?1:0);gl.uniform1f(u.uMaskRep,c.rep||1);gl.uniform1f(u.uMaskOff,c.off||0);
+  var sw=c.sweep||[0,0,1,1];gl.uniform4f(u.uSweep,sw[0],sw[1],sw[2],sw[3]);
+  gl.uniform3fv(u.uK0,TOK.heat0);gl.uniform3fv(u.uK1,TOK.heat1);gl.uniform3fv(u.uK2,TOK.heat2);gl.uniform3fv(u.uK3,TOK.heat3);gl.uniform3fv(u.uK4,TOK.heat4);
+  gl.uniform2f(u.uPx,P.w,P.h);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);gl.disable(gl.SCISSOR_TEST);
+}
+
+/* ---------------------------------------------------------------
+   3. PANELS — one engine, six formats, one clock
+---------------------------------------------------------------- */
+var WORD=null,EMB=null,PANELS=[],DPR=1,RQ=1;
+function glassAt(pl,P,cx,cy,W){return {cx:cx,cy:cy,W:W,H:W*pl.ny/pl.nx}}
+function waveMesh(P,k){var mx=Math.max(24,Math.min(420,Math.round(P.w*RQ/(k||2.2)))),my=Math.max(24,Math.round(mx*P.h/P.w*1.0));
+  var cap=150000;if(mx*my>cap){var s=Math.sqrt(cap/(mx*my));mx=Math.round(mx*s);my=Math.round(my*s)}return [mx,my]}
+function solvedMesh(pl,rc){var k=Math.max(1.2,Math.min(4,rc.W*RQ/pl.nx/1.4)),mx=Math.min(700,Math.round(pl.nx*k));return [mx,Math.max(8,Math.round(mx*pl.ny/pl.nx))]}
+/* while a plate is still being solved it carries a strong ripple: the light web is visible from frame one */
+function unsolved(pl){var f=pl.done?sm(0,1400,performance.now()-pl.solvedAt):0;return 1-f}
+function sunAt(sx,sy){return nrm([Math.tan(sx),Math.tan(sy),-1])}
+
+var DEF={
+  logo:{still:.9,state:function(P,t){
+    var pl=WORD,ph=t/CYCLE,cut=t>=4,smear=bump(t,1.25,2.2,3.5,4.7),sm2=bump(t,6.1,6.6,7.0,7.8);
+    var W=P.w*1.02,rc=glassAt(pl,P,P.w/2,P.h*.5,W),m=solvedMesh(pl,rc),un=unsolved(pl);
+    var tx=.105*smear+.03*sm2,ty=.07*smear*Math.sin(TAU*(t-1.25)/3.4)-.025*sm2;
+    return {R:rotMat(tx,ty),sun:sunAt(.012*Math.sin(TAU*ph),.01*Math.cos(TAU*ph)),focus:smear,
+      plates:[{pl:pl,rect:rc,mx:m[0],my:m[1],fk:1+.45*smear,edge:.16,wave:{dir:.012+.05*smear+.5*un,lam:Math.max(40,rc.H*.9),ph:ph,seed:1.3}}],
+      comp:{G:cut?TOK.cobalt:TOK.ink,tint:TOK.halo,halo:cut?.4:.6,exp:.4}};
+  }},
+  emblem:{still:2.9,state:function(P,t){
+    var pl=EMB,ph=t/CYCLE,cut=t>=4,tb=t%4,rip=bump(tb,.18,.5,.75,2.1),un=unsolved(pl);
+    var W=Math.min(P.w*.84,P.h*.6),rc=glassAt(pl,P,P.w/2,P.h*.5,W),m=solvedMesh(pl,rc);
+    return {R:rotMat(.018*Math.sin(TAU*ph),.018*Math.cos(TAU*ph)),sun:sunAt(0,0),
+      plates:[{pl:pl,rect:rc,mx:m[0],my:m[1],fk:1+.12*rip,edge:.1,wave:{dir:.01+.5*un,rad:.05*rip,lam:W*.5,lamR:W*.16,rx:0,ry:0,rp:TAU*(tb*1.6),ph:ph,seed:2.1}}],
+      comp:{G:cut?TOK.ink:TOK.cobalt,tint:TOK.halo,halo:.5,exp:cut?.4:.5}};
+  }},
+  field:{still:3.1,state:function(P,t){
+    var ph=t/CYCLE,b=Math.floor(t/BEAT),tb=t-b*BEAT,thermal=(b===1||b===2),env=sm(0,.12,tb)*Math.exp(-tb*1.25);
+    var C=[[.18,-.22],[-.2,.12],[.22,.2],[-.12,-.06]][b];
+    var rc={cx:P.w/2,cy:P.h/2,W:P.w*1.3,H:P.h*1.12},m=waveMesh(P,2);
+    return {R:rotMat(.02*Math.sin(TAU*ph),.015*Math.sin(2*TAU*ph)),sun:sunAt(0,0),
+      plates:[{pl:FLAT,rect:rc,mx:m[0],my:m[1],hp:Math.min(P.w,P.h)*1.1,wave:{dir:.34,rad:.42*env,lam:Math.max(150,P.w*.62),lamR:Math.max(60,P.w*.2),rx:C[0]*P.w,ry:C[1]*P.h,rp:tb*7.5,ph:ph,seed:.4}}],
+      comp:{G:TOK.ink,tint:TOK.halo,halo:thermal?.9:.6,exp:thermal?.5:.34,thermal:thermal?1:0},mode:thermal?'THERMAL':'NATURAL'};
+  }},
+  giant:{still:.0,state:function(P,t){
+    var ph=t/CYCLE,b=Math.floor(t/BEAT),tb=t-b*BEAT,off=(b+eOut(tb/.55))*.5;
+    var rc={cx:P.w/2,cy:P.h/2,W:P.w*1.3,H:P.h*1.12},m=waveMesh(P,2.2);
+    return {R:rotMat(0,0),sun:sunAt(.015*Math.sin(TAU*ph),0),
+      plates:[{pl:FLAT,rect:rc,mx:m[0],my:m[1],hp:Math.min(P.w,P.h)*1.0,wave:{dir:.3,lam:Math.max(110,P.w*.42),ph:ph,seed:3.7}}],
+      comp:{G:TOK.ink,tint:TOK.halo,halo:.6,exp:.42,mask:P.mask,rep:P.rep,off:off,out:TOK.cobalt}};
+  }},
+  data:{still:1.4,state:function(P,t){
+    var pl=EMB,ph=t/CYCLE,un=unsolved(pl),W=Math.min(P.w*.6,P.h*.34),rc=glassAt(pl,P,P.w/2,P.h*.47,W),m=solvedMesh(pl,rc);
+    var tx=.085*Math.sin(TAU*ph),ty=.085*Math.sin(2*TAU*ph+.6);
+    return {R:rotMat(tx,ty),sun:sunAt(0,0),tilt:[tx,ty],rc:rc,
+      plates:[{pl:pl,rect:rc,mx:m[0],my:m[1],fk:1,edge:.1,wave:{dir:.018+.5*un,lam:W*.45,ph:2*ph,seed:5.2}}],
+      comp:{G:TOK.cobalt,tint:TOK.halo,halo:.25,exp:.5}};
+  }},
+  tagline:{still:1.1,state:function(P,t){
+    var ph=t/CYCLE,q=(t%4)/4,pos=-.25+q*1.5;
+    var rc={cx:P.w/2,cy:P.h/2,W:P.w*1.3,H:P.h*1.12},m=waveMesh(P,2.2);
+    return {R:rotMat(0,0),sun:sunAt(0,.01*Math.sin(TAU*ph)),
+      plates:[{pl:FLAT,rect:rc,mx:m[0],my:m[1],hp:Math.min(P.w,P.h)*.9,wave:{dir:.26,lam:Math.max(100,P.w*.36),ph:-ph,seed:7.9}}],
+      comp:{G:TOK.cobalt,tint:TOK.halo,halo:.7,exp:.45,mask:P.mask,rep:1,off:0,out:TOK.ink,sweep:[1,pos,.16,.18]}};
+  }}
+};
+
+/* type masks: giant stacked letters (one period = two lines, repeats vertically), tagline */
+var mc=document.createElement('canvas'),mx2=mc.getContext('2d');
+function giantMask(P){
+  var w=Math.round(P.w*RQ),cr=capRatio();mx2.font='800 100px '+FAM_D;
+  var nw=mx2.measureText('M2').width,sz=100*w*1.55/nw,cap=sz*cr,pitch=cap*1.06,H=Math.round(pitch*2);
+  mc.width=w;mc.height=H;mx2.clearRect(0,0,w,H);mx2.font='800 '+sz+'px '+FAM_D;mx2.fillStyle='#fff';mx2.textBaseline='alphabetic';
+  [['NWU',0],['M2',1]].forEach(function(L){var tw=mx2.measureText(L[0]).width,x=L[0]==='M2'?-tw*.08:-tw*.02;mx2.fillText(L[0],x,L[1]*pitch+(pitch+cap)/2)});
+  P.rep=P.h*RQ/H;return maskTex(mc);
+}
+function tagMask(P){
+  var w=Math.round(P.w*RQ),h=Math.round(P.h*RQ),cr=capRatio();mc.width=w;mc.height=h;mx2.clearRect(0,0,w,h);mx2.fillStyle='#fff';mx2.textBaseline='alphabetic';
+  var words=['BEND','THE','LIGHT'],sizes=[],tot=0,gap;
+  words.forEach(function(s){mx2.font='800 100px '+FAM_D;var sz=100*w*1.3/mx2.measureText(s).width;sizes.push(sz);tot+=sz*cr});
+  var maxH=h*.86;if(tot*1.12>maxH){var k=maxH/(tot*1.12);sizes=sizes.map(function(s){return s*k});tot*=k}
+  gap=tot*.06;var y=(h-tot-gap*2)/2;
+  words.forEach(function(s,i){var sz=sizes[i],cap=sz*cr;mx2.font='800 '+sz+'px '+FAM_D;var tw=mx2.measureText(s).width;y+=cap;mx2.fillText(s,(w-tw)/2,y);y+=gap});
+  P.rep=1;return maskTex(mc);
+}
+
+/* ---------------------------------------------------------------
+   4. LAYOUT / LOOP
+---------------------------------------------------------------- */
+var reel=$('#reel'),CW=1,CH=1,fontReady=false;
+function setupPanels(){
+  PANELS=[].map.call(document.querySelectorAll('.pn'),function(el){return {el:el,k:el.getAttribute('data-p'),def:DEF[el.getAttribute('data-p')],T:null,w:1,h:1,mask:null,rep:1,maskKey:''}});
+}
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,1.5);RQ=Math.min(window.devicePixelRatio||1,1.25);
+  var r=reel.getBoundingClientRect();CW=Math.max(1,Math.round(innerWidth));CH=Math.max(1,Math.round(r.height));
+  if(!gl)return;
+  cv.width=Math.round(CW*DPR);cv.height=Math.round(CH*DPR);
+  PANELS.forEach(function(P){
+    var b=P.el.getBoundingClientRect(),w=Math.max(1,Math.round(b.width)),h=Math.max(1,Math.round(b.height));
+    if(P.T&&P.w===w&&P.h===h)return;P.w=w;P.h=h;
+    if(P.T){freeRT(P.T.acc);freeRT(P.T.h1);freeRT(P.T.h2)}
+    var aw=Math.max(8,Math.round(w*RQ)),ah=Math.max(8,Math.round(h*RQ));
+    P.T={acc:rt(aw,ah,true),h1:rt(Math.max(2,aw>>2),Math.max(2,ah>>2),true),h2:rt(Math.max(2,aw>>2),Math.max(2,ah>>2),true)};
+    P.maskKey='';
+  });
+  buildMasks();layoutData();
+}
+function buildMasks(){
+  if(!gl)return;
+  PANELS.forEach(function(P){
+    var key=P.w+'x'+P.h+(fontReady?'F':'f');if(P.maskKey===key)return;
+    if(P.k==='giant'){if(P.mask)gl.deleteTexture(P.mask);P.mask=giantMask(P);P.maskKey=key}
+    if(P.k==='tagline'){if(P.mask)gl.deleteTexture(P.mask);P.mask=tagMask(P);P.maskKey=key}
+  });
+}
+/* data layer geometry follows the light window */
+var DP=null;
+function layoutData(){
+  DP=PANELS.filter(function(P){return P.k==='data'})[0];if(!DP)return;
+  var w=DP.w,h=DP.h,W=Math.min(w*.6,h*.34),cy=h*.47,win=$('#win');
+  win.style.left=(w-W)/2+'px';win.style.top=(cy-W/2)+'px';win.style.width=W+'px';win.style.height=W+'px';
+  $('#rowFocus').style.top=(cy+W/2+18)+'px';$('#rowTilt').style.top=(cy+W/2+34)+'px';
+  $('#ruler').style.bottom='44px';$('#bars').style.bottom='16px';
+}
+var FIXT=/[?&]t=([\d.]+)/.exec(location.search);FIXT=FIXT?parseFloat(FIXT[1])%CYCLE:null;
+function clock(now){return REDUCE?null:FIXT!=null?FIXT:((now/1000)%CYCLE)}
+var lastUI=0,fpsA=60,lastNow=0,FR=0,statsMs=0;
+var dom={clk:$('#clk'),beats:[].slice.call(document.querySelectorAll('#beats i')),fx:$('#fx'),fy:$('#fy'),tx:$('#tx'),ty:$('#ty'),xh:$('#xh'),bars:[].slice.call(document.querySelectorAll('#bars s')),tclk:$('#tclk'),mode:$('#fieldMode')};
+var lastStill=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if(REDUCE&&now-lastStill<600)return;lastStill=now;
+  var tc=clock(now),t0=performance.now();FR++;
+  if(gl){
+    var any=false;
+    PANELS.forEach(function(P){
+      var b=P.el.getBoundingClientRect();if(b.right<=0||b.left>=CW||!P.T)return;
+      var t=tc==null?P.def.still:tc,S=P.def.state(P,t);P.last=S;
+      lightPass(P,S);
+      var vx=Math.round(b.left*DPR),vw=Math.round(b.width*DPR),vh=Math.round(b.height*DPR),vy=cv.height-Math.round((b.top)*DPR)-vh;
+      composite(P,S,vx,vy,vw,vh);any=true;
+      if(P.k==='data')dataUI(P,S,t);
+      if(P.k==='field'&&dom.mode.textContent!==S.mode)dom.mode.textContent=S.mode;
+    });
+  }else{PANELS.forEach(function(P){var t=tc==null?P.def.still:tc;if(P.k==='data')dataUI(P,null,t)})}
+  var t=tc==null?0:tc,bt=Math.floor(t/BEAT);
+  if(now-lastUI>66||REDUCE){lastUI=now;dom.clk.textContent=REDUCE?'HOLD / 8.000':'T '+t.toFixed(3)+' / 8.000';dom.beats.forEach(function(e,i){e.classList.toggle('on',REDUCE?i===0:i===bt)})}
+  statsMs+=(performance.now()-t0-statsMs)*.05;
+}
+function dataUI(P,S,t){
+  var pl=EMB;if(!pl)return;
+  var rc=S?S.rc:{cx:P.w/2,cy:P.h*.47,W:1,H:1},tl=S?S.tilt:[0,0],R=S?S.R:rotMat(0,0),sun=S?S.sun:[0,0,-1];
+  var F=traceC(pl,rc,.5,.5,R,sun,pl.hpC*rc.W/pl.nx,pl.tC*rc.W/pl.nx,rc.W/Math.max(1,pl.NX-1))||[rc.cx,rc.cy];
+  dom.xh.style.transform='translate('+F[0].toFixed(1)+'px,'+F[1].toFixed(1)+'px)';
+  var ux=(F[0]-rc.cx)/rc.W,uy=(F[1]-rc.cy)/rc.W;
+  dom.fx.textContent='X '+(ux>=0?'+':'-')+Math.abs(ux).toFixed(3);dom.fy.textContent='Y '+(uy>=0?'+':'-')+Math.abs(uy).toFixed(3);
+  dom.tx.textContent=(tl[0]*57.2958>=0?'+':'-')+Math.abs(tl[0]*57.2958).toFixed(2)+'°';dom.ty.textContent=(tl[1]*57.2958>=0?'+':'-')+Math.abs(tl[1]*57.2958).toFixed(2)+'°';
+  var a=Math.abs(tl[0])/.085,b2=Math.abs(tl[1])/.085,c=Math.min(1,Math.hypot(ux,uy)*6);
+  [a,c,b2].forEach(function(v,i){dom.bars[i].style.width=(Math.min(1,v)*100).toFixed(1)+'%'});
+  dom.tclk.textContent='T '+t.toFixed(2);
+}
+
+/* narrow screens: the reel advances itself on the beat, unless the viewer is scrolling it */
+var touched=0;['pointerdown','wheel','touchstart'].forEach(function(e){reel.addEventListener(e,function(){touched=performance.now()},{passive:true})});
+setInterval(function(){
+  if(REDUCE||reel.scrollWidth<=reel.clientWidth+2||performance.now()-touched<9000)return;
+  var w=PANELS[0].el.getBoundingClientRect().width,i=Math.round(reel.scrollLeft/w)+1;if(i*w>reel.scrollWidth-reel.clientWidth+2)i=0;
+  reel.scrollTo({left:i*w,behavior:'smooth'});
+},4000);
+
+function boot(){
+  if(fontReady)return;fontReady=true;
+  WORD=wordTarget();EMB=emblemTarget();solve(WORD,96);solve(EMB,80);
+  document.querySelectorAll('canvas.emb').forEach(function(c){var x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);drawEmblem(x,c.width,css('--light'))});
+  buildMasks();
+}
+setupPanels();
+/* until the font settles, plates are flat glass carrying a ripple: the light web shows immediately */
+WORD=wide(new Plate('word0',200,50,null,15));EMB=wide(new Plate('emb0',92,92,null,27.6));WORD.done=EMB.done=false;WORD.fade=EMB.fade=0;
+resize();
+window.addEventListener('resize',function(){clearTimeout(window.__rz);window.__rz=setTimeout(resize,120)});
+requestAnimationFrame(frame);
+var bootT=setTimeout(function(){fontReady=false;boot()},1800);
+try{
+  if(document.fonts&&document.fonts.load)Promise.race([Promise.all([document.fonts.load('800 40px Syne'),document.fonts.load('400 10px "JetBrains Mono"')]),new Promise(function(r){setTimeout(r,1600)})]).then(function(){clearTimeout(bootT);boot()},function(){clearTimeout(bootT);boot()});
+  else{clearTimeout(bootT);boot()}
+}catch(e){clearTimeout(bootT);boot()}
+window.__m2={W:function(){return WORD},E:function(){return EMB},trace:traceC,rot:rotMat,panels:function(){return PANELS.map(function(P){return {k:P.k,w:P.w,h:P.h}})},solved:function(){return {word:WORD&&WORD.done&&WORD.it,emb:EMB&&EMB.done&&EMB.it}},gl:function(){return !!gl},float:function(){return floatOK},ms:function(){return statsMs}};
+})();
+</script>
+</body>
+</html>
