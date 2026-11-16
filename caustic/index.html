@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/site.css">
-<script>if(/[?&]embed/.test(location.search))document.documentElement.classList.add('embed')</script>
+<script>if(/[?&]embed/.test(location.search))document.documentElement.classList.add('embed');if(/[?&]motion=1(&|$)/.test(location.search))document.documentElement.classList.add('motion')</script>
 <style>
 :root{--bg:#021c1f;--fg:#e4f4ef;--dim:rgba(228,244,239,.5);--faint:rgba(228,244,239,.12);--hair:rgba(228,244,239,.24);
   --c0:#010f11;--c1:#03272b;--c2:#0a3a3c;--c3:#d7f6ef;--ink:#f2fff9;--lt:#62d9c7;--ltg:rgba(98,217,199,.55);--f-acc:#03272b}
@@ -73,6 +73,7 @@ html.embed body{background:var(--bg)}
 html.embed .ch:not(#ch-tester),html.embed .foot,html.embed #ch-tester>*:not(.slot){display:none!important}
 html.embed #ch-tester{padding:0;background:var(--bg)}
 html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
+html.embed.motion .bar{display:none!important}html.embed.motion #slot-tester{margin-top:0!important}
 @media (max-width:760px){#slot-tester{height:64vh}#slot-3d{height:72vh}.steps button,.sw2 button{font-size:17px}.txtin{font-size:24px}.tag,.btn{font-size:12px;padding:6px 9px}}
 .cast .ft,.txtin{text-transform:uppercase}
 .txtin{letter-spacing:.02em}
@@ -1353,6 +1354,25 @@ stage.addEventListener('blur',function(){KEYS={}});
 ---------------------------------------------------------------- */
 var last=performance.now(),fps=0,frameMs=16,lastProg='',frameN=0;
 function spring(x,v,dt){var k=46,c=6.2;var a=-k*x-c*v;v+=a*dt;x+=v*dt;return [x,v]}
+/* ?motion=1: after the solve, the page tilts its own glass along a closed loop (focus -> smear -> focus).
+   A drag or arrow key hands control back to the springs; the loop restarts from focus after release. */
+var MOTION=/[?&]motion=1(&|$)/.test(location.search)&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+var MO={ph:0,hold:0,m:0,T:4.6};
+function motionPath(t){
+  var ss=function(x){return x<0?0:x>1?1:x*x*(3-2*x)},u=ss((t-.08)/.84),e=Math.sin(Math.PI*u),E=e*e,c=Math.cos(2*Math.PI*u),s=Math.sin(2*Math.PI*u);
+  var tx=.42*s*e,ty=.45*E*(.6-.4*c);
+  return {tx:tx,ty:ty,sx:-.04*ty/.45+.04*E*s,sy:-.04*tx/.42};
+}
+function motionStep(dt){
+  if(drag||Object.keys(KEYS).length){MO.hold=1.4;MO.ph=0;MO.m=0;return false}
+  if(view!=='tester'||!TESTER||!TESTER.meta.done){MO.ph=0;MO.m=0;return false}
+  if(MO.hold>0){MO.hold-=dt;return false}
+  MO.m=Math.min(1,MO.m+dt/.6);MO.ph=(MO.ph+dt/MO.T)%1;
+  var S=motionPath(MO.ph),e=MO.m*MO.m*(3-2*MO.m);
+  ['tx','ty','sx','sy'].forEach(function(k){OPT[k]+=(S[k]-OPT[k])*e});
+  OPT.vx*=1-e;OPT.vy*=1-e;OPT.svx*=1-e;OPT.svy*=1-e;
+  return true;
+}
 function updateOptics(dt){
   var kt=0,ks=0;Object.keys(KEYS).forEach(function(k){var m=KEYS[k],d=k==='ArrowLeft'?[0,-1]:k==='ArrowRight'?[0,1]:k==='ArrowUp'?[1,0]:[-1,0];
     if(m==='tilt'){OPT.tx=Math.max(-TMAX,Math.min(TMAX,OPT.tx+d[0]*dt*.35));OPT.ty=Math.max(-TMAX,Math.min(TMAX,OPT.ty+d[1]*dt*.35));kt=1}
@@ -1364,6 +1384,7 @@ function updateOptics(dt){
   if(!(drag&&drag.mode==='sun')&&!ks){var c=spring(OPT.sx,OPT.svx,dt),d2=spring(OPT.sy,OPT.svy,dt);OPT.sx=c[0];OPT.svx=c[1];OPT.sy=d2[0];OPT.svy=d2[1];
     if(Math.abs(OPT.sx)+Math.abs(OPT.sy)+Math.abs(OPT.svx)+Math.abs(OPT.svy)<2e-4){OPT.sx=OPT.sy=OPT.svx=OPT.svy=0}else moving=true}
   else moving=true;
+  if(MOTION&&motionStep(dt))moving=true;
   OPT.R=rotMat(OPT.tx,OPT.ty);OPT.sun=nrm([Math.tan(OPT.sx),Math.tan(OPT.sy),-1]);
   return moving;
 }
