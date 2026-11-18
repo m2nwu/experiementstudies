@@ -1406,10 +1406,10 @@ SILK=(function(){
     settings:set,
     tick:function(now,dt){
       if(VIEW!=='silk')return false;size();frameN++;
-      /* intro bloom: a thread grown from one point at the centre, six rotations and a mirror */
-      if(intro.state==='wait'&&frameN>25){intro.state='grow';intro.silk=newSilk({rot:6,mirror:true,spiral:false,opacity:.016,dpf:2,colourMode:'time',cx:W/2,cy:H/2});
+      /* intro: the page starts empty (no bloom); the title and the hint fade in */
+      if(intro.state==='wait'&&frameN>25){intro.state='done'; /* empty start: no intro bloom, only the title and the hint */
         var a=$('#intro');if(a)a.classList.add('on');setTimeout(function(){var b=$('#hint');if(b&&!started)b.classList.add('on')},1200);
-        if(RM.matches){for(var f=0;f<400;f++){if(f<224&&f%2===0)intro.silk.add(W/2+5,H/2-5,0,0);intro.silk.update();intro.silk.draw(false)}intro.state='done';intro.silk.done=true;intro.silk.pts=[]}}
+      }
       if(intro.state==='grow'){intro.frame++;if(intro.frame%2===0)intro.silk.add(W/2+5,H/2-5,0,0);if(intro.frame>=224){intro.state='done';intro.silk.done=true}}
       /* the pointer adds one point per frame to the current thread */
       if(cur&&ptr.down){cur.add(ptr.x,ptr.y,ptr.x-ptr.lx,ptr.y-ptr.ly);ptr.lx=ptr.x;ptr.ly=ptr.y}
