@@ -1,238 +1,292 @@
 <!doctype html>
 <!--
-  TYPE EXPERIMENT / CAUSTIC — a standard for refraction.
-  For every glyph the page computes a glass surface whose refraction gathers sunlight into the letter on a floor
-  below (discrete optimal transport + Snell's law + Poisson integration), then refracts a dense mesh of rays through
-  that surface on the GPU, in three spectral bands (dispersion is part of the law, always on).
-  Master: "Unbounded" (Google Fonts, variable 200-900); falls back to a system sans when offline.
-  Every word on this page is set in Caustic itself: the cast glyphs form a live atlas (current weight and ground)
-  that draws the UI words as refracted light. Before the atlas is cast, and for assistive technology, the words are
-  real text in Unbounded, the face the light is cast from.
+  CAUSTIC LIGHT — a standalone light piece built from E13 CAUSTIC TYPE.
+  Fixed glass: Diamond (n 2.417), floor at 135% of the design distance, ray density 2.0x,
+  R/G/B dispersion on, target outline off.
+  The pointer (no click) steers the glass tilt and the sun; idle, it drifts and refocuses.
+  Grounds are E13's four duotones (Lagoon, Nave, Bench, Cyanotype); default Bench.
+  The cast letterform weight (Unbounded 200-900) is independent of the glass.
+  #glyphs opens a specimen of the whole character set cast in light.
 -->
-<html lang="en" class="f2 cx">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>CAUSTIC — TYPE EXPERIMENT</title>
-<meta name="description" content="Caustic: letters cast by sunlight refracted through computed glass.">
+<title>Caustic Light</title>
+<meta name="description" content="Light refracted through a computed diamond-glass surface; move the pointer to bend it.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/site.css">
-<script>if(/[?&]embed/.test(location.search))document.documentElement.classList.add('embed');if(/[?&]motion=1(&|$)/.test(location.search))document.documentElement.classList.add('motion')</script>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#021c1f;--fg:#e4f4ef;--dim:rgba(228,244,239,.5);--faint:rgba(228,244,239,.12);--hair:rgba(228,244,239,.24);
-  --c0:#010f11;--c1:#03272b;--c2:#0a3a3c;--c3:#d7f6ef;--ink:#f2fff9;--lt:#62d9c7;--ltg:rgba(98,217,199,.55);--f-acc:#03272b}
-:root[data-theme="paper"]{--fg:#152a4a;--dim:rgba(21,42,74,.58);--faint:rgba(21,42,74,.14);--hair:rgba(21,42,74,.3)}
-html.cx body{background:var(--c0);color:var(--ink);font-family:Unbounded,var(--s-sans);transition:background .5s}
-html.cx .ch,html.cx .foot{transition:background .5s,color .5s}
-/* one field: every chapter, bar and footer take the first-screen (loader/opening) colour of the current ground */
-#ch-open,#ch-tester,#ch-glyphs,#ch-3d,.foot{background:var(--c0);color:var(--ink)}
-.bar{background:var(--c0);box-shadow:0 1px 0 rgba(255,255,255,.04)}
-.tag,.btn{background:color-mix(in srgb,var(--c0) 78%,var(--lt));color:var(--ink);font-family:Unbounded,var(--s-sans);font-weight:300;font-size:13px;padding:6px 14px 6px}
-.tag.series{background:color-mix(in srgb,var(--c0) 66%,var(--lt))}
-.tag.chap{background:color-mix(in srgb,var(--c0) 52%,var(--lt));color:var(--ink)}
-.btn:hover,.tag:hover{background:color-mix(in srgb,var(--c0) 40%,var(--lt));color:var(--ink)}
-.tag.chap:hover{background:color-mix(in srgb,var(--c0) 52%,var(--lt))}
-.huge,.big{font-family:Unbounded,var(--s-sans);font-weight:300;letter-spacing:-.03em}
-.huge{font-size:clamp(64px,12.5vw,210px)}
-.big{font-size:clamp(48px,7.6vw,128px)}
-.idx .t{font-family:Unbounded,var(--s-sans);font-weight:300;font-size:clamp(24px,2.7vw,42px)}
-/* words set in Caustic: canvas once the atlas is cast; real text before that and for assistive tech */
-.cast{display:inline-block;position:relative;line-height:1;vertical-align:baseline}
-.cast canvas{display:none;vertical-align:middle;pointer-events:none}
-.cast .ft{text-shadow:-.03em 0 rgba(255,70,110,.35),.03em 0 rgba(70,160,255,.35),0 0 .35em var(--ltg)}
-html.cast-ready .cast .ft{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-html.cast-ready .cast canvas{display:inline-block}
-.tag .cast canvas,.btn .cast canvas{margin:-3px 0}
-#stage{touch-action:pan-y;cursor:grab;background:var(--bg);color:var(--fg);overflow:hidden}
-#stage.dragging{cursor:grabbing}
-#gl,#ov,#c2d{position:absolute;inset:0;width:100%;height:100%;display:block}
-#labels,#prog,#fallbackNote,#hint{display:none!important}
-#slot-tester{height:min(76vh,780px)}
-#slot-3d{height:min(86vh,900px)}
-#slot-glyphs{height:900px}
-.slot{background:var(--bg);box-shadow:0 0 0 1px color-mix(in srgb,var(--lt) 18%,transparent)}
-.slot .wait{display:none}
-/* controls: state shown as light */
-.ctl{gap:26px 52px;align-items:flex-end}
-.ctl .l{opacity:1;font-size:15px}
-.steps,.sw2{gap:4px 18px}
-.steps button,.sw2 button{border:0;padding:6px 2px;border-radius:0;background:none;color:inherit;font-size:20px;opacity:.3;transition:opacity .25s,filter .25s}
-.steps button:hover,.sw2 button:hover{opacity:.65}
-.steps button.on,.sw2 button.on{opacity:1;background:none;color:inherit;filter:drop-shadow(0 0 7px var(--ltg))}
-.sw2 button i{width:16px;height:16px;box-shadow:none;opacity:.8}
-.sw2 button.on i{box-shadow:0 0 10px 2px var(--ltg)}
-.txtin{font-family:Unbounded,var(--s-sans);font-weight:300;font-size:30px;color:var(--ink);border-bottom:1px solid color-mix(in srgb,var(--lt) 45%,transparent);text-shadow:-.03em 0 rgba(255,70,110,.4),.03em 0 rgba(70,160,255,.4),0 0 .4em var(--ltg)}
-.rng input{color:var(--lt)}
-html.cx input[type=range]::-webkit-slider-runnable-track{height:1px;background:color-mix(in srgb,currentColor 55%,transparent)}
-html.cx input[type=range]::-webkit-slider-thumb{width:14px;height:14px;margin-top:-6.5px;background:var(--ink);box-shadow:0 0 10px 3px var(--ltg),-2px 0 0 rgba(255,70,110,.5),2px 0 0 rgba(70,160,255,.5)}
-#loader{background:var(--c0)}
-.foot{justify-content:space-between}
-html.embed body{background:var(--bg)}
-html.embed .ch:not(#ch-tester),html.embed .foot,html.embed #ch-tester>*:not(.slot){display:none!important}
-html.embed #ch-tester{padding:0;background:var(--bg)}
-html.embed #slot-tester{height:100vh;border-radius:0;box-shadow:none}
-html.embed.motion .bar{display:none!important}html.embed.motion #slot-tester{margin-top:0!important}
-@media (max-width:760px){#slot-tester{height:64vh}#slot-3d{height:72vh}.steps button,.sw2 button{font-size:17px}.txtin{font-size:24px}.tag,.btn{font-size:12px;padding:6px 9px}}
-.cast .ft,.txtin{text-transform:uppercase}
-.txtin{letter-spacing:.02em}
-@media (max-width:760px){.bar .tag,.bar .btn{font-size:10.5px;padding:6px 7px}}
+:root{--bg:#040505;--fg:#e8ecee;--dim:rgba(232,236,238,.46);--faint:rgba(232,236,238,.16);--ph:40vh;--pw:42vw}
+:root[data-theme="paper"]{--fg:#152a4a;--dim:rgba(21,42,74,.58);--faint:rgba(21,42,74,.16)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:10px;-webkit-font-smoothing:antialiased}
+#stage{position:fixed;inset:0;overflow:hidden;touch-action:none;background:var(--bg);cursor:crosshair;outline:none}
+html.frozen #stage{cursor:default}
+#gl,#c2d{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ui{position:fixed;z-index:4;opacity:.62;transition:opacity .4s}
+.ui:hover,.ui:focus-within,.ui:focus-visible{opacity:1}
+/* duotone selector: light over ground, as in E13 */
+#sw{right:16px;top:14px;display:flex;gap:10px;align-items:center;padding:6px}
+#sw button{display:inline-flex;align-items:center;border:0;padding:3px;margin:0;background:none;cursor:pointer;border-radius:12px;outline:none;flex:none}
+#sw s{display:block;width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 1px var(--faint)}
+#sw s+s{margin-left:-3px}
+#sw button[aria-checked="true"]{box-shadow:0 0 0 1px var(--dim)}
+#sw button:focus-visible{box-shadow:0 0 0 1.5px var(--fg)}
+#sw .chip{position:relative;display:block;width:14px;height:14px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1px var(--dim);cursor:pointer;flex:none}
+#sw .chip:first-of-type{margin-left:6px}
+#sw .chip+.chip{border-radius:3px}
+#sw .chip.on{box-shadow:0 0 0 1.5px var(--bg),0 0 0 2.5px var(--fg)}
+#sw .chip:focus-within{box-shadow:0 0 0 1.5px var(--fg)}
+#sw .chip input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0}
+/* weight */
+#wt,#pn{left:16px;top:14px;display:flex;align-items:center;gap:8px;padding:6px 0;letter-spacing:.16em;color:var(--dim)}
+#pn{top:40px}
+#pn svg{width:9px;height:9px;display:block;color:var(--dim)}
+#wt input,#pn input{-webkit-appearance:none;appearance:none;width:96px;height:16px;background:none;margin:0;cursor:pointer}
+#wt input::-webkit-slider-runnable-track,#pn input::-webkit-slider-runnable-track{height:1px;background:var(--dim)}
+#wt input::-moz-range-track,#pn input::-moz-range-track{height:1px;background:var(--dim)}
+#wt input::-webkit-slider-thumb,#pn input::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;border-radius:50%;background:var(--fg);margin-top:-4px;border:0}
+#wt input::-moz-range-thumb,#pn input::-moz-range-thumb{width:9px;height:9px;border-radius:50%;background:var(--fg);border:0}
+#wt input:focus-visible,#pn input:focus-visible{outline:1px solid var(--dim);outline-offset:3px}
+/* tester word */
+#txt{position:fixed;left:16px;bottom:14px;z-index:4;width:min(240px,56vw);background:none;border:0;border-bottom:1px solid var(--faint);
+  color:var(--dim);font:inherit;font-size:11px;letter-spacing:.16em;padding:4px 0;outline:none;transition:border-color .3s,color .3s;border-radius:0}
+#txt::placeholder{color:var(--faint)}
+#txt:hover{border-bottom-color:var(--dim)}
+#txt:focus{border-bottom-color:var(--fg);color:var(--fg)}
+/* page arrow */
+#nav,#fwd,#lock{right:14px;bottom:10px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--fg);text-decoration:none;border-radius:50%;outline:none}
+#nav:focus-visible,#fwd:focus-visible,#lock:focus-visible{box-shadow:0 0 0 1px var(--fg)}
+#lock{right:50px;background:none;border:0;padding:0;cursor:pointer;opacity:.35}
+html.frozen #lock{opacity:1}
+#lock .l1{display:none}html.frozen #lock .l1{display:inline}html.frozen #lock .l0{display:none}
+#fwd{display:none}html.gv #fwd,html.sv #fwd,html.wv #fwd{display:flex}
+#nav svg,#fwd svg,#lock svg{width:16px;height:16px;display:block}
+html.g #nav svg{transform:scaleX(-1)}
+/* glyph specimen */
+#dp{padding:72px 56px 56px!important}#dp h2{margin-bottom:24px}
+#gp,#dp{position:fixed;z-index:3;top:0;right:0;bottom:0;width:calc(100% - var(--pw));background:var(--bg);overflow-y:auto;overflow-x:hidden;
+  padding:52px 16px 24px;display:none;touch-action:pan-y;overscroll-behavior:contain;border-left:1px solid var(--faint)}
+#gp h2,#dp h2{margin:0 0 12px;font:inherit;font-weight:400;letter-spacing:.18em;color:var(--dim)}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:1px;background:var(--faint);border:1px solid var(--faint)}
+#grid button{position:relative;aspect-ratio:1;border:0;padding:0;margin:0;background:var(--bg);cursor:pointer;outline:none;display:block;min-width:0;color:inherit;font:inherit}
+#grid canvas{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .5s}
+#grid .stale canvas{opacity:.45}
+#grid i{position:absolute;left:4px;bottom:3px;font-style:normal;font-size:8px;color:var(--dim);pointer-events:none}
+#grid button:hover,#grid button:focus-visible,#grid button.on{box-shadow:inset 0 0 0 1px var(--fg);z-index:1}
+html.g #gp{display:block}
+html.dv #gp{display:none}html.dv #dp{display:flex}
+#dp{flex-direction:column;align-items:center;gap:28px;background:transparent} /* transparent: the stage ground shows through (an opaque panel can hide the WebGL layer on some compositors) */
+#dp h2{align-self:stretch}
+#pad{touch-action:none;cursor:crosshair;background:rgba(127,127,127,.06);box-shadow:0 0 0 1px var(--faint);max-width:100%;display:block}
+#dtools{display:flex;align-items:center;gap:18px;color:var(--dim);letter-spacing:.16em;flex-wrap:wrap;justify-content:center}
+#dtools button{width:34px;height:34px;border:0;background:none;color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;opacity:.7;padding:0}
+#dtools button:hover,#dtools button:focus-visible{opacity:1;box-shadow:0 0 0 1px var(--dim);outline:none}
+#dtools button[aria-pressed="true"]{opacity:1;box-shadow:0 0 0 1px var(--fg)}
+#dtools svg{width:15px;height:15px}
+#dtools input{-webkit-appearance:none;appearance:none;width:80px;height:16px;background:none;margin:0;cursor:pointer}
+#dtools input::-webkit-slider-runnable-track{height:1px;background:var(--dim)}
+#dtools input::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;border-radius:50%;background:var(--fg);margin-top:-4px;border:0}
+#dguide{position:fixed;z-index:2;pointer-events:none;opacity:0;transition:opacity .4s}
+html.dv #dguide.show{opacity:.22}
+/* with WebGL the tiles are cast live on the stage behind a transparent specimen panel */
+html.glive #gp{background:transparent}
+html.glive #grid{background:none;border-color:transparent;gap:0}
+html.glive #grid button{background:transparent;box-shadow:inset 0 0 0 .5px var(--faint)}
+html.glive #grid button:hover,html.glive #grid button:focus-visible,html.glive #grid button.on{box-shadow:inset 0 0 0 1px var(--dim)}
+html.glive #grid .live canvas{opacity:0}
+html.glive #gp h2{text-shadow:0 0 6px var(--bg)}
+html.g #txt{display:none}
+html.g #nav{right:auto;left:14px}
+html.g #lock{right:auto;left:50px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* intro: title, a bloom of light at the centre (cast on the stage), one hint */
+#intro,#hint{position:fixed;left:0;right:0;text-align:center;z-index:3;pointer-events:none;opacity:0;transition:opacity 1.4s;letter-spacing:.3em}
+#intro{top:11vh}#intro b{display:block;font-weight:400;font-size:11px;color:var(--fg)}#intro span{display:block;margin-top:9px;font-size:9px;color:var(--dim);letter-spacing:.24em}
+#hint{bottom:19vh;font-size:10px;color:var(--dim);letter-spacing:.26em}
+#intro.on,#hint.on{opacity:1}#intro.gone,#hint.gone{opacity:0;transition:opacity .9s}
+html:not(.sv) #intro,html:not(.sv) #hint,html:not(.sv) #silk{display:none}
+/* page 1 (drawing with light): only the colour controls, the drawing row and the way on */
+html.sv #wt,html.sv #pn,html.sv #txt,html.sv #lock,html.sv #nav,html.sv #gp,html.sv #dp{display:none}
+html.sv #stage{cursor:crosshair}
+#silkc{position:absolute;inset:0;width:100%;height:100%;display:none}html.sv #silkc{display:block}html.sv #gl,html.sv #c2d{visibility:hidden}
+/* page 2 (the word): back arrow beside the lock, forward arrow at the corner */
+html.wv #nav{right:86px}html.wv #nav svg{transform:scaleX(-1)}
+/* light drawing controls */
+#silk{left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;letter-spacing:.14em;white-space:nowrap;padding:6px 8px;border-radius:999px;background:color-mix(in srgb,var(--bg) 72%,transparent);box-shadow:0 0 0 1px var(--faint);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#silk button{background:none;border:0;padding:7px 9px;margin:0;font:inherit;font-size:12px;font-weight:600;letter-spacing:.12em;color:color-mix(in srgb,var(--fg) 82%,transparent);cursor:pointer;outline:none;border-radius:999px;min-width:30px;line-height:1}
+#silk button[aria-pressed="true"]{color:var(--bg);background:var(--fg)}
+#silk button:hover{color:var(--fg);box-shadow:inset 0 0 0 1px var(--dim)}#silk button[aria-pressed="true"]:hover{color:var(--bg)}#silk button:focus-visible{box-shadow:0 0 0 2px var(--fg)}
+#silk.ui{opacity:.95}#silk.ui:hover{opacity:1}
+#silk .sep{color:var(--dim);font-size:11px;margin:0 2px 0 8px}#silk .gap{width:1px;height:18px;background:var(--faint);margin:0 4px}
+@media (max-width:760px){
+  #sw{right:8px;top:8px;gap:4px}#sw s{width:14px;height:14px}
+  #wt,#pn{left:12px;top:10px;gap:6px}#pn{top:34px}#wt input,#pn input{width:78px}
+  #txt{left:12px;bottom:12px}
+  #silk{bottom:44px;gap:2px;padding:4px 5px;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center;border-radius:14px}#silk button{font-size:11px;letter-spacing:.06em;padding:7px 6px;min-width:24px}#silk .sep{display:none}#silk .gap{display:none}
+  #gp{top:var(--ph);width:100%;padding:12px 10px 24px;border-left:0;border-top:1px solid var(--faint)}
+  #grid{grid-template-columns:repeat(auto-fill,minmax(52px,1fr))}#dp h2{margin-bottom:14px}
+  html.g #nav,html.g #lock{top:calc(var(--ph) - 40px);bottom:auto}
+  #dp{top:var(--ph);width:100%;padding:20px 20px 32px!important;gap:18px;border-left:0;border-top:1px solid var(--faint)}
+}
+
+/* ===============================================================
+   UI SYSTEM — one capsule style for every control on every page:
+   translucent ground + blur + hairline border, uppercase UI face,
+   12-13px labels at full contrast, 40px (44px touch) targets.
+================================================================ */
+:root{--dim:rgba(232,236,238,.74);--cap:color-mix(in srgb,var(--bg) 80%,transparent);--capb:color-mix(in srgb,var(--fg) 20%,transparent);--hov:color-mix(in srgb,var(--fg) 12%,transparent);--hit:40px;--r:999px}
+:root[data-theme="paper"]{--dim:rgba(21,42,74,.8)}
+.ui,.ui:hover,.ui:focus-within,.ui:focus-visible,#silk.ui{opacity:1}
+.cap{background:var(--cap);box-shadow:0 0 0 1px var(--capb);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:var(--r);color:var(--fg)}
+.cap button,.cap label,.cap output,#pname,#adj,#lock{font-family:inherit;text-transform:uppercase;letter-spacing:.1em}
+/* sliders */
+#wt,#pn,#dtools{display:flex;align-items:center;gap:10px;padding:0 14px 0 16px;height:var(--hit);font-size:12px;font-weight:600;color:var(--fg)}
+#wt{left:14px;top:14px}#pn{left:14px;top:62px}
+#wt label,#pn label,#dtools label{min-width:52px}
+#wt output,#pn output,#dtools output{min-width:36px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+#wt input,#pn input,#dtools input{-webkit-appearance:none;appearance:none;width:132px;height:var(--hit);background:none;margin:0;cursor:pointer}
+#wt input::-webkit-slider-runnable-track,#pn input::-webkit-slider-runnable-track,#dtools input::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:color-mix(in srgb,var(--fg) 34%,transparent)}
+#wt input::-moz-range-track,#pn input::-moz-range-track,#dtools input::-moz-range-track{height:4px;border-radius:4px;background:color-mix(in srgb,var(--fg) 34%,transparent)}
+#wt input::-webkit-slider-thumb,#pn input::-webkit-slider-thumb,#dtools input::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--fg);margin-top:-7px;border:0;box-shadow:0 0 0 3px var(--bg)}
+#wt input::-moz-range-thumb,#pn input::-moz-range-thumb,#dtools input::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--fg);border:0}
+#wt input:focus-visible,#pn input:focus-visible,#dtools input:focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:6px}
+/* colours */
+#sw{right:14px;top:14px;gap:2px;padding:0 6px;height:calc(var(--hit) + 8px)}
+#sw button{width:var(--hit);height:var(--hit);justify-content:center;padding:0;border-radius:50%}
+#sw s{box-sizing:border-box;width:26px;height:26px;border:3.5px solid var(--g);background:radial-gradient(circle,var(--t) 0 5.5px,transparent 6.3px);box-shadow:0 0 0 1px var(--capb)}
+#sw button:hover{background:var(--hov)}
+#sw button[aria-checked="true"]{box-shadow:inset 0 0 0 2px var(--fg)}
+#sw button:focus-visible{box-shadow:0 0 0 2px var(--fg)}
+#sw .chip{width:var(--hit);height:var(--hit);border-radius:50%;background:none;box-shadow:none;display:flex;align-items:center;justify-content:center;margin:0}
+#sw .chip:first-of-type{margin-left:6px;position:relative}
+#sw .chip:first-of-type::before{content:'';position:absolute;left:-4px;top:10px;bottom:10px;width:1px;background:var(--capb)}
+#sw .chip+.chip{border-radius:50%}
+#sw .chip i{width:24px;height:24px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1px var(--capb);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:700;letter-spacing:0;color:var(--k,#fff);pointer-events:none}
+#sw .chip+.chip i{border-radius:6px}#sw .chip i svg{width:16px;height:16px;display:block}
+#sw .chip:hover{background:var(--hov)}
+#sw .chip.on{box-shadow:inset 0 0 0 2px var(--fg)}
+#sw .chip:focus-within{box-shadow:0 0 0 2px var(--fg)}
+/* word field + hold */
+#txt{left:14px;bottom:14px;width:min(300px,calc(100vw - 260px));height:var(--hit);padding:0 18px;border:0;border-radius:var(--r);font-size:13px;font-weight:600;letter-spacing:.12em;color:var(--fg);text-transform:none}
+#txt::placeholder{color:var(--dim)}
+#txt:hover{box-shadow:0 0 0 1px var(--dim)}#txt:focus{box-shadow:0 0 0 2px var(--fg)}
+#lock{width:var(--hit);height:var(--hit);left:auto;right:auto;bottom:14px;padding:0;border:0;display:flex;align-items:center;justify-content:center;color:var(--fg);cursor:pointer}
+html.wv #lock{left:calc(min(300px,calc(100vw - 260px)) + 22px)}
+#lock:hover{background:var(--hov)}#lock[aria-pressed="true"]{background:var(--fg);color:var(--bg)}#lock:focus-visible{box-shadow:0 0 0 2px var(--fg)}
+#lock svg{width:18px;height:18px}
+html.g #lock{left:14px;right:auto}
+/* page navigation: one capsule, bottom right */
+#nav,#fwd{display:none!important}
+#pnav{right:14px;bottom:14px;display:flex;align-items:center;height:var(--hit);padding:0 2px}
+#pnav button{width:var(--hit);height:var(--hit);border:0;border-radius:50%;background:none;color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+#pnav button svg{width:18px;height:18px}
+#pnav button:hover{background:var(--hov)}#pnav button:focus-visible{box-shadow:0 0 0 2px var(--fg);outline:none}
+#pnav button[disabled]{opacity:.32;cursor:default;background:none}
+#pname{font-size:12px;font-weight:600;padding:0 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#pname b{font-weight:600;color:var(--dim);margin-right:8px}
+/* page 1 bar: room for the page capsule */
+#silk{bottom:14px;height:calc(var(--hit) + 8px);padding:4px 6px}
+#silk button{min-width:var(--hit);height:var(--hit);padding:0 12px;font-size:12px;font-weight:700;color:var(--fg)}
+#silk button[aria-pressed="true"]{color:var(--bg);background:var(--fg)}
+#silk .syms{display:flex;gap:0}
+#silk .syms button{min-width:40px;padding:0 6px}
+/* draw page tools */
+#dtools{height:auto;min-height:calc(var(--hit) + 8px);padding:4px 8px 4px 18px;gap:8px}
+#dtools button{width:var(--hit);height:var(--hit);opacity:1;color:var(--fg)}
+#dtools button:hover{background:var(--hov);box-shadow:none}#dtools button:focus-visible{box-shadow:0 0 0 2px var(--fg)}
+#dtools button[aria-pressed="true"]{background:var(--fg);color:var(--bg);box-shadow:none}
+#dtools svg{width:18px;height:18px}
+#dtools input{width:150px}
+#gp,#dp{padding-bottom:80px}
+#gp h2,#dp h2{font-size:12px;font-weight:600;color:var(--fg);letter-spacing:.14em}
+#grid i{font-size:10px;color:var(--dim)}
+/* hint and title: legible */
+#intro b{font-size:13px;letter-spacing:.32em}#intro span{font-size:11px;color:var(--dim)}#hint{font-size:12px;color:var(--fg);letter-spacing:.3em}
+/* adjust toggle: phones only */
+#adj{display:none;left:12px;top:12px;height:44px;padding:0 16px;border:0;font-size:12px;font-weight:700;cursor:pointer}
+#adj[aria-expanded="true"]{background:var(--fg);color:var(--bg)}
+html.sv #adj{display:none!important}
+@media (max-width:760px){
+  :root{--hit:44px}
+  #sw{left:8px;right:8px;top:8px;justify-content:center;height:52px;flex-wrap:nowrap}
+  #sw .chip:first-of-type{margin-left:4px}
+  html.g #sw{left:8px;right:8px}
+  #adj{display:block;top:68px;left:8px}
+  #wt,#pn{display:none;left:8px}#wt{top:120px}#pn{top:172px}
+  html.adj #wt,html.adj #pn{display:flex}
+  #wt input,#pn input{width:120px}
+  #pnav{right:8px;bottom:8px;left:8px;justify-content:space-between}
+  #txt{left:8px;bottom:62px;width:calc(100vw - 72px)}
+  html.wv #lock{left:auto;right:8px;bottom:62px}
+  html.g #lock{left:auto;right:8px;top:68px;bottom:auto}
+  #silk{left:8px;right:8px;transform:none;bottom:62px;height:auto;flex-wrap:wrap;justify-content:center;border-radius:22px;padding:4px;max-width:none}
+  #silk button{padding:0 10px;font-size:12px}#silk .syms button{min-width:44px;padding:0}
+  #silk .syms{flex-wrap:wrap;justify-content:center}
+  #gp,#dp{padding-bottom:70px!important}
+  #dtools{gap:4px;padding:4px 6px 4px 14px;border-radius:22px}#dtools input{width:110px}
+  #hint{bottom:30vh}
+}
+@media (prefers-reduced-motion:reduce){.ui,#txt,#grid canvas{transition:none}}
+/* page 5: system map, a 3 x 3 grid fitted to the screen, in the chosen light / ground */
+#sys{position:fixed;inset:0;z-index:5;background:var(--bg);display:none;padding:12px 12px 68px;box-sizing:border-box}
+#sysv{width:100%;height:100%;overflow:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#sys.zoomed #sysv{overflow:auto;cursor:grab}#sys.tall #sysv{overflow-y:auto;overflow-x:auto}#sys.drag #sysv{cursor:grabbing}
+#sysv svg{display:block;user-select:none;-webkit-user-select:none}
+html.yv #sys{display:block}
+html.yv #wt,html.yv #pn,html.yv #adj,html.yv #lock,html.yv #nav,html.yv #fwd,html.yv #txt,html.yv #gp,html.yv #dp,html.yv #dguide{display:none!important}
+html.yv #pnav,#sysbar{z-index:6}
+html.yv #sw{z-index:6;top:auto;bottom:14px;right:auto;left:50%;transform:translateX(-50%)}
+#sysbar{position:fixed;left:14px;bottom:14px;display:none;align-items:center;height:var(--hit);padding:0 2px;opacity:.95}
+html.yv #sysbar{display:flex}
+#sysbar button{min-width:var(--hit);height:var(--hit);border:0;border-radius:999px;background:none;color:var(--fg);cursor:pointer;font:inherit;font-size:13px;font-weight:700;letter-spacing:.06em;padding:0 10px}
+#sysbar button:hover{background:var(--hov)}#sysbar button:focus-visible{box-shadow:0 0 0 2px var(--fg);outline:none}
+#sysbar span{font-size:11px;letter-spacing:.14em;color:var(--dim);padding:0 8px 0 12px}
+@media (max-width:760px){#sys{padding:64px 6px 116px}#sysbar{left:8px;bottom:62px}html.yv #sw{top:8px;bottom:auto;left:8px;right:8px;transform:none}}
+/* pages 3 + 4: the list (glyphs / drawing pad) fills the screen first; choosing slides it down and the light takes the whole screen */
+html.g #gp,html.dv #dp{top:0;left:0;right:0;bottom:0;width:100%;border:0;transition:transform .6s cubic-bezier(.65,0,.25,1)}
+html.g #gp{padding:122px 40px 90px}
+html.dv.dopen #dp{background:var(--bg)}
+html.gv:not(.gopen) #gp,html.dv:not(.dopen) #dp{transform:translateY(103%);pointer-events:none;visibility:hidden;transition:transform .6s cubic-bezier(.65,0,.25,1),visibility 0s .6s}
+html.gv.gopen #lock,html.dv.dopen #lock{display:none}
+#gtog{display:none;left:50%;bottom:14px;transform:translateX(-50%);height:var(--hit);align-items:center;gap:8px;padding:0 16px 0 12px;border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;letter-spacing:.14em;opacity:.95}
+#gtog svg{width:18px;height:18px}#gtog:hover{background:var(--hov)}#gtog:focus-visible{box-shadow:0 0 0 2px var(--fg);outline:none}
+html.gv:not(.gopen) #gtog,html.dv:not(.dopen) #gtog{display:flex}
+#gtog .tg,#gtog .td{display:none}html.gv #gtog .tg,html.dv #gtog .td{display:inline}
+#dcast.cta{width:auto;padding:0 14px 0 10px;gap:6px;font:inherit;font-size:12px;font-weight:700;letter-spacing:.14em;display:inline-flex;align-items:center}
+@media (max-width:760px){html.g #gp{padding:122px 8px 120px}#gtog{bottom:62px}html.dv #dp{padding:72px 16px 120px!important}}
 </style>
 </head>
 <body>
-<nav class="bar" aria-label="Site">
-  <a class="tag series" href="../index.html"><span class="cast">TYPE EXPERIMENT</span></a>
-  <a class="tag face" href="#ch-open"><span class="cast">CAUSTIC</span></a>
-  <span class="tag chap" id="chapTag" hidden><span class="cast" id="chapCast"></span></span>
-  <span class="sp"></span>
-  <button class="btn" id="tryBtn"><span class="cast">TRY</span></button>
-  <a class="btn" href="../eroded/index.html"><span class="cast">NEXT</span></a>
-</nav>
-
-<div id="loader" aria-hidden="true"><canvas></canvas></div>
-<script>/* opening: a short caustic. Sunlight through a moving surface is refracted by its slope onto the floor, splatted
-   in three spectral bands (dispersion always on); the web then is transported (a Knothe-Rosenblatt map, the cheap
-   cousin of the page's optimal transport) into a cropped fragment of the cast letter, and fades into the ground.
-   Runs before the page's heavy setup and lifts once it has played and the page reports ready (window.LDR). */
-(function(){
-var ld=document.getElementById('loader'),de=document.documentElement,RDY=false;
-window.LDR={ready:function(){RDY=true}};
-if(!ld)return;
-if(de.classList.contains('embed')||matchMedia('(prefers-reduced-motion: reduce)').matches){ld.style.display='none';return}
-var cv=ld.querySelector('canvas'),x=cv.getContext('2d'),VW=innerWidth,VH=innerHeight;
-var bw=Math.max(200,Math.min(520,Math.round(VW/2.8))),bh=Math.max(120,Math.round(bw*VH/VW));
-if(bh>560){bh=560;bw=Math.round(bh*VW/VH)}
-cv.width=bw;cv.height=bh;
-var img=x.createImageData(bw,bh),D=img.data,N=bw*bh;
-var AR=new Float32Array(N),AG=new Float32Array(N),AB=new Float32Array(N),ACC=[AR,AG,AB];
-// rays: a regular grid on the glass, a little wider than the floor so edges stay lit
-var M=Math.round(Math.min(bw,bh)*.08),rw=bw+2*M,rh=bh+2*M,NR=rw*rh,RHO=1;
-var TX=null,TY=null;
-// the surface: a few travelling waves, gradient evaluated separably (cos(A+B)=cosA cosB - sinA sinB)
-var S=Math.min(bw,bh),WV=[],nw=6,i,j,k;
-function rnd(s){return function(){s=(s*16807)%2147483647;return (s-1)/2147483646}}
-var R=rnd(29);
-for(i=0;i<nw;i++){var lam=S*(.16+.26*R()),a=R()*6.283,kk=6.283/lam,str=.34+.18*R();
-  WV.push({kx:Math.cos(a)*kk,ky:Math.sin(a)*kk,c:str/kk,ux:Math.cos(a),uy:Math.sin(a),w:1.6+1.6*R(),p:R()*6.283,cA:new Float32Array(rw),sA:new Float32Array(rw),cB:new Float32Array(rh),sB:new Float32Array(rh)})}
-WV.forEach(function(w){for(var q=0;q<rw;q++){var A=w.kx*(q-M);w.cA[q]=Math.cos(A);w.sA[q]=Math.sin(A)}});
-var DX=new Float32Array(NR),DY=new Float32Array(NR);
-function col(v,d){v=(v||'').trim();var m=/^#([0-9a-f]{6})$/i.exec(v);if(m)return [parseInt(m[1].substr(0,2),16),parseInt(m[1].substr(2,2),16),parseInt(m[1].substr(4,2),16)];
-  m=/rgba?\(([^)]+)\)/.exec(v);if(m){var p=m[1].split(',').map(parseFloat);return [p[0],p[1],p[2]]}return d}
-var C0,TI,CO;function colours(){var s=getComputedStyle(de);C0=col(s.getPropertyValue('--c0'),[1,15,17]);TI=col(s.getPropertyValue('--lt'),[98,217,199]);CO=col(s.getPropertyValue('--ink'),[242,255,249])}
-colours();
-// the target: a cropped fragment of the cast face (Unbounded), as a floor brightness map
-var fontOK=false;try{document.fonts.load('400 100px Unbounded').then(function(f){fontOK=!!(f&&f.length)},function(){})}catch(e){}
-function target(){
-  var c=document.createElement('canvas');c.width=bw;c.height=bh;var g=c.getContext('2d');
-  var fam=fontOK?'Unbounded,sans-serif':'sans-serif',port=bh>bw*1.1,fs=port?bh*1.05:Math.max(bh*1.75,bw*.95);
-  g.font='500 '+fs+'px '+fam;var m=g.measureText('a'),gx0=-m.actualBoundingBoxLeft,gx1=m.actualBoundingBoxRight,gy0=-m.actualBoundingBoxAscent,gy1=m.actualBoundingBoxDescent;
-  // crop: the bowl and the foot of the stem, off-centre; the letter is only implied
-  var ox=bw*(port?.62:.6)-(gx0+(gx1-gx0)*.62),oy=bh*.5-(gy0+(gy1-gy0)*.6);
-  g.filter='blur('+Math.max(1,S/160)+'px)';g.fillStyle='#fff';g.fillText('a',ox,oy);
-  var d=g.getImageData(0,0,bw,bh).data,den=new Float32Array(N),fl=.07;
-  for(var q=0;q<N;q++)den[q]=fl+(1-fl)*d[q*4+3]/255;
-  // Knothe-Rosenblatt: rows by the marginal, then columns by the conditional row
-  var row=new Float64Array(bh),cy=new Float64Array(bh+1),tot=0;
-  for(var y=0;y<bh;y++){var s=0;for(var xx=0;xx<bw;xx++)s+=den[y*bw+xx];row[y]=s;tot+=s;cy[y+1]=tot}
-  TX=new Float32Array(NR);TY=new Float32Array(NR);var cx=new Float64Array(bw+1),yj=0;
-  for(var r=0;r<rh;r++){
-    var v=(r+.5)/rh*tot;while(yj<bh-1&&cy[yj+1]<v)yj++;
-    var fy=row[yj]>0?(v-cy[yj])/row[yj]:.5,ty=yj+fy,y0=yj,y1=Math.min(bh-1,yj+1),wy=fy;
-    var ct=0;cx[0]=0;for(var q2=0;q2<bw;q2++){ct+=den[y0*bw+q2]*(1-wy)+den[y1*bw+q2]*wy;cx[q2+1]=ct}
-    var xi=0;for(var cc=0;cc<rw;cc++){var u=(cc+.5)/rw*ct;while(xi<bw-1&&cx[xi+1]<u)xi++;var dd=cx[xi+1]-cx[xi];
-      TX[r*rw+cc]=xi+(dd>0?(u-cx[xi])/dd:.5);TY[r*rw+cc]=ty}}
-}
-function sst(a,b,t){t=(t-a)/(b-a);t=t<0?0:t>1?1:t;return t*t*(3-2*t)}
-var t0=0,dStart=-1,tReady=-1,fr=0,TG=-1;
-function frame(now){
-  if(!t0)t0=now;var t=(now-t0)/1000;fr++;
-  if(fr%20===0)colours();
-  if(RDY&&tReady<0)tReady=t;
-  if(dStart<0&&((t>=1.75&&RDY)||t>=4.6))dStart=Math.max(t,1.75);
-  var foc=.4+.85*sst(0,1,t),gUp=sst(.8,1.45,t),g=gUp*(dStart<0&&t>1.75?Math.exp(-(t-1.75)*1.6):dStart>0?Math.exp(-(dStart-1.75)*1.6):1);
-  var fade=sst(0,.3,t)*(dStart<0?1:1-sst(dStart,dStart+.5,t));
-  if(g>0&&!TX)target();
-  // surface gradient -> displacement for every ray
-  for(var w=0;w<nw;w++){var W=WV[w],ph=W.w*t+W.p;for(var r=0;r<rh;r++){var B=W.ky*(r-M)+ph;W.cB[r]=Math.cos(B);W.sB[r]=Math.sin(B)}}
-  DX.fill(0);DY.fill(0);
-  for(w=0;w<nw;w++){W=WV[w];var cA=W.cA,sA=W.sA,cB=W.cB,sB=W.sB,ax=W.c*W.ux*foc,ay=W.c*W.uy*foc;
-    for(r=0;r<rh;r++){var cb=cB[r],sb=sB[r],o=r*rw;for(var c=0;c<rw;c++){var cs=cA[c]*cb-sA[c]*sb;DX[o+c]+=ax*cs;DY[o+c]+=ay*cs}}}
-  AR.fill(0);AG.fill(0);AB.fill(0);
-  var hx=bw/2,hy=bh/2,gw=g*.82,keep=1-g*.78;
-  for(var b=0;b<3;b++){var A=ACC[b],disp=1+(b-1)*.085,mag=1+(b-1)*.014*g;
-    for(r=0;r<rh;r++){var o2=r*rw,py=r-M;for(c=0;c<rw;c++){var id=o2+c,dx=DX[id]*disp,dy=DY[id]*disp,X,Y;
-      if(gw>0){X=(c-M+dx)*(1-gw)+(hx+(TX[id]-hx)*mag)*gw+dx*keep*.0;Y=(py+dy)*(1-gw)+(hy+(TY[id]-hy)*mag)*gw;X+=dx*g*.22;Y+=dy*g*.22}
-      else{X=c-M+dx;Y=py+dy}
-      if(X<0||Y<0||X>=bw-1||Y>=bh-1)continue;var xi=X|0,yi=Y|0,fx=X-xi,fy=Y-yi,q=yi*bw+xi;
-      A[q]+=(1-fx)*(1-fy);A[q+1]+=fx*(1-fy);A[q+bw]+=(1-fx)*fy;A[q+bw+1]+=fx*fy}}}
-  // tone: dim where the light is spread, the tint where it gathers, white at the folds; R/G/B carry the three bands
-  var e=fade*(1+.25*g);
-  for(var p=0;p<N;p++){var lr=AR[p]*e,lg=AG[p]*e,lb=AB[p]*e,o4=p*4;
-    lr=1-Math.exp(-.16*lr*lr*lr);lg=1-Math.exp(-.16*lg*lg*lg);lb=1-Math.exp(-.16*lb*lb*lb);var lm=(lr+lg+lb)/3;
-    var h=lm>.5?(lm-.5)*2:0,m2=lm*1.6>1?1:lm*1.6;
-    D[o4]=C0[0]+(TI[0]-C0[0])*m2+(CO[0]-TI[0])*h+(lr-lm)*520;
-    D[o4+1]=C0[1]+(TI[1]-C0[1])*m2+(CO[1]-TI[1])*h+(lg-lm)*260;
-    D[o4+2]=C0[2]+(TI[2]-C0[2])*m2+(CO[2]-TI[2])*h+(lb-lm)*520;D[o4+3]=255}
-  x.putImageData(img,0,0);
-  if(dStart>=0&&t>=dStart+.5){ld.classList.add('done');setTimeout(function(){ld.style.display='none'},900);return}
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
-})();
-</script>
-
-<header class="ch" id="ch-open" data-tag="">
-  <h1 class="huge"><span class="cast">CAUSTIC</span></h1>
-  <div class="idx">
-    <a href="#ch-tester" class="rv"><span class="t"><span class="cast">TESTER</span></span><canvas id="o1" aria-hidden="true"></canvas></a>
-    <a href="#ch-glyphs" class="rv"><span class="t"><span class="cast">GLYPHS</span></span><canvas id="o2" aria-hidden="true"></canvas></a>
-    <a href="#ch-3d" class="rv"><span class="t"><span class="cast">3D</span></span><canvas id="o3" aria-hidden="true"></canvas></a>
-  </div>
-</header>
-
-<section class="ch" id="ch-tester" data-tag="tester">
-  <h2 class="big rv"><span class="cast">TESTER</span></h2>
-  <div class="slot" id="slot-tester" style="margin-top:32px"><canvas class="snap"></canvas>
-    <main id="stage" tabindex="0" aria-label="Caustic tester: drag to tilt the glass, drag the sun marker to move the light">
-      <canvas id="gl"></canvas>
-      <canvas id="c2d" style="display:none"></canvas>
-      <canvas id="ov"></canvas>
-      <div id="labels"></div>
-      <div id="prog"></div>
-      <div id="fallbackNote"></div>
-      <div id="hint"><span></span></div>
-    </main>
-  </div>
-  <div class="ctl">
-    <div class="g"><input id="txt" class="txtin" maxlength="28" value="CAUSTIC" spellcheck="false" autocomplete="off" aria-label="Text"></div>
-    <div class="g"><div class="steps c-w" role="group" aria-label="Weight"></div></div>
-    <div class="g rng"><span class="l"><span class="cast">FOCAL DISTANCE</span></span><input type="range" class="c-f" min="70" max="135" value="100" aria-label="Focal distance"></div>
-    <div class="g"><div class="sw2 c-g" role="group" aria-label="Ground"></div></div>
-  </div>
-</section>
-
-<section class="ch" id="ch-glyphs" data-tag="glyphs">
-  <h2 class="big rv"><span class="cast">GLYPHS</span></h2>
-  <div class="slot" id="slot-glyphs" style="margin-top:32px"><canvas class="snap"></canvas></div>
-  <div class="ctl">
-    <div class="g"><div class="steps c-w" role="group" aria-label="Weight"></div></div>
-    <div class="g"><div class="sw2 c-g" role="group" aria-label="Ground"></div></div>
-  </div>
-</section>
-
-<section class="ch" id="ch-3d" data-tag="3d">
-  <h2 class="big rv"><span class="cast">3D</span></h2>
-  <div class="slot" id="slot-3d" style="margin-top:32px"><canvas class="snap"></canvas></div>
-  <div class="ctl">
-    <div class="g"><div class="steps c-w" role="group" aria-label="Weight"></div></div>
-    <div class="g rng"><span class="l"><span class="cast">FOCAL DISTANCE</span></span><input type="range" class="c-f" min="70" max="135" value="100" aria-label="Focal distance"></div>
-    <div class="g"><div class="sw2 c-g" role="group" aria-label="Ground"></div></div>
-  </div>
-</section>
-
-<footer class="foot"><a href="../index.html"><span class="cast">TYPE EXPERIMENT</span></a><a href="../eroded/index.html"><span class="cast">NEXT</span></a></footer>
-
+<main id="stage" tabindex="0" aria-label="Caustic light. Move the pointer to bend the light; click to hold it.">
+  <canvas id="gl"></canvas>
+  <canvas id="c2d" style="display:none"></canvas>
+</main>
+<div id="wt" class="ui cap"><label for="wtr">WEIGHT</label><input id="wtr" type="range" min="200" max="900" step="10" value="860" aria-label="Letter weight, thin to bold" title="Letter weight: thin to bold"><output id="wtv" for="wtr">860</output></div>
+<div id="pn" class="ui cap"><label for="pnr">PANE</label><input id="pnr" type="range" min="0" max="1" step="0.01" value="1" aria-label="Glass pane, hidden to visible" title="Glass pane: hidden to visible"><output id="pnv" for="pnr">100%</output></div>
+<button id="adj" class="ui cap" type="button" aria-expanded="false" aria-controls="wt pn" title="Weight and pane">ADJUST</button>
+<div id="sw" class="ui cap" role="radiogroup" aria-label="Light and ground"></div>
+<div id="intro" aria-hidden="true"><b>CAUSTIC LIGHT</b><span>LIGHT CAST THROUGH DIAMOND GLASS</span></div>
+<div id="hint" aria-hidden="true">DRAW WITH LIGHT</div>
+<nav id="pnav" class="ui cap" aria-label="Pages"><button id="pprev" type="button" title="Previous page ( [ )" aria-label="Previous page"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 8H3M7 4L3 8l4 4"/></svg></button><span id="pname" aria-live="polite"></span><button id="pnext" type="button" title="Next page ( ] )" aria-label="Next page"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></button></nav>
+<input id="txt" class="cap" maxlength="24" value="CAUSTIC TYPE" placeholder="TYPE" spellcheck="false" autocomplete="off" autocapitalize="characters" aria-label="Word written in light">
+<a id="nav" class="ui" href="#glyphs" aria-label="Glyph set"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+<button id="lock" class="ui cap" type="button" aria-pressed="false" aria-label="Hold the light" title="Hold the light (click the light, or Space on it)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3.5" y="7.5" width="9" height="6.5" rx="1"/><path class="l1" d="M5.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5"/><path class="l0" d="M5.5 7.5V5a2.5 2.5 0 0 1 5 0"/></svg></button>
+<a id="fwd" class="ui" href="#draw" aria-label="Draw a shape"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+<canvas id="dguide" aria-hidden="true"></canvas>
+<section id="dp" aria-label="Drawing pad"><h2>DRAW</h2><canvas id="pad" width="480" height="480" aria-label="Draw a shape for the light"></canvas>
+<div id="dtools" class="cap"><label for="brush">BRUSH</label><input id="brush" type="range" min="4" max="60" step="1" value="22" aria-label="Brush size" title="Brush size"><output id="brv" for="brush">22</output>
+<button id="dundo" type="button" aria-label="Undo" title="Undo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 4L2 7l3 3"/><path d="M2 7h7.5a4 4 0 0 1 0 8H7"/></svg></button>
+<button id="dclear" type="button" aria-label="Clear" title="Clear"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.8 10h5.4l.8-10"/></svg></button>
+<button id="dshow" type="button" aria-pressed="false" aria-label="Show drawing over the light" title="Show the drawing over the light"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg></button>
+<button id="dcast" class="cta" type="button" aria-label="Cast the drawing in light, full screen" title="Cast the drawing in light"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.1 2.1M10.5 10.5l2.1 2.1M3.4 12.6l2.1-2.1M10.5 5.5l2.1-2.1"/></svg>CAST</button></div></section>
+<button id="gtog" class="ui cap" type="button" aria-label="Back to the list"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg><span class="tg">ALL GLYPHS</span><span class="td">DRAW AGAIN</span></button>
+<section id="sys" aria-hidden="true" aria-label="How it works: system map"><div id="sysv"></div></section>
+<div id="sysbar" class="cap" role="group" aria-label="Map zoom"><span>MAP</span><button id="syszo" type="button" aria-label="Zoom out" title="Zoom out (ctrl + wheel)">−</button><button id="sysz" type="button" aria-label="Reset zoom" title="Reset zoom">100%</button><button id="syszi" type="button" aria-label="Zoom in" title="Zoom in (ctrl + wheel)">+</button></div>
+<section id="gp" aria-label="Glyph set"><h2 id="gph">GLYPHS</h2><div id="grid"></div></section>
 <script>console.warn('Scripts "build/three.js" and "build/three.min.js" are deprecated with r150+, and will be removed with r160. Please use ES Modules or alternatives: https://threejs.org/docs/index.html#manual/en/introduction/Installation'),
 /**
  * @license
@@ -414,86 +468,64 @@ function makeSolverAPI(){
 var $=function(s){return document.querySelector(s)};
 var DPR=Math.min(window.devicePixelRatio||1,2);
 var MOBILE=window.matchMedia('(max-width: 760px)').matches||/Mobi|Android|iPhone/i.test(navigator.userAgent);
+var SYMS=[1,2,3,4,6,8,9,12];   // rotational symmetry options on page 1
 var FORCE2D=/[?&]nogl/.test(location.search);
-var stage=$('#stage'),ov=$('#ov'),octx=ov.getContext('2d'),c2d=$('#c2d'),ctx2=null,labels=$('#labels');
+var RM=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):{matches:false};
+var stage=$('#stage'),c2d=$('#c2d'),ctx2=null,glc=$('#gl');
 var W=1,H=1;
 
 /* ---------------------------------------------------------------
-   1. PARAMETERS — four glasses are the four weights
+   1. FIXED PARAMETERS
 ---------------------------------------------------------------- */
 var WEIGHTS=[
-  {name:'Water',step:'Light',n:1.333,V:55.7,fw:220,code:'n 1.333'},
-  {name:'Crown',step:'Regular',n:1.522,V:58.6,fw:430,code:'n 1.522'},
-  {name:'Flint',step:'Bold',n:1.711,V:30.2,fw:640,code:'n 1.711'},
-  {name:'Lanthanum',step:'Black',n:1.900,V:31.3,fw:860,code:'n 1.900'}
+  {name:'Water',n:1.333,V:55.7,fw:220},
+  {name:'Crown',n:1.517,V:64.2,fw:430},
+  {name:'Flint',n:1.620,V:36.4,fw:640},
+  {name:'Diamond',n:2.417,V:55.3,fw:860}
 ];
-var PALS=[
-  {name:'Lagoon',g:'#03272b',tint:'#62d9c7',core:'#f2fff9',bg:'#021c1f',theme:'',code:'Teal / aqua',halo:.55,
-   note:'Lagoon: sunlight through a moving surface draws on the floor of shallow water. Deep teal ground, light that whitens where it is most concentrated.'},
-  {name:'Nave',g:'#151318',tint:'#ffad42',core:'#fff2da',bg:'#100f12',theme:'',code:'Stone / amber',halo:.5,
-   note:'Nave: low winter sun through cast glass onto a stone floor. Amber is what is left of daylight after a long path through air.'},
-  {name:'Bench',g:'#050607',tint:'#b9c6cc',core:'#ffffff',bg:'#040505',theme:'',code:'Black / white',halo:.35,
-   note:'Bench: the optical table. Black anodised ground, white light, nothing added: the most legible reading of the caustic.'},
-  {name:'Cyanotype',g:'#ece5d3',tint:'#2a5d9c',core:'#0c2550',bg:'#e7e0cd',theme:'paper',code:'Paper / Prussian',halo:.25,
-   note:'Cyanotype: where light lands, iron salts turn Prussian blue. The floor is a sheet of sensitised paper and the letter is its exposure.'}
-];
-var P={w:1,floorK:1,rays:1,pal:0,disp:true,target:false};   // dispersion is part of the law: always on
-var EMBED=document.documentElement.classList.contains('embed');
-var FLOOR_SPILL=.05;           // share of light deliberately left outside the letter
-var HPK=1.8,TK=.14;            // floor distance and glass thickness, in cap heights
-var TILE=56,TILE_IT=42,TESTER_IT=72,TESTER_HP=1.1;
-var CHARSET='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789&?!.,:;-+=*/()#@%';
-var GEO='\u25A0\u25CF\u25B2',GEOROW=['\u25A0','\u25CF','\u25B2','H','O','A'];
-var FAM="Unbounded,'Arial Black','Helvetica Neue',Arial,sans-serif",FONT_OK=false;
+var P=Object.freeze({w:3,glass:'Diamond',ior:2.417,floorK:1.35,rays:2.0,disp:true,target:false});
+var FLOOR_SPILL=.05,HPK=1.8,TK=.14,TESTER_IT=72,TESTER_HP=1.1;
+var UNB="Unbounded",FALLBACK="Arial,'Helvetica Neue',Helvetica,'Liberation Sans',sans-serif",FONT_OK=false;
+var WT=860,PANE=1,PANE_LO=.9,FROZEN=false; // letterform weight of the cast word (Unbounded 200..900), independent of the glass
 function hexRGB(h){h=h.replace('#','');return [parseInt(h.substr(0,2),16)/255,parseInt(h.substr(2,2),16)/255,parseInt(h.substr(4,2),16)/255]}
-function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
-function fmt(n,d){return n.toLocaleString('en-US',{minimumFractionDigits:d||0,maximumFractionDigits:d||0})}
+
+/* E13's four grounds, exact values: g = floor, tint = body of the light, core = where it concentrates, bg = page */
+var PALS=[
+  {id:'bench',name:'Bench',g:'#050607',tint:'#b9c6cc',core:'#ffffff',bg:'#040505',theme:'',code:'Black / white',halo:.35},
+  {id:'nave',name:'Nave',g:'#151318',tint:'#ffad42',core:'#fff2da',bg:'#100f12',theme:'',code:'Stone / amber',halo:.5},
+  {id:'lagoon',name:'Lagoon',g:'#03272b',tint:'#62d9c7',core:'#f2fff9',bg:'#021c1f',theme:'',code:'Teal / aqua',halo:.55},
+  {id:'cyanotype',name:'Cyanotype',g:'#ece5d3',tint:'#2a5d9c',core:'#0c2550',bg:'#e7e0cd',theme:'paper',code:'Paper / Prussian',halo:.25}
+];
+var PAL=PALS[0];
 
 /* ---------------------------------------------------------------
-   2. TARGETS — the letter the light must become (coverage 0..1)
+   2. TARGET — the text the light must become
 ---------------------------------------------------------------- */
 var rc=document.createElement('canvas'),rx=rc.getContext('2d',{willReadFrequently:true});
-function fontStr(fw,sz){return fw+' '+sz+'px '+FAM}
+function fontStr(fw,sz){return FONT_OK?(Math.round(fw)+' '+sz+'px '+UNB+','+FALLBACK):('400 '+sz+'px '+FALLBACK)}
 function capRatio(fw){rx.font=fontStr(fw,100);var m=rx.measureText('H');return (m.actualBoundingBoxAscent||72)/100}
 function pool(nx,ny,SS){
-  var d=rx.getImageData(0,0,nx*SS,ny*SS).data,t=new Float32Array(nx*ny),k=1/(SS*SS*255),W4=nx*SS*4;
+  var d=rx.getImageData(0,0,nx*SS,ny*SS).data,t=new Float32Array(nx*ny),k=1/(SS*SS*255);
   for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){var s=0;for(var j=0;j<SS;j++){var o=((y*SS+j)*nx*SS+x*SS)*4+3;for(var i=0;i<SS;i++)s+=d[o+i*4]}t[y*nx+x]=s*k}
   return t;
 }
-// fallback weight emulation when the variable font is not available
-function drawGlyphs(fn,fw,sz){
-  rx.fillStyle='#fff';rx.strokeStyle='#fff';rx.lineJoin='round';
-  if(!FONT_OK&&fw>500){rx.lineWidth=sz*(fw-500)/4200;fn(true)}fn(false);
+/* the variable font carries the weight; offline, a system face is thickened or eroded to approximate it */
+function drawGlyphs(fn,fw,sz,c){
+  c=c||rx;c.fillStyle='#fff';c.strokeStyle='#fff';c.lineJoin='round';
+  if(!FONT_OK&&fw>430){c.lineWidth=sz*(fw-430)/3600;fn(true)}fn(false);
+  if(!FONT_OK&&fw<380){c.save();c.globalCompositeOperation='destination-out';c.lineWidth=sz*(380-fw)/2400;fn(true);c.restore()}
 }
-function tileTarget(ch,fw,N){
-  var SS=3,S=N*SS;rc.width=S;rc.height=S;rx.clearRect(0,0,S,S);
-  if(GEO.indexOf(ch)>=0){var k=.9+.12*(fw-220)/640,c0=S/2;rx.fillStyle='#fff';rx.beginPath();
-    if(ch==='\u25A0')rx.rect(c0-.25*S*k,c0-.25*S*k,.5*S*k,.5*S*k);
-    else if(ch==='\u25CF')rx.arc(c0,c0,.28*S*k,0,6.2832);
-    else{rx.moveTo(c0,c0-.27*S*k);rx.lineTo(c0+.3*S*k,c0+.25*S*k);rx.lineTo(c0-.3*S*k,c0+.25*S*k);rx.closePath()}
-    rx.fill();return {t:pool(N,N,SS),cap:.5*S/SS}}
-  var cap=.5*S,sz=cap/capRatio(fw);rx.font=fontStr(fw,sz);
-  var m=rx.measureText(ch),bw=(m.actualBoundingBoxLeft||0)+(m.actualBoundingBoxRight||m.width);
-  if(bw>.8*S){sz*=.8*S/bw;rx.font=fontStr(fw,sz);m=rx.measureText(ch);bw=(m.actualBoundingBoxLeft||0)+(m.actualBoundingBoxRight||m.width);cap=sz*capRatio(fw)}
-  var x=S/2-bw/2+(m.actualBoundingBoxLeft||0),y=S/2+cap/2;
-  rx.textBaseline='alphabetic';
-  drawGlyphs(function(st){st?rx.strokeText(ch,x,y):rx.fillText(ch,x,y)},fw,sz);
-  return {t:pool(N,N,SS),cap:cap/SS};
-}
-// tester: break text into lines and size it to the stage
 function layoutTester(text,fw){
   var words=text.trim().split(/\s+/).filter(Boolean);if(!words.length)words=['CAUSTIC'];
-  if(words.length===1&&W<H*.9&&words[0].length>=5){var w0=words[0],h0=Math.ceil(w0.length/2);words=[w0.slice(0,h0),w0.slice(h0)]}
-  var cr=capRatio(fw),padL=MOBILE?16:44,padT=MOBILE?34:44,padB=MOBILE?40:48;
+  var cr=capRatio(fw),padL=MOBILE?18:70,padT=MOBILE?64:60,padB=MOBILE?64:60;
   var aw=W-padL*2,ah=H-padT-padB;rx.font=fontStr(fw,100);
   var best=null;
   for(var n=1;n<=Math.min(3,words.length);n++){
-    // balanced greedy split into n lines
     var lines=[],per=Math.ceil(words.join(' ').length/n),cur='';
     words.forEach(function(w){if(cur&&(cur+' '+w).length>per&&lines.length<n-1){lines.push(cur);cur=w}else cur=cur?cur+' '+w:w});lines.push(cur);
     var mw=0;lines.forEach(function(l){mw=Math.max(mw,rx.measureText(l).width)});
     var pitch=1.6;var szW=aw/mw*100,capH=ah/(1+(lines.length-1)*pitch+.28),szH=capH/cr;
-    var sz=Math.min(szW,szH,MOBILE?150:300);
+    var sz=Math.min(szW,szH,MOBILE?150:260);
     if(!best||sz>best.sz*1.06)best={lines:lines,sz:sz};
   }
   var sz=best.sz,cap=sz*cr,pitch=cap*1.6;rx.font=fontStr(fw,sz);
@@ -514,34 +546,25 @@ function testerTarget(L){
 }
 
 /* ---------------------------------------------------------------
-   3. PLATES — one computed glass surface each
+   3. PLATE — one computed glass surface
 ---------------------------------------------------------------- */
 function Plate(key,nx,ny,t,ior,capCells){
   this.key=key;this.nx=nx;this.ny=ny;this.t=t;this.ior=ior;this.capC=capCells;
   this.hpC=HPK*capCells;this.tC=TK*capCells;
   this.NX=2;this.NY=2;this.field=new Float32Array([0,0,0,ior,0,0,0,ior,0,0,0,ior,0,0,0,ior]);
-  this.meta={it:0,iters:0,res:1,curl:0,relief:0,done:false,ms:0,started:0};
-  var m=0;for(var i=0;i<t.length;i++)m+=t[i];m/=t.length;
-  this.conc=1/(FLOOR_SPILL+(1-FLOOR_SPILL)*m); // brightness of a fully covered cell vs. plain sunlight
-  this.rect={cx:0,cy:0,W:1,H:1};this.tex=null;this.ver=0;this.outline=null;
+  this.meta={it:0,iters:0,res:1,curl:0,relief:0,done:false,ms:0};
+  this.rect={cx:0,cy:0,W:1,H:1};this.tex=null;this.ver=0;
 }
 Plate.prototype.place=function(cx,cy,w){this.rect.cx=cx;this.rect.cy=cy;this.rect.W=w;this.rect.H=w*this.ny/this.nx};
 Plate.prototype.setField=function(f,NX,NY){this.field=f;this.NX=NX;this.NY=NY;this.ver++;if(GLR)GLR.uploadPlate(this)};
-Plate.prototype.sample=function(u,v,o){ // bilinear field sample: hx,hy,h,n
+Plate.prototype.sample=function(u,v,o){
   var NX=this.NX,NY=this.NY,f=this.field,x=Math.max(0,Math.min(NX-1.0001,u*(NX-1))),y=Math.max(0,Math.min(NY-1.0001,v*(NY-1)));
   var i=x|0,j=y|0,fx=x-i,fy=y-j,a=(j*NX+i)*4,b=a+4,c=a+NX*4,d=c+4;
   for(var k=0;k<4;k++)o[k]=(f[a+k]*(1-fx)+f[b+k]*fx)*(1-fy)+(f[c+k]*(1-fx)+f[d+k]*fx)*fy;return o;
 };
-Plate.prototype.makeOutline=function(){ // faint edge image of the target, for the overlay
-  if(this.outline)return this.outline;
-  var nx=this.nx,ny=this.ny,t=this.t,c=document.createElement('canvas');c.width=nx;c.height=ny;var x=c.getContext('2d'),im=x.createImageData(nx,ny);
-  for(var j=0;j<ny;j++)for(var i=0;i<nx;i++){var v=t[j*nx+i],gx=(t[j*nx+Math.min(nx-1,i+1)]-t[j*nx+Math.max(0,i-1)]),gy=(t[Math.min(ny-1,j+1)*nx+i]-t[Math.max(0,j-1)*nx+i]);
-    var e=Math.min(1,Math.hypot(gx,gy)*1.4),o=(j*nx+i)*4;im.data[o]=im.data[o+1]=im.data[o+2]=255;im.data[o+3]=e*255}
-  x.putImageData(im,0,0);return this.outline=c;
-};
 
 /* ---------------------------------------------------------------
-   4. SOLVER WORKERS — the computation runs off the main thread
+   4. SOLVER WORKER
 ---------------------------------------------------------------- */
 function workerMain(){
   var api=makeSolverAPI();
@@ -551,13 +574,12 @@ function workerMain(){
       var r=job.step(),last=i===J.iters-1;
       if(last||(J.snap&&(i+1)%J.snap===0)){var F=job.field();
         self.postMessage({key:J.key,it:i+1,iters:J.iters,res:r.res,curl:F.curl,relief:F.relief,f:F.f,NX:F.NX,NY:F.NY,done:last,ms:Date.now()-t0},[F.f.buffer])}
-      else if(J.prog)self.postMessage({key:J.key,it:i+1,iters:J.iters,res:r.res,prog:1});
     }
   };
 }
 var WORKER_SRC=null;
-function FakeWorker(){ // main-thread, time-sliced stand-in when workers are unavailable
-  var self=this,api=makeSolverAPI(),cur=null,gen=0;
+function FakeWorker(){
+  var self=this,api=makeSolverAPI(),gen=0;
   this.postMessage=function(J){var g=++gen,job=api.createJob(J),i=0,t0=Date.now();
     (function run(){if(g!==gen)return;var s=performance.now();
       while(i<J.iters&&performance.now()-s<10){var r=job.step();i++;var last=i===J.iters;
@@ -571,63 +593,46 @@ function newWorker(){
     return new Worker(WORKER_SRC);
   }catch(e){return new FakeWorker()}
 }
-var nG=Math.max(1,Math.min(3,(navigator.hardwareConcurrency||2)-2));
-var LANES={T:[{w:null,job:null}],G:[]};for(var gi=0;gi<nG;gi++)LANES.G.push({w:null,job:null});
-var JOBS={},QUEUE=[];
-function laneWorker(L){if(!L.w){L.w=newWorker();L.w.onmessage=function(e){onSolve(L,e.data)};L.w.onerror=function(){L.w=new FakeWorker();L.w.onmessage=function(e){onSolve(L,e.data)};if(L.job){var j=L.job;L.job=null;j.state='queued';QUEUE.push(j);pump()}}}return L.w}
-function enqueue(plate,lane,prio,iters,snap){
-  if(JOBS[plate.key]&&JOBS[plate.key].state!=='cancelled')return;
-  var j={plate:plate,lane:lane,prio:prio,state:'queued',msg:{key:plate.key,nx:plate.nx,ny:plate.ny,t:plate.t,floor:FLOOR_SPILL,floor0:.35,decay:.84,
-    ior:plate.ior,cs:1,T:plate.tC,Hp:plate.hpC,iters:iters,snap:snap||0,prog:lane==='T'}};
-  JOBS[plate.key]=j;QUEUE.push(j);pump();
+var LANE={w:null,job:null};
+function bindWorker(){LANE.w.onmessage=function(e){onSolve(e.data)};LANE.w.onerror=function(){LANE.w=new FakeWorker();bindWorker();if(LANE.job)LANE.w.postMessage(LANE.job.msg)}}
+function solve(plate){
+  if(LANE.job){if(LANE.job.plate.key===plate.key)return;if(LANE.w){LANE.w.terminate();LANE.w=null}}
+  LANE.job={plate:plate,msg:{key:plate.key,nx:plate.nx,ny:plate.ny,t:plate.t,floor:FLOOR_SPILL,floor0:.35,decay:.84,
+    ior:plate.ior,cs:1,T:plate.tC,Hp:plate.hpC,iters:TESTER_IT,snap:3}};
+  plate.meta.iters=TESTER_IT;
+  if(!LANE.w){LANE.w=newWorker();bindWorker()}
+  LANE.w.postMessage(LANE.job.msg);
 }
-function pump(){
-  ['T','G'].forEach(function(ln){LANES[ln].forEach(function(L){
-    if(L.job)return;var bi=-1;
-    QUEUE.forEach(function(j,i){if(j.lane===ln&&j.state==='queued'&&(bi<0||j.prio>QUEUE[bi].prio))bi=i});
-    if(bi<0)return;var j=QUEUE.splice(bi,1)[0];j.state='running';L.job=j;j.plate.meta.started=performance.now();j.plate.meta.iters=j.msg.iters;
-    laneWorker(L).postMessage(j.msg);
-  })});
-}
-function cancelLaneT(){var L=LANES.T[0];if(L.job){L.job.state='cancelled';delete JOBS[L.job.plate.key];L.job=null;if(L.w){L.w.terminate();L.w=null}}
-  QUEUE=QUEUE.filter(function(j){if(j.lane==='T'){delete JOBS[j.plate.key];return false}return true})}
-function onSolve(L,d){
-  var j=L.job;if(!j||j.plate.key!==d.key)return;
+function onSolve(d){
+  var j=LANE.job;if(!j||j.plate.key!==d.key)return;
   var pl=j.plate,m=pl.meta;m.it=d.it;m.res=d.res;
-  if(d.f){pl.setField(d.f,d.NX,d.NY);m.curl=d.curl;m.relief=d.relief;dirty=true}
-  if(d.done){m.done=true;m.ms=d.ms;j.state='done';L.job=null;pump();if(view==='specimen')specDirty=true}
-  progDirty=true;
+  if(d.f){pl.setField(d.f,d.NX,d.NY);m.curl=d.curl;m.relief=d.relief}
+  if(d.done){m.done=true;m.ms=d.ms;LANE.job=null}
 }
 
 /* ---------------------------------------------------------------
-   5. CPU RAY TRACE — the same optics as the GPU shader; used for
-   the specimen's drawn rays, the section figure and the fallback
+   5. OPTICS (CPU) — used to keep the light framed and for the fallback
 ---------------------------------------------------------------- */
-var OPT={tx:0,ty:0,vx:0,vy:0,sx:0,sy:0,svx:0,svy:0,R:[1,0,0,0,1,0,0,0,1],sun:[0,0,-1],grab:null};
-function rotMat(ax,ay){ // tilt about floor x then y
-  var cx=Math.cos(ax),sx=Math.sin(ax),cy=Math.cos(ay),sy=Math.sin(ay);
-  // R = Ry(ay) * Rx(ax)
-  return [cy,sy*sx,sy*cx, 0,cx,-sx, -sy,cy*sx,cy*cx];
-}
+var OPT={tx:0,ty:0,sx:0,sy:0,R:[1,0,0,0,1,0,0,0,1],sun:[0,0,-1],ox:0,oy:0};
+function rotMat(ax,ay){var cx=Math.cos(ax),sx=Math.sin(ax),cy=Math.cos(ay),sy=Math.sin(ay);return [cy,sy*sx,sy*cx, 0,cx,-sx, -sy,cy*sx,cy*cx]}
 function mv(R,v){return [R[0]*v[0]+R[1]*v[1]+R[2]*v[2],R[3]*v[0]+R[4]*v[1]+R[5]*v[2],R[6]*v[0]+R[7]*v[1]+R[8]*v[2]]}
 function nrm(v){var l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l]}
 function refr(I,N,eta){var d=I[0]*N[0]+I[1]*N[1]+I[2]*N[2],k=1-eta*eta*(1-d*d);if(k<0)return null;var s=eta*d+Math.sqrt(k);return [eta*I[0]-s*N[0],eta*I[1]-s*N[1],eta*I[2]-s*N[2]]}
 var _s=[0,0,0,0];
-function trace(pl,u,v,dn,R,sun,fk){
-  var s=pl.sample(u,v,_s),rc=pl.rect,cw=rc.W/pl.nx,hs=rc.W/(pl.NX-1),n=s[3]+dn;
+function trace(pl,u,v,dn,R,sun,fk,flat){
+  var s=flat?[0,0,0,pl.ior]:pl.sample(u,v,_s),rc=pl.rect,cw=rc.W/pl.nx,hs=rc.W/(pl.NX-1),n=s[3]+dn;
   var Hp=pl.hpC*cw*fk,T=pl.tC*cw;
   var Pl=[(u-.5)*rc.W,(v-.5)*rc.H,T+s[2]*hs],up=mv(R,[0,0,1]),Pw=mv(R,Pl);Pw[0]+=rc.cx;Pw[1]+=rc.cy;Pw[2]+=Hp;
   var N=nrm(mv(R,[-s[0],-s[1],1])),r1=refr(sun,N,1/n);if(!r1)return null;
   var den=r1[0]*up[0]+r1[1]*up[1]+r1[2]*up[2];if(den>-1e-4)return null;
   var tt=((rc.cx-Pw[0])*up[0]+(rc.cy-Pw[1])*up[1]+(Hp-Pw[2])*up[2])/den,Q=[Pw[0]+r1[0]*tt,Pw[1]+r1[1]*tt,Pw[2]+r1[2]*tt];
   var r2=refr(r1,up,n);if(!r2||r2[2]>-1e-4)return null;
-  var s2=-Q[2]/r2[2];return {P:Pw,Q:Q,F:[Q[0]+r2[0]*s2,Q[1]+r2[1]*s2,0],pl:Pl,flux:Math.max(0,-(sun[0]*up[0]+sun[1]*up[1]+sun[2]*up[2]))};
+  var s2=-Q[2]/r2[2];return {F:[Q[0]+r2[0]*s2,Q[1]+r2[1]*s2,0],flux:Math.max(0,-(sun[0]*up[0]+sun[1]*up[1]+sun[2]*up[2]))};
 }
-function dispersion(pl){var w=WEIGHTS.filter(function(x){return Math.abs(x.n-pl.ior)<.01})[0]||WEIGHTS[1];return (pl.ior-1)/w.V}
+function dispersion(pl){var w=WEIGHTS[P.w];return (pl.ior-1)/w.V}
 
 /* ---------------------------------------------------------------
-   6. GPU RENDERER — three.js; photon mesh refracted per vertex,
-   brightness = area ratio (a ray tube's cross-section on the floor)
+   6. GPU RENDERER — photon mesh refracted per vertex (from E13)
 ---------------------------------------------------------------- */
 var GLR=null;
 var VS_C=[
@@ -665,14 +670,18 @@ var FS_BLUR=[
 'void main(){vec4 s=texture(uS,vUv)*.2270;',
 ' s+=(texture(uS,vUv+uD*1.3846)+texture(uS,vUv-uD*1.3846))*.3162;',
 ' s+=(texture(uS,vUv+uD*3.2308)+texture(uS,vUv-uD*3.2308))*.0703;o=s;}'].join('\n');
+/* E13 composite: light grounds add light; the paper ground (Cyanotype) is exposed toward Prussian blue */
 var FS_COMP=[
 'precision highp float;in vec2 vUv;',
-'uniform sampler2D uA,uH;uniform vec3 uG,uTint,uCore;uniform float uExp,uPaper,uInv,uHalo,uGrainS;',
+'uniform sampler2D uA,uH;uniform vec3 uG,uTint,uCore;uniform float uExp,uInv,uHalo,uGrainS,uFr,uAlpha,uPaper,uPane,uPaneLo,uLit;',
 'out vec4 o;',
 'float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}',
 'float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}',
 'void main(){',
 ' vec3 I=texture(uA,vUv).rgb*uInv;vec3 Hh=texture(uH,vUv).rgb*uInv;',
+/* pane: the flat-glass baseline (and the faint pane edges) fade out with a soft threshold, the focused letter light stays */
+' float li=dot(I,vec3(.3333)),lh=dot(Hh,vec3(.3333));',
+' I*=mix(smoothstep(uPaneLo,uPaneLo*4.5,li),1.,uPane);Hh*=mix(smoothstep(uPaneLo*.7,uPaneLo*3.5,lh),1.,uPane);',
 ' vec2 px=gl_FragCoord.xy*uGrainS;float g=hash(gl_FragCoord.xy);float sand=vn(px*.035)*.6+vn(px*.11)*.4;',
 ' I*=.9+.2*sand;',
 ' vec3 v=1.-exp(-I*uExp);float L=dot(v,vec3(.3333));',
@@ -682,19 +691,20 @@ var FS_COMP=[
 '  col=ground+uTint*hl*uHalo*.45;',
 '  col=mix(col,uTint,smoothstep(0.,.7,L));',
 '  col=mix(col,uCore,smoothstep(.5,.97,L));',
-'  col+=(v-vec3(L))*1.25;',
+'  col+=(v-vec3(L))*uFr;',
 ' }else{',
 '  col=mix(ground,uTint,clamp(L*1.15+hl*uHalo*.5,0.,1.));',
 '  col=mix(col,uCore,smoothstep(.62,1.,L));',
-'  col-=(v-vec3(L))*.9;',
+'  col-=(v-vec3(L))*uFr*.72;',
 ' }',
-' o=vec4(clamp(col,0.,1.),1.);',
+' col=mix(ground,col,uLit);',
+' o=vec4(clamp(col,0.,1.),uAlpha);',
 '}'].join('\n');
 
 function makeGLR(canvas){
   if(!window.THREE||FORCE2D)return null;
   var r;
-  try{r=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:false,preserveDrawingBuffer:true,powerPreference:'high-performance'})}catch(e){console.warn('webgl off',e);return null}
+  try{r=new THREE.WebGLRenderer({canvas:canvas,antialias:false,alpha:false,preserveDrawingBuffer:true,powerPreference:'high-performance'})}catch(e){console.warn('webgl off',e);return null}
   if(!r.capabilities.isWebGL2){r.dispose();return null}
   r.autoClear=false;
   var floatOK=r.extensions.has('EXT_color_buffer_float')||r.extensions.has('EXT_color_buffer_half_float');
@@ -703,8 +713,8 @@ function makeGLR(canvas){
   var cam=new THREE.Camera(),cScene=new THREE.Scene(),qScene=new THREE.Scene();
   var quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),null);quad.frustumCulled=false;qScene.add(quad);
   var blurM=new THREE.RawShaderMaterial({glslVersion:THREE.GLSL3,vertexShader:VS_Q,fragmentShader:FS_BLUR,uniforms:{uS:{value:null},uD:{value:new THREE.Vector2()}},depthTest:false,depthWrite:false});
-  var compM=new THREE.RawShaderMaterial({glslVersion:THREE.GLSL3,vertexShader:VS_Q,fragmentShader:FS_COMP,depthTest:false,depthWrite:false,
-    uniforms:{uA:{value:null},uH:{value:null},uG:{value:new THREE.Color()},uTint:{value:new THREE.Color()},uCore:{value:new THREE.Color()},uExp:{value:.36},uPaper:{value:0},uInv:{value:1/GAIN},uHalo:{value:.5},uGrainS:{value:1}}});
+  var compM=new THREE.RawShaderMaterial({glslVersion:THREE.GLSL3,vertexShader:VS_Q,fragmentShader:FS_COMP,depthTest:false,depthWrite:false,transparent:true,blending:THREE.NormalBlending,
+    uniforms:{uA:{value:null},uH:{value:null},uG:{value:new THREE.Color()},uTint:{value:new THREE.Color()},uCore:{value:new THREE.Color()},uExp:{value:.36},uInv:{value:1/GAIN},uHalo:{value:.5},uGrainS:{value:1},uFr:{value:1.25},uAlpha:{value:1},uPaper:{value:0},uPane:{value:1},uPaneLo:{value:PANE_LO},uLit:{value:1}}});
   var geoCache={};
   function photonGeo(mx,my){
     var k=mx+'x'+my;if(geoCache[k])return geoCache[k];
@@ -712,7 +722,7 @@ function makeGLR(canvas){
     for(var j=0;j<=my;j++)for(var i=0;i<=mx;i++){pos[p++]=i/mx;pos[p++]=j/my;pos[p++]=0}
     for(var j2=0;j2<my;j2++)for(var i2=0;i2<mx;i2++){var a=j2*(mx+1)+i2,b=a+1,c=a+mx+1,d=c+1;idx[q++]=a;idx[q++]=b;idx[q++]=d;idx[q++]=a;idx[q++]=d;idx[q++]=c}
     var g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setIndex(new THREE.BufferAttribute(idx,1));
-    var keys=Object.keys(geoCache);if(keys.length>24){geoCache[keys[0]].dispose();delete geoCache[keys[0]]}
+    var keys=Object.keys(geoCache);if(keys.length>14){geoCache[keys[0]].dispose();delete geoCache[keys[0]]}
     return geoCache[k]=g;
   }
   function causticMat(){
@@ -736,20 +746,21 @@ function makeGLR(canvas){
   o.makeTargets=function(w,h){return {w:w,h:h,acc:makeRT(w,h,true),h1:makeRT(Math.max(1,w>>2),Math.max(1,h>>2),true),h2:makeRT(Math.max(1,w>>2),Math.max(1,h>>2),true),
     dispose:function(){this.acc.dispose();this.h1.dispose();this.h2.dispose()}}};
   var rotM=new THREE.Matrix3();
-  /* render plates (photon meshes) into T.acc; view = floor rect {x,y,w,h} */
-  o.caustic=function(plates,view,T,opts){
-    opts=opts||{};
-    var R=opts.R||OPT.R,sun=opts.sun||OPT.sun,fk=opts.fk||P.floorK,dens=(opts.dens||1)*P.rays,disp=opts.disp!==undefined?opts.disp:P.disp;
+  /* pls[0] is the main plate (ray budget as E13); further plates are specimen tiles, all cast into one light buffer */
+  o.caustic=function(pls,view,T,opts){
+    var R=OPT.R,sun=OPT.sun,fk=P.floorK,dens=opts.dens*P.rays,rays=0,mi=0;
     rotM.set(R[0],R[1],R[2],R[3],R[4],R[5],R[6],R[7],R[8]);
     while(cScene.children.length)cScene.remove(cScene.children[0]);
-    var mi=0,rays=0;
-    plates.forEach(function(pl){
+    pls.forEach(function(pl,pi){
       if(!pl.tex)o.uploadPlate(pl);
-      var rc=pl.rect,cw=rc.W/pl.nx,pxPerCell=cw*(opts.pxScale||1);
-      var k=Math.max(1,Math.min(5,pxPerCell/1.6))*dens,mx=Math.max(8,Math.min(1400,Math.round(pl.nx*k))),my=Math.max(8,Math.round(mx*pl.ny/pl.nx));
-      var budget=opts.budget||(MOBILE?160000:420000);if(mx*my>budget*plates.length/Math.max(1,plates.length)&&plates.length===1){var s=Math.sqrt(budget/(mx*my));mx=Math.round(mx*s);my=Math.round(my*s)}
-      var g=photonGeo(mx,my);rays+=(mx+1)*(my+1);
-      var dn=disp?dispersion(pl)*1.0:0,passes=disp?[[1,0,0,-dn],[0,1,0,0],[0,0,1,dn]]:[[1,1,1,0]];
+      var rc=pl.rect,cw=rc.W/pl.nx,mx,my;
+      if(pi===0){
+        var k=Math.max(1,Math.min(5,cw*(opts.pxScale||1)/1.6))*dens;mx=Math.max(8,Math.min(1400,Math.round(pl.nx*k)));my=Math.max(8,Math.round(mx*pl.ny/pl.nx));
+        var budget=opts.budget;if(mx*my>budget){var s=Math.sqrt(budget/(mx*my));mx=Math.round(mx*s);my=Math.round(my*s)}
+      }else{mx=my=opts.tileMx}
+      var g=photonGeo(mx,my);
+      var disp=P.disp&&(pi===0||opts.tileDisp),dn=disp?dispersion(pl)*opts.dispK:0,passes=disp?[[1,0,0,-dn],[0,1,0,0],[0,0,1,dn]]:[[1,1,1,0]];
+      rays+=(mx+1)*(my+1)*passes.length;
       passes.forEach(function(ps){
         var m=meshAt(mi++);m.geometry=g;var u=m.material.uniforms;
         u.uTex.value=pl.tex;u.uTexN.value.set(pl.NX,pl.NY);u.uRect.value.set(rc.cx,rc.cy,rc.W,rc.H);
@@ -761,7 +772,6 @@ function makeGLR(canvas){
     });
     r.setRenderTarget(T.acc);r.setClearColor(0x000000,0);r.clear(true,false,false);
     r.render(cScene,cam);
-    // halo: two blur iterations at quarter resolution
     quad.material=blurM;
     var hw=T.h1.width,hh=T.h1.height;
     blurM.uniforms.uS.value=T.acc.texture;blurM.uniforms.uD.value.set(1.5/hw,0);r.setRenderTarget(T.h1);r.render(qScene,cam);
@@ -770,22 +780,12 @@ function makeGLR(canvas){
     blurM.uniforms.uS.value=T.h1.texture;blurM.uniforms.uD.value.set(0,3/hh);r.setRenderTarget(T.h2);r.render(qScene,cam);
     return rays;
   };
-  o.composite=function(T,out,pal,grainS){
-    var u=compM.uniforms;u.uA.value=T.acc.texture;u.uH.value=T.h2.texture;
-    u.uG.value.set(pal.g);u.uTint.value.set(pal.tint);u.uCore.value.set(pal.core);u.uPaper.value=pal.theme==='paper'?1:0;u.uHalo.value=pal.halo;u.uGrainS.value=grainS||1;
-    u.uG.value.convertSRGBToLinear&&0;
-    quad.material=compM;r.setRenderTarget(out||null);r.render(qScene,cam);
-  };
-  o.readRT=function(rt){
-    var w=rt.width,h=rt.height,buf=new Uint8Array(w*h*4);r.readRenderTargetPixels(rt,0,0,w,h,buf);
-    var c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d'),im=x.createImageData(w,h);
-    for(var y=0;y<h;y++)im.data.set(buf.subarray((h-1-y)*w*4,(h-y)*w*4),y*w*4);x.putImageData(im,0,0);return c;
-  };
-  o.outRT=function(w,h){return new THREE.WebGLRenderTarget(w,h,{type:THREE.UnsignedByteType,format:THREE.RGBAFormat,depthBuffer:false,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter})};
-  o.toCanvas=function(plates,view,w,h,opts){
-    var T=o.makeTargets(w,h),out=o.outRT(w,h);
-    o.caustic(plates,view,T,opts);o.composite(T,out,PALS[P.pal],w/1200);
-    var c=o.readRT(out);T.dispose();out.dispose();r.setRenderTarget(null);return c;
+  o.clearAcc=function(T){r.setClearColor(0x000000,0);[T.acc,T.h1,T.h2].forEach(function(t){r.setRenderTarget(t);r.clear(true,false,false)});r.setRenderTarget(null)};
+  o.composite=function(T,grainS,alpha){
+    var u=compM.uniforms;u.uAlpha.value=alpha;u.uLit.value=1;u.uPane.value=PANE;u.uPaneLo.value=PANE_LO;u.uA.value=T.acc.texture;u.uH.value=T.h2.texture;
+    u.uG.value.fromArray(hexRGB(PAL.g));u.uTint.value.fromArray(hexRGB(PAL.tint));u.uCore.value.fromArray(hexRGB(PAL.core)); /* E13's hex values as-is (no linear conversion), so the floor matches the page */
+    u.uPaper.value=PAL.theme==='paper'?1:0;u.uHalo.value=PAL.halo*(PAL.theme==='paper'?1:1.6);u.uGrainS.value=grainS||1;
+    quad.material=compM;r.setRenderTarget(null);r.render(qScene,cam);
   };
   return o;
 }
@@ -793,655 +793,994 @@ function makeGLR(canvas){
 /* ---------------------------------------------------------------
    7. CPU FALLBACK — photon splatting with the same optics
 ---------------------------------------------------------------- */
-function cpuCaustic(plates,view,w,h,opts){
-  opts=opts||{};var R=opts.R||OPT.R,sun=opts.sun||OPT.sun,fk=opts.fk||P.floorK;
-  var img=new Float32Array(w*h),sx=w/view.w,sy=h/view.h,rays=0;
-  plates.forEach(function(pl){
-    var rc=pl.rect,k=Math.max(1,Math.min(3,rc.W*sx/pl.nx/1.5))*(opts.dens||1),mx=Math.round(pl.nx*k),my=Math.round(pl.ny*k);
-    var cap=opts.cap||140000;if(mx*my>cap){var s=Math.sqrt(cap/(mx*my));mx=Math.round(mx*s);my=Math.round(my*s)}
-    var wgt=(rc.W/mx)*(rc.H/my)*sx*sy;rays+=mx*my;
-    for(var j=0;j<my;j++)for(var i=0;i<mx;i++){
-      var tr=trace(pl,(i+.5)/mx,(j+.5)/my,0,R,sun,fk);if(!tr)continue;
-      var x=(tr.F[0]-view.x)*sx-.5,y=(tr.F[1]-view.y)*sy-.5,xi=Math.floor(x),yi=Math.floor(y);
-      if(xi<0||yi<0||xi>=w-1||yi>=h-1)continue;var fx=x-xi,fy=y-yi,e=wgt*tr.flux,o=yi*w+xi;
-      img[o]+=e*(1-fx)*(1-fy);img[o+1]+=e*fx*(1-fy);img[o+w]+=e*(1-fx)*fy;img[o+w+1]+=e*fx*fy;
-    }
-  });
-  // light blur (box) for the photon noise, and a wide one for the halo
+function cpuLight(pl,view,w,h,cap,R,sun,kk){
+  var img=new Float32Array(w*h),sx=w/view.w,sy=h/view.h;
+  var rc=pl.rect,k=kk||Math.max(1,Math.min(3,rc.W*sx/pl.nx/1.5)),mx=Math.round(pl.nx*k),my=Math.round(pl.ny*k);
+  if(mx*my>cap){var s=Math.sqrt(cap/(mx*my));mx=Math.round(mx*s);my=Math.round(my*s)}
+  var wgt=(rc.W/mx)*(rc.H/my)*sx*sy;
+  for(var j=0;j<my;j++)for(var i=0;i<mx;i++){
+    var tr=trace(pl,(i+.5)/mx,(j+.5)/my,0,R||OPT.R,sun||OPT.sun,P.floorK);if(!tr)continue;
+    var x=(tr.F[0]-view.x)*sx-.5,y=(tr.F[1]-view.y)*sy-.5,xi=Math.floor(x),yi=Math.floor(y);
+    if(xi<0||yi<0||xi>=w-1||yi>=h-1)continue;var fx=x-xi,fy=y-yi,e=wgt*tr.flux,o=yi*w+xi;
+    img[o]+=e*(1-fx)*(1-fy);img[o+1]+=e*fx*(1-fy);img[o+w]+=e*(1-fx)*fy;img[o+w+1]+=e*fx*fy;
+  }
   function box(src,r){var a=new Float32Array(w*h),b=new Float32Array(w*h),i,j,s,n=2*r+1;
     for(j=0;j<h;j++){s=0;for(i=-r;i<=r;i++)s+=src[j*w+Math.max(0,Math.min(w-1,i))];for(i=0;i<w;i++){a[j*w+i]=s/n;s+=src[j*w+Math.min(w-1,i+r+1)]-src[j*w+Math.max(0,i-r)]}}
     for(i=0;i<w;i++){s=0;for(j=-r;j<=r;j++)s+=a[Math.max(0,Math.min(h-1,j))*w+i];for(j=0;j<h;j++){b[j*w+i]=s/n;s+=a[Math.min(h-1,j+r+1)*w+i]-a[Math.max(0,j-r)*w+i]}}return b}
-  var I=box(img,1),HL=box(box(img,Math.max(2,Math.round(w/90))),Math.max(2,Math.round(w/90)));
-  var pal=PALS[P.pal],G=hexRGB(pal.g),Tn=hexRGB(pal.tint),C=hexRGB(pal.core),paper=pal.theme==='paper';
-  var c=document.createElement('canvas');c.width=w;c.height=h;var x2=c.getContext('2d'),im=x2.createImageData(w,h),d=im.data;
+  var hr=Math.max(2,Math.round(w/90));
+  return {w:w,h:h,I:box(img,1),HL:box(box(img,hr),hr),rays:mx*my};
+}
+/* colour a light field with the current ground (same mapping as E13's CPU path) */
+function paneK(x,lo,m){var t=Math.max(0,Math.min(1,(x-lo)/(lo*m-lo)));return PANE+(1-PANE)*t*t*(3-2*t)}
+function cpuColour(Lf,out){
+  var w=Lf.w,h=Lf.h,I=Lf.I,HL=Lf.HL,paper=PAL.theme==='paper';
+  var G=hexRGB(PAL.g),Tn=hexRGB(PAL.tint),C=hexRGB(PAL.core);
+  var c=out||document.createElement('canvas');if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;
+  var x2=c.getContext('2d'),im=x2.createImageData(w,h),d=im.data;
   function ss(a,b,x){x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x)}
   for(var p=0;p<w*h;p++){
-    var L=1-Math.exp(-I[p]*.36),hl=1-Math.exp(-HL[p]*.29),col=[0,0,0];
+    var ip=I[p]*paneK(I[p],PANE_LO,4.5),hp=HL[p]*paneK(HL[p],PANE_LO*.7,5);
+    var L=1-Math.exp(-ip*.36),hl=1-Math.exp(-hp*.29);
     for(var q=0;q<3;q++){var v;
-      if(!paper){v=G[q]+Tn[q]*hl*pal.halo*.45;v+= (Tn[q]-v)*ss(0,.7,L);v+=(C[q]-v)*ss(.5,.97,L)}
-      else{v=G[q]+(Tn[q]-G[q])*Math.min(1,L*1.15+hl*pal.halo*.5);v+=(C[q]-v)*ss(.62,1,L)}
-      col[q]=v}
-    d[p*4]=Math.min(255,col[0]*255);d[p*4+1]=Math.min(255,col[1]*255);d[p*4+2]=Math.min(255,col[2]*255);d[p*4+3]=255;
+      if(!paper){v=G[q]+Tn[q]*hl*PAL.halo*.7;v+=(Tn[q]-v)*ss(0,.7,L);v+=(C[q]-v)*ss(.5,.97,L)}
+      else{v=G[q]+(Tn[q]-G[q])*Math.min(1,L*1.15+hl*PAL.halo*.5);v+=(C[q]-v)*ss(.62,1,L)}
+      d[p*4+q]=Math.max(0,Math.min(255,v*255))}
+    d[p*4+3]=255;
   }
-  x2.putImageData(im,0,0);c.rays=rays;return c;
+  x2.putImageData(im,0,0);c.rays=Lf.rays;return c;
 }
+function cpuCaustic(pl,view,w,h,cap){return cpuColour(cpuLight(pl,view,w,h,cap))}
 
 /* ---------------------------------------------------------------
-   8. SCENE STATE — tester plate, glyph tiles
+   8. SCENE
 ---------------------------------------------------------------- */
-var view='tester',sel='A',dirty=true,progDirty=true,specDirty=true;
-var TESTER=null,TL=null,TESTERS={};
-var TILES=[{},{},{},{}];
-function tilePlate(w,ch){
-  var T=TILES[w];var k='g'+w+'_'+ch.charCodeAt(0)+(FONT_OK?'F':'f');
-  if(T[ch]&&T[ch].key===k)return T[ch];
-  var r=tileTarget(ch,WEIGHTS[w].fw,TILE);var pl=new Plate(k,TILE,TILE,r.t,WEIGHTS[w].n,r.cap);pl.ch=ch;pl.w=w;T[ch]=pl;return pl;
-}
-function queueTiles(){
-  // priority: selected glyph in all glasses, then the set in the current glass, then the rest
-  for(var w=0;w<4;w++)enqueue(tilePlate(w,sel),'G',w===P.w?90:80,TILE_IT);
-  for(var g=0;g<GEO.length;g++)enqueue(tilePlate(P.w,GEO[g]),'G',75,TILE_IT);
-  for(var i=0;i<CHARSET.length;i++)enqueue(tilePlate(P.w,CHARSET[i]),'G',60-i*.1,TILE_IT);
-}
+var TESTER=null,TL=null,TESTERS={},txt=$('#txt'),VIEW='main',GSEL='A';
 function updateTester(){
-  var txt=$('#txt').value.toUpperCase().replace(/[^\x20-\x7E]/g,'').trim()||'CAUSTIC';
-  var L=layoutTester(txt,WEIGHTS[P.w].fw);
-  var prevKey=TESTER?TESTER.key:null,key='t'+P.w+'|'+L.key;
+  if(VIEW==='glyphs'){showGlyph(GSEL);return}
+  if(VIEW==='draw'){showDraw();return}
+  var s=txt.value.replace(/[^\x20-\x7E\u00A0-\u017F\u2010-\u20AC]/g,'').trim()||'CAUSTIC TYPE';
+  var L=layoutTester(s,WT),key='t'+P.w+'|'+L.key;
   if(TESTERS[key]){TESTER=TESTERS[key];TL=L}
   else{
     var t=testerTarget(L),pl=new Plate(key,L.nx,L.ny,t,WEIGHTS[P.w].n,L.cap/(L.rect.w/L.nx));
-    // a wide plate must throw light across several letters: lift the floor so slopes stay gentle
     pl.hpC=Math.max(pl.hpC,TESTER_HP*Math.max(L.nx,L.ny));
     TESTERS[key]=pl;TESTER=pl;TL=L;
-    if(!JOBS[key]){cancelLaneT();enqueue(pl,'T',100,TESTER_IT,3)}
   }
+  if(!TESTER.meta.done)solve(TESTER);
   TESTER.place(L.rect.x+L.rect.w/2,L.rect.y+L.rect.h/2,L.rect.w);
-  if(prevKey!==TESTER.key){dirty=true}
-  progDirty=true;
 }
-var GL_={cells:[],weights:[],geo:[]};
 
-/* ---------------------------------------------------------------
-   9. VIEW RENDERING
----------------------------------------------------------------- */
-var glc=$('#gl');
 GLR=makeGLR(glc);
-if(!GLR){glc.style.display='none';c2d.style.display='block';ctx2=c2d.getContext('2d');$('#fallbackNote').style.display='block'}
-var TGT=null,PR=1,lastRays=0;
+if(!GLR){glc.style.display='none';c2d.style.display='block';ctx2=c2d.getContext('2d')}
+var TGT=null,PR=1,Q=1,frameMs=16,lastRays=0,rendered=0;
 function ensureTargets(){
   if(!GLR)return;var w=Math.round(W*PR),h=Math.round(H*PR);
   if(!TGT||TGT.w!==w||TGT.h!==h){if(TGT)TGT.dispose();TGT=GLR.makeTargets(w,h)}
 }
-function flatPlates(){return view==='tester'?(TESTER?[TESTER]:[]):glyphPlates()}
-var cpuBusy=0;
-function renderFlat(draft){
-  var plates=flatPlates(),vw={x:0,y:0,w:W,h:H};
+function render(){
+  if(VIEW==='silk'){rendered++;return} // page 1 draws itself on its own canvas (section 10d)
+  if(!TESTER&&!(VIEW==='glyphs'&&GOPEN&&GLR)){ // nothing to cast (an empty drawing pad): show the bare floor
+    if(GLR){ensureTargets();GLR.clearAcc(TGT);GLR.composite(TGT,1/PR,1)}else{ctx2.setTransform(1,0,0,1,0,0);ctx2.fillStyle=PAL.g;ctx2.fillRect(0,0,c2d.width,c2d.height)}
+    rendered++;return}
+  var vw={x:OPT.ox,y:OPT.oy,w:W,h:H};
   if(GLR){
-    ensureTargets();GLR.r.setPixelRatio(1);GLR.r.setSize(Math.round(W*PR),Math.round(H*PR),false);
-    lastRays=GLR.caustic(plates,vw,TGT,{pxScale:PR,dens:draft?.6:1,disp:true});
-    GLR.composite(TGT,null,PALS[P.pal],1/PR);
+    ensureTargets();
+    var pls=[TESTER];if(VIEW==='glyphs')pls=GOPEN?liveTiles(vw):[TESTER];if(!pls.length){GLR.clearAcc(TGT);GLR.composite(TGT,1/PR,1);rendered++;return}
+    lastRays=GLR.caustic(pls,vw,TGT,{pxScale:PR,dens:Q,budget:(MOBILE?200000:520000)*Q*(pls.length>1?.6:1),dispK:1.35,tileDisp:Q>.6,tileMx:Math.max(16,Math.round(Math.min(TILE_MX,Math.sqrt((MOBILE?90000:240000)*Q/(Q>.6?3:1)/Math.max(1,pls.length-1)))/4)*4)});
+    GLR.composite(TGT,1/PR,TRAIL);
   }else{
-    var sc=draft?.5:Math.min(1,DPR),w=Math.round(W*sc),h=Math.round(H*sc);
-    var c=cpuCaustic(plates,vw,w,h,{cap:draft?40000:160000});lastRays=c.rays;
+    var sc=.5,w=Math.round(W*sc),h=Math.round(H*sc);
+    var c=cpuCaustic(TESTER,vw,w,h,50000);lastRays=c.rays;
     ctx2.setTransform(1,0,0,1,0,0);ctx2.imageSmoothingEnabled=true;ctx2.drawImage(c,0,0,c2d.width,c2d.height);
   }
-}
-
-/* overlay: sun marker, glass corners, tilt level, labels */
-function sunScreen(){
-  var cx=W/2,cy=H/2;if(view==='tester'&&TESTER){cx=TESTER.rect.cx;cy=TESTER.rect.cy}
-  var Rr=Math.min(W,H)*.32;return {x:cx+Math.tan(OPT.sx)*Rr*1.6,y:cy+Math.tan(OPT.sy)*Rr*1.6,cx:cx,cy:cy,R:Rr};
-}
-function ink(a){var paper=PALS[P.pal].theme==='paper';return (paper?'rgba(21,42,74,':'rgba(228,244,239,')+a+')'}
-function drawOverlay(){
-  var c=octx;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,ov.width,ov.height);c.setTransform(DPR,0,0,DPR,0,0);
-  var mono=css('--mono')||'monospace';c.font='10px '+mono;c.textBaseline='alphabetic';
-  if(view==='tester'&&TESTER){
-    var rc=TESTER.rect;
-    // glass footprint corner marks (where the plate edge stands above the floor)
-    c.strokeStyle=ink(.38);c.lineWidth=1;var L=10;
-    [[rc.cx-rc.W/2,rc.cy-rc.H/2,1,1],[rc.cx+rc.W/2,rc.cy-rc.H/2,-1,1],[rc.cx-rc.W/2,rc.cy+rc.H/2,1,-1],[rc.cx+rc.W/2,rc.cy+rc.H/2,-1,-1]].forEach(function(p){
-      c.beginPath();c.moveTo(p[0]+p[2]*L,p[1]);c.lineTo(p[0],p[1]);c.lineTo(p[0],p[1]+p[3]*L);c.stroke()});
-    c.fillStyle=ink(.45);c.textAlign='left';
-    
-    if(P.target){c.globalAlpha=PALS[P.pal].theme==='paper'?.7:.55;c.imageSmoothingEnabled=true;c.drawImage(TESTER.makeOutline(),rc.cx-rc.W/2,rc.cy-rc.H/2,rc.W,rc.H);c.globalAlpha=1}
-  }
-  if(view==='glyphs'){
-    GL_.weights.forEach(function(g){var pl=tilePlate(g.w,sel);
-      if(g.w===P.w){var con=plateCons(pl),s=g.s/pl.nx,r=Math.max(2.2,g.s/90);c.strokeStyle=ink(.6);c.lineWidth=1;c.beginPath();
-        con.forEach(function(l){l.forEach(function(p,i){var X=g.x+(p[0]+.5)*s,Y=g.y+(p[1]+.5)*s;i?c.lineTo(X,Y):c.moveTo(X,Y)});c.closePath()});c.stroke();
-        c.fillStyle=PALS[P.pal].g;con.forEach(function(l){l.forEach(function(p){c.beginPath();c.arc(g.x+(p[0]+.5)*s,g.y+(p[1]+.5)*s,r,0,6.283);c.fill();c.stroke()})})}
-    });
-    GL_.geo.forEach(function(g){if(g.ch===sel){c.strokeStyle=ink(.9);c.lineWidth=1;c.strokeRect(g.x+.5,g.y+.5,g.s-1,g.s-1)}});
-    GL_.cells.forEach(function(g,i){
-      if(g.ch===sel||i===hoverCell){c.strokeStyle=ink(g.ch===sel?.9:.4);c.lineWidth=1;var L2=8,x=g.x+1,y=g.y+1,s=g.s-2;c.beginPath();
-        c.moveTo(x,y+L2);c.lineTo(x,y);c.lineTo(x+L2,y);c.moveTo(x+s-L2,y);c.lineTo(x+s,y);c.lineTo(x+s,y+L2);
-        c.moveTo(x,y+s-L2);c.lineTo(x,y+s);c.lineTo(x+L2,y+s);c.moveTo(x+s-L2,y+s);c.lineTo(x+s,y+s);c.lineTo(x+s,y+s-L2);c.stroke()}});
-  }
-  if(EMBED)return;
-  if(view==='tester'||view==='glyphs'){
-    // sun marker
-    var s=sunScreen(),act=OPT.grab==='sun';
-    c.strokeStyle=ink(act?.95:.7);c.lineWidth=1;c.beginPath();c.arc(s.x,s.y,7,0,6.283);c.stroke();
-    c.beginPath();for(var a=0;a<8;a++){var an=a*Math.PI/4;c.moveTo(s.x+Math.cos(an)*10,s.y+Math.sin(an)*10);c.lineTo(s.x+Math.cos(an)*14,s.y+Math.sin(an)*14)}c.stroke();
-    c.fillStyle=ink(act?.9:.55);c.beginPath();c.arc(s.x,s.y,2,0,6.283);c.fill();
-    
-    if(Math.abs(OPT.sx)+Math.abs(OPT.sy)>.002){c.setLineDash([2,3]);c.strokeStyle=ink(.3);c.beginPath();c.moveTo(s.cx,s.cy);c.lineTo(s.x,s.y);c.stroke();c.setLineDash([])}
-    return;
-    // tilt level (bubble) bottom-left
-    var bx=MOBILE?34:44,by=H-(MOBILE?40:48),br=MOBILE?18:22;
-    c.strokeStyle=ink(.35);c.beginPath();c.arc(bx,by,br,0,6.283);c.stroke();c.beginPath();c.moveTo(bx-br-4,by);c.lineTo(bx+br+4,by);c.moveTo(bx,by-br-4);c.lineTo(bx,by+br+4);c.stroke();
-    var tl=Math.min(1,Math.hypot(OPT.tx,OPT.ty)/.5),ang=Math.atan2(OPT.tx,OPT.ty);
-    c.fillStyle=ink(.85);c.beginPath();c.arc(bx+Math.sin(ang)*tl*br*(OPT.ty<0?1:1)*Math.sign(1),by+Math.cos(ang)*tl*br,3,0,6.283);c.fill();
-    c.fillStyle=ink(.5);c.fillText('LEVEL',bx+br+10,by-2);c.fillText(fmt(Math.hypot(OPT.tx,OPT.ty)*57.2958,1)+'°',bx+br+10,by+9);
-  }
-}
-function sunElev(){var s=OPT.sun;return Math.asin(Math.min(1,-s[2]))*57.2958}
-
-/* ---------------------------------------------------------------
-   10. SPECIMEN — the glass in 3D above its own light
----------------------------------------------------------------- */
-var SP={ok:false,yaw:-.62,pitch:.42,dist:4.1,auto:true,scene:null,cam:null,grp:null,pivot:null,floorT:null,out:null,pl:null,built:null,lead:[]};
-var SPW=12; // glass tile width in cm
-function specPlate(){var pl=tilePlate(P.w,sel);pl.place(0,0,SPW);return pl}
-function specGeom(pl){
-  var cw=SPW/pl.nx,Hp=pl.hpC*cw*P.floorK,T=pl.tC*cw,relief=pl.meta.relief*SPW/(pl.NX-1);
-  var ex=relief>0?Math.max(1,Math.min(24,Math.round(SPW*.05/relief))):1;
-  return {cw:cw,Hp:Hp,T:T,relief:relief,ex:ex};
-}
-function initSpec(){
-  if(SP.scene||!GLR)return;
-  var THREE_=THREE;SP.scene=new THREE_.Scene();SP.cam=new THREE_.PerspectiveCamera(30,1,.1,500);
-  SP.out=GLR.outRT(1024,1024);SP.floorT=GLR.makeTargets(1024,1024);
-  SP.ok=true;
-}
-var GLASS_VS=['varying vec3 vW;varying vec3 vNw;varying float vH;attribute float hgt;',
-'void main(){vH=hgt;vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vNw=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*w;}'].join('\n');
-var GLASS_FS=['uniform vec3 uTint;uniform vec3 uCore;uniform float uK;uniform float uPaper;varying vec3 vW;varying vec3 vNw;varying float vH;',
-'void main(){vec3 V=normalize(cameraPosition-vW);vec3 N=normalize(vNw);if(!gl_FrontFacing)N=-N;float fr=pow(1.-abs(dot(N,V)),2.2);',
-' float k=vH*uK;float w=fwidth(k);float ln=1.-smoothstep(0.,w*1.2,abs(fract(k-.5)-.5));',
-' float spec=pow(max(0.,dot(reflect(-V,N),normalize(vec3(.2,1.,.1)))),40.);',
-' vec3 c=mix(uTint,uCore,.35);float a=.07+.45*fr+.5*ln+.6*spec;',
-' gl_FragColor=vec4(c*(.4+.8*fr)+uCore*spec+uTint*ln*.6,min(.92,a));}'].join('\n');
-function buildSpec(){
-  var pl=specPlate();SP.pl=pl;labels.innerHTML='';SP.lead=[];
-  var g=specGeom(pl);SP.g=g;
-  var pal=PALS[P.pal],paper=pal.theme==='paper';
-  if(SP.ok){
-    if(SP.grp){SP.scene.remove(SP.grp);SP.grp.traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material&&o.material!==SP.floorMat)o.material.dispose()})}
-    var grp=SP.grp=new THREE.Group();SP.scene.add(grp);
-    SP.scene.background=new THREE.Color(pal.bg);
-    // floor carrying the computed light
-    var FS=SPW*2.4;SP.FS=FS;
-    var fg=new THREE.BufferGeometry();
-    fg.setAttribute('position',new THREE.BufferAttribute(new Float32Array([-FS/2,0,-FS/2, FS/2,0,-FS/2, FS/2,0,FS/2, -FS/2,0,FS/2]),3));
-    fg.setAttribute('uv',new THREE.BufferAttribute(new Float32Array([0,1, 1,1, 1,0, 0,0]),2));fg.setIndex([0,2,1,0,3,2]);
-    var fm=new THREE.MeshBasicMaterial({map:SP.out.texture,side:THREE.DoubleSide});grp.add(new THREE.Mesh(fg,fm));
-    // glass: sculpted top + skirt + flat base, in a pivot that tilts about the plate centre
-    var piv=SP.pivot=new THREE.Object3D();piv.matrixAutoUpdate=false;grp.add(piv);
-    var NX=pl.NX,NY=pl.NY,step=Math.max(1,Math.ceil(Math.max(NX,NY)/110)),gx=Math.floor((NX-1)/step)+1,gy=Math.floor((NY-1)/step)+1;
-    var pos=[],hg=[],idx=[],hs=SPW/(NX-1);
-    function vtx(x,y,z,h){pos.push(x,z,y);hg.push(h);return pos.length/3-1}
-    var top=[];for(var j=0;j<gy;j++)for(var i=0;i<gx;i++){var I=Math.min(NX-1,i*step),J=Math.min(NY-1,j*step),hh=pl.field[(J*NX+I)*4+2];
-      top.push(vtx((I/(NX-1)-.5)*SPW,(J/(NY-1)-.5)*pl.rect.H,g.T+hh*hs*g.ex,hh*hs))}
-    for(var j2=0;j2<gy-1;j2++)for(var i2=0;i2<gx-1;i2++){var a=top[j2*gx+i2],b=a+1,c=a+gx,d=c+1;idx.push(a,c,b,b,c,d)}
-    // skirt
-    function edge(list){for(var e=0;e<list.length-1;e++){var p0=list[e],p1=list[e+1];
-      var b0=vtx(pos[p0*3],pos[p0*3+2],0,0),b1=vtx(pos[p1*3],pos[p1*3+2],0,0);idx.push(p0,b0,p1,p1,b0,b1)}}
-    var e1=[],e2=[],e3=[],e4=[];for(var i3=0;i3<gx;i3++){e1.push(top[i3]);e3.push(top[(gy-1)*gx+i3])}for(var j3=0;j3<gy;j3++){e2.push(top[j3*gx+gx-1]);e4.push(top[j3*gx])}
-    edge(e1);edge(e2);edge(e3.reverse());edge(e4.reverse());
-    var hw=SPW/2,hh2=pl.rect.H/2,base=[vtx(-hw,-hh2,0,0),vtx(hw,-hh2,0,0),vtx(hw,hh2,0,0),vtx(-hw,hh2,0,0)];idx.push(base[0],base[1],base[2],base[0],base[2],base[3]);
-    var gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));gg.setAttribute('hgt',new THREE.Float32BufferAttribute(hg,1));gg.setIndex(idx);gg.computeVertexNormals();
-    var gm=new THREE.ShaderMaterial({vertexShader:GLASS_VS,fragmentShader:GLASS_FS,transparent:true,depthWrite:false,side:THREE.DoubleSide,
-      uniforms:{uTint:{value:new THREE.Color(paper?'#2a5d9c':pal.tint)},uCore:{value:new THREE.Color(paper?'#0c2550':pal.core)},uK:{value:g.relief>0?14/g.relief:1},uPaper:{value:paper?1:0}}});
-    var gmesh=new THREE.Mesh(gg,gm);gmesh.position.y=-0;piv.add(gmesh);
-    // rim lines
-    var rim=[];function rimLine(list){for(var e=0;e<list.length-1;e++){var p0=list[e],p1=list[e+1];rim.push(pos[p0*3],pos[p0*3+1],pos[p0*3+2],pos[p1*3],pos[p1*3+1],pos[p1*3+2])}}
-    rimLine(e1);rimLine(e2);rimLine(e3);rimLine(e4);
-    [[-hw,-hh2],[hw,-hh2],[hw,hh2],[-hw,hh2]].forEach(function(p,i,A){var q=A[(i+1)%4];rim.push(p[0],0,p[1],q[0],0,q[1]);rim.push(p[0],0,p[1],p[0],g.T+(i<2?0:0),p[1])});
-    var rg=new THREE.BufferGeometry();rg.setAttribute('position',new THREE.Float32BufferAttribute(rim,3));
-    piv.add(new THREE.LineSegments(rg,new THREE.LineBasicMaterial({color:paper?0x152a4a:0xe4f4ef,transparent:true,opacity:.55})));
-    // rays + technical lines (rebuilt each frame in updateSpecRays)
-    SP.rayGeo=new THREE.BufferGeometry();SP.rayGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6*400),3));
-    SP.rays=new THREE.LineSegments(SP.rayGeo,new THREE.LineBasicMaterial({color:new THREE.Color(paper?'#2a5d9c':pal.tint),transparent:true,opacity:paper?.55:.42,depthWrite:false}));
-    SP.rays.frustumCulled=false;grp.add(SP.rays);
-    SP.techGeo=new THREE.BufferGeometry();SP.techGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6*200),3));
-    SP.tech=new THREE.LineSegments(SP.techGeo,new THREE.LineBasicMaterial({color:paper?0x152a4a:0xe4f4ef,transparent:true,opacity:.45}));SP.tech.frustumCulled=false;grp.add(SP.tech);
-  }
-  // ray sample points: glass points whose light lands inside the letter (at rest)
-  var pts=[],R0=[1,0,0,0,1,0,0,0,1];
-  for(var y=.06;y<.95;y+=.075)for(var x=.06;x<.95;x+=.075){var tr=trace(pl,x,y,0,R0,[0,0,-1],1);if(!tr)continue;
-    var fu=(tr.F[0]-pl.rect.cx)/pl.rect.W+.5,fv=(tr.F[1]-pl.rect.cy)/pl.rect.H+.5,ci=Math.floor(fu*pl.nx),cj=Math.floor(fv*pl.ny);
-    if(ci>=0&&cj>=0&&ci<pl.nx&&cj<pl.ny&&pl.t[cj*pl.nx+ci]>.5)pts.push([x,y])}
-  SP.pts=pts.slice(0,90);
-  // labels
-  var W_=WEIGHTS[P.w];
-  function lead(txt,sub,side){var e=document.createElement('div');e.className='lb';e.innerHTML='<b>'+txt+'</b><br>'+sub;labels.appendChild(e);var o={el:e,side:side,p:[0,0,0]};SP.lead.push(o);return o}
-  SP.L={ior:lead('n '+W_.n.toFixed(3),'V '+W_.V+' · Δn '+((W_.n-1)/W_.V).toFixed(4),-1),
-    relief:lead('relief '+fmt(g.relief*10,2)+' mm','×'+g.ex,1),
-    focal:lead('f '+fmt(g.Hp,1)+' cm',P.floorK.toFixed(2)+' f₀',-1),
-    rays:lead('rays 0','3 spectral bands',1),
-    thick:lead('base '+fmt(g.T*10,1)+' mm','',1)};
-  var cap=document.createElement('div');cap.className='lb';cap.style.left='18px';cap.style.bottom='14px';
-  cap.innerHTML='<b>'+(sel==='"'?'&quot;':sel.replace('&','&amp;'))+' · U+'+sel.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0')+'</b><br>glass '+fmt(SPW,0)+' × '+fmt(SPW,0)+' cm';
-  labels.appendChild(cap);
-  var cap2=document.createElement('div');cap2.className='lb';cap2.style.right='18px';cap2.style.top='14px';cap2.style.textAlign='right';
-  cap2.innerHTML='';labels.appendChild(cap2);
-  SP.built=pl.key+'|'+pl.ver+'|'+P.pal+'|'+P.floorK+'|'+P.w;
-  specDirty=false;
-}
-function m3(x,y,z){return [x,z,y]} // floor coords -> three (y up)
-function renderSpec(){
-  var pl=SP.pl;if(!pl)return;var g=SP.g=specGeom(pl);
-  var R=OPT.R;
-  if(SP.ok){
-    // light on the floor, from the current tilt and sun
-    var FS=SP.FS;GLR.r.setPixelRatio(1);
-    GLR.caustic([pl],{x:-FS/2,y:-FS/2,w:FS,h:FS},SP.floorT,{pxScale:1024/FS,dens:1.4,budget:300000});
-    GLR.composite(SP.floorT,SP.out,PALS[P.pal],.85);
-    // tilt pivot (floor frame R mapped into y-up frame)
-    var M=new THREE.Matrix4();
-    M.set(R[0],R[2],R[1],0, R[6],R[8],R[7],g.Hp, R[3],R[5],R[4],0, 0,0,0,1);
-    SP.pivot.matrix.copy(M);SP.pivot.matrixWorldNeedsUpdate=true;
-    // rays
-    var arr=SP.rayGeo.attributes.position.array,k=0;
-    SP.pts.forEach(function(p){var tr=trace(pl,p[0],p[1],0,R,OPT.sun,P.floorK);if(!tr||k>arr.length-18)return;
-      var s=OPT.sun,A=[tr.P[0]-s[0]*g.Hp*.6,tr.P[1]-s[1]*g.Hp*.6,tr.P[2]-s[2]*g.Hp*.6];
-      [[A,tr.P],[tr.P,tr.Q],[tr.Q,tr.F]].forEach(function(sg){var a=m3(sg[0][0],sg[0][1],sg[0][2]),b=m3(sg[1][0],sg[1][1],sg[1][2]);arr[k++]=a[0];arr[k++]=a[1];arr[k++]=a[2];arr[k++]=b[0];arr[k++]=b[1];arr[k++]=b[2]})});
-    SP.rayGeo.setDrawRange(0,k/3);SP.rayGeo.attributes.position.needsUpdate=true;
-    // technical: focal dimension line and floor ticks
-    var t=[],hw=SPW/2,dx=-hw-1.6,dz=-pl.rect.H/2;
-    function L_(a,b){t.push(a[0],a[1],a[2],b[0],b[1],b[2])}
-    L_([dx,0,dz],[dx,g.Hp,dz]);L_([dx-.4,0,dz],[dx+.4,0,dz]);L_([dx-.4,g.Hp,dz],[dx+.4,g.Hp,dz]);
-    for(var i=0;i<=24;i++){var x=-SP.FS/2+i*SP.FS/24,l=i%4===0?.6:.3;L_([x,0,SP.FS/2],[x,0,SP.FS/2-l])}
-    var ta=SP.techGeo.attributes.position.array;ta.set(t);SP.techGeo.setDrawRange(0,t.length/3);SP.techGeo.attributes.position.needsUpdate=true;
-    // camera
-    var cam=SP.cam;cam.aspect=W/H;cam.updateProjectionMatrix();
-    var D=SP.dist*SPW,cy=Math.cos(SP.yaw),sy=Math.sin(SP.yaw),cp=Math.cos(SP.pitch),sp=Math.sin(SP.pitch),tgt=new THREE.Vector3(0,g.Hp*.6,0);
-    cam.position.set(tgt.x+sy*cp*D,tgt.y+sp*D,tgt.z+cy*cp*D);cam.lookAt(tgt);
-    GLR.r.setPixelRatio(DPR);GLR.r.setSize(W,H,false);GLR.r.setRenderTarget(null);GLR.r.clear();GLR.r.render(SP.scene,cam);
-    lastRays=Math.round(Math.pow(Math.max(8,Math.min(1400,pl.nx*Math.max(1,Math.min(5,1024/SP.FS*(SPW/pl.nx)/1.6))*1.4*P.rays)),2));
-  }
-  // leader anchors (floor coords)
-  var hw2=SPW/2,pk=peak(pl);
-  var anc={ior:[-hw2,-pl.rect.H/2,g.Hp+g.T],relief:pk,focal:[-hw2-1.6,-pl.rect.H/2,g.Hp*.5],rays:[0,pl.rect.H*.15,0],thick:[hw2,pl.rect.H/2,g.Hp]};
-  var pr=function(p){var q=m3(p[0],p[1],p[2]);if(SP.ok)return projectV(q);return proj2(q)};
-  // tilt anchors that sit on the glass
-  ['ior','relief','thick'].forEach(function(k){var v=anc[k],l=[v[0],v[1],v[2]-g.Hp],r_=mv(R,l);anc[k]=[r_[0],r_[1],r_[2]+g.Hp]});
-  var c=octx;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,ov.width,ov.height);c.setTransform(DPR,0,0,DPR,0,0);c.strokeStyle=ink(.42);c.lineWidth=.8;
-  [].forEach(function(k){var o=SP.L[k],a=pr(anc[k]),side=o.side,ex=a[0]+side*Math.max(60,W*.09),lw=o.el.offsetWidth||120;ex=side<0?Math.max(ex,lw+52):Math.min(ex,W-lw-52);var ey0=0,ey=a[1]-(k==='rays'?-46:k==='thick'?-22:30);
-    c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(ex,ey);c.lineTo(ex+side*40,ey);c.stroke();c.fillStyle=ink(.85);c.beginPath();c.arc(a[0],a[1],1.8,0,6.283);c.fill();
-    o.el.style.left=(side>0?ex+side*44:ex+side*44)+'px';o.el.style.top=(ey-12)+'px';o.el.style.transform=side>0?'':'translateX(-100%)';o.el.style.textAlign=side>0?'left':'right'});
-  SP.L.rays.el.firstChild.textContent='rays '+fmt(lastRays)+' × 3';
-}
-var _v3=null;
-function projectV(q){if(!_v3)_v3=new THREE.Vector3();_v3.set(q[0],q[1],q[2]).project(SP.cam);return [(_v3.x+1)/2*W,(1-_v3.y)/2*H]}
-function peak(pl){var f=pl.field,NX=pl.NX,best=-1,bi=0;for(var i=0;i<NX*pl.NY;i++)if(f[i*4+2]>best){best=f[i*4+2];bi=i}
-  var g=SP.g||specGeom(pl);return [((bi%NX)/(NX-1)-.5)*SPW,(Math.floor(bi/NX)/(pl.NY-1)-.5)*pl.rect.H,g.Hp+g.T+best*SPW/(NX-1)*g.ex]}
-// 2D fallback projection for the specimen
-function proj2(q){var cy=Math.cos(SP.yaw),sy=Math.sin(SP.yaw),cp=Math.cos(SP.pitch),sp=Math.sin(SP.pitch);
-  var g=SP.g,y0=q[1]-g.Hp*.6,x=q[0]*cy-q[2]*sy,z=q[0]*sy+q[2]*cy,y=y0*cp-z*sp,z2=y0*sp+z*cp;var D=SP.dist*SPW,f=1/Math.tan(15*Math.PI/180),dz=D-z2,sc=H/2*f/dz;return [W/2+x*sc,H/2-y*sc]}
-function renderSpec2D(){
-  var pl=SP.pl;if(!pl)return;var g=SP.g=specGeom(pl),c=ctx2,pal=PALS[P.pal];
-  c.setTransform(DPR,0,0,DPR,0,0);c.fillStyle=pal.bg;c.fillRect(0,0,W,H);
-  // floor light (CPU) drawn as a projected quad via 2 triangles approximated by drawImage on transformed corners
-  var FS=SPW*2.4;if(!SP.cpuImg||SP.cpuKey!==pl.ver+'|'+OPT.tx+'|'+OPT.sx){SP.cpuImg=cpuCaustic([pl],{x:-FS/2,y:-FS/2,w:FS,h:FS},360,360,{cap:60000});SP.cpuKey=pl.ver+'|'+OPT.tx+'|'+OPT.sx}
-  var p00=proj2(m3(-FS/2,-FS/2,0)),p10=proj2(m3(FS/2,-FS/2,0)),p01=proj2(m3(-FS/2,FS/2,0));
-  c.save();c.setTransform(DPR*(p10[0]-p00[0])/360,DPR*(p10[1]-p00[1])/360,DPR*(p01[0]-p00[0])/360,DPR*(p01[1]-p00[1])/360,DPR*p00[0],DPR*p00[1]);c.drawImage(SP.cpuImg,0,0);c.restore();
-  // glass as contour wireframe
-  c.strokeStyle=ink(.35);c.lineWidth=.6;var NX=pl.NX,NY=pl.NY,hs=SPW/(NX-1),st=Math.max(1,Math.round(NX/28));
-  for(var j=0;j<NY;j+=st){c.beginPath();for(var i=0;i<NX;i++){var h=pl.field[(j*NX+i)*4+2],p=proj2(m3((i/(NX-1)-.5)*SPW,(j/(NY-1)-.5)*SPW,g.Hp+g.T+h*hs*g.ex));i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])}c.stroke()}
-  for(var i2=0;i2<NX;i2+=st){c.beginPath();for(var j2=0;j2<NY;j2++){var h2=pl.field[(j2*NX+i2)*4+2],p2=proj2(m3((i2/(NX-1)-.5)*SPW,(j2/(NY-1)-.5)*SPW,g.Hp+g.T+h2*hs*g.ex));j2?c.lineTo(p2[0],p2[1]):c.moveTo(p2[0],p2[1])}c.stroke()}
-  c.strokeStyle=hexA(pal.tint,.45);SP.pts.forEach(function(p){var tr=trace(pl,p[0],p[1],0,OPT.R,OPT.sun,P.floorK);if(!tr)return;var a=proj2(m3(tr.P[0],tr.P[1],tr.P[2]+g.Hp*.5)),b=proj2(m3(tr.P[0],tr.P[1],tr.P[2])),q=proj2(m3(tr.Q[0],tr.Q[1],tr.Q[2])),f=proj2(m3(tr.F[0],tr.F[1],0));
-    c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.lineTo(q[0],q[1]);c.lineTo(f[0],f[1]);c.stroke()});
-  lastRays=SP.cpuImg.rays;
-}
-function hexA(h,a){var c=hexRGB(h);return 'rgba('+(c[0]*255|0)+','+(c[1]*255|0)+','+(c[2]*255|0)+','+a+')'}
-
-
-/* ---------------------------------------------------------------
-   11. CONSTRUCTION — outline points of a target (marching squares + RDP)
----------------------------------------------------------------- */
-var MS=[[],[[3,0]],[[0,1]],[[3,1]],[[1,2]],[[3,0],[1,2]],[[0,2]],[[3,2]],[[2,3]],[[0,2]],[[0,1],[2,3]],[[1,2]],[[1,3]],[[0,1]],[[3,0]],[]];
-function contours(t,nx,ny){
-  function v(i,j){return (i<0||j<0||i>=nx||j>=ny)?0:t[j*nx+i]}
-  var C=nx+2,segs=[],byEdge={};
-  function eid(h,i,j){return ((j+1)*C+(i+1))*2+(h?0:1)}
-  for(var j=-1;j<ny;j++)for(var i=-1;i<nx;i++){
-    var a=v(i,j),b=v(i+1,j),c=v(i+1,j+1),d=v(i,j+1),k=(a>.5?1:0)|(b>.5?2:0)|(c>.5?4:0)|(d>.5?8:0);
-    if(!k||k===15)continue;
-    var pt=function(e){return e===0?[i+(.5-a)/(b-a),j,eid(1,i,j)]:e===1?[i+1,j+(.5-b)/(c-b),eid(0,i+1,j)]:e===2?[i+(.5-d)/(c-d),j+1,eid(1,i,j+1)]:[i,j+(.5-a)/(d-a),eid(0,i,j)]};
-    MS[k].forEach(function(pr){var A=pt(pr[0]),B=pt(pr[1]),si=segs.length;segs.push([A,B,false]);(byEdge[A[2]]=byEdge[A[2]]||[]).push(si);(byEdge[B[2]]=byEdge[B[2]]||[]).push(si)});
-  }
-  var lines=[];
-  function other(si,e){var l=byEdge[e];for(var q=0;q<l.length;q++)if(l[q]!==si&&!segs[l[q]][2])return l[q];return -1}
-  for(var s0=0;s0<segs.length;s0++){if(segs[s0][2])continue;segs[s0][2]=true;
-    var line=[segs[s0][0],segs[s0][1]];
-    [1,0].forEach(function(dir){var end=dir?line[line.length-1]:line[0],cur=s0;
-      for(var g=0;g<100000;g++){var n_=other(cur,end[2]);if(n_<0)break;segs[n_][2]=true;var S=segs[n_],nxt=S[0][2]===end[2]?S[1]:S[0];if(dir)line.push(nxt);else line.unshift(nxt);end=nxt;cur=n_}});
-    lines.push(line);
-  }
-  return lines;
-}
-function rdp(pts,eps){
-  if(pts.length<3)return pts.slice();
-  var a=pts[0],b=pts[pts.length-1],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,mi=0,md=0;
-  for(var i=1;i<pts.length-1;i++){var d=L>1e-9?Math.abs(dy*pts[i][0]-dx*pts[i][1]+b[0]*a[1]-b[1]*a[0])/L:Math.hypot(pts[i][0]-a[0],pts[i][1]-a[1]);if(d>md){md=d;mi=i}}
-  if(md>eps){var l=rdp(pts.slice(0,mi+1),eps),r=rdp(pts.slice(mi),eps);return l.slice(0,-1).concat(r)}
-  return [a,b];
-}
-function construct(t,nx,ny,eps){
-  return contours(t,nx,ny).filter(function(l){return l.length>6}).map(function(l){var h=Math.floor(l.length/2);return rdp(l.slice(0,h+1),eps).slice(0,-1).concat(rdp(l.slice(h),eps))});
-}
-var CONS={};
-function plateCons(pl){var k=pl.key;if(!CONS[k])CONS[k]=construct(pl.t,pl.nx,pl.ny,.9);return CONS[k]}
-
-
-/* ---------------------------------------------------------------
-   14. WORDS SET IN CAUSTIC — the cast glyphs form a live atlas
----------------------------------------------------------------- */
-var CAST={T:160,cols:8,chars:'',img:null,map:{},key:'',paper:false};
-function castInit(){
-  document.querySelectorAll('.cast').forEach(function(el){if(el.querySelector('.ft'))return;var w=el.getAttribute('data-w')||el.textContent.trim();el.setAttribute('data-w',w);el.innerHTML='<span class="ft"></span><canvas aria-hidden="true"></canvas>';el.querySelector('.ft').textContent=w});
-  var s='TESTERGLYPHS3DLIGHTREGULARBOLDBLACK';document.querySelectorAll('.cast').forEach(function(el){s+=el.getAttribute('data-w')});
-  var u='';for(var i=0;i<s.length;i++){var c=s[i];if(CHARSET.indexOf(c)>=0&&u.indexOf(c)<0)u+=c}CAST.chars=u;
-}
-function castQueue(){for(var i=0;i<CAST.chars.length;i++){var pl=tilePlate(P.w,CAST.chars[i]),j=JOBS[pl.key];if(j&&j.state==='queued')j.prio=Math.max(j.prio,88);else if(!j)enqueue(pl,'G',88,TILE_IT)}pump()}
-function castBuild(){
-  var ch=CAST.chars,T=CAST.T,cols=CAST.cols,rows=Math.ceil(ch.length/cols),w=cols*T,h=rows*T,pls=[];
-  for(var i=0;i<ch.length;i++){var pl=tilePlate(P.w,ch[i]);if(!pl.meta.done)return false;if(GLR&&!pl.tex)GLR.uploadPlate(pl);var o=Object.create(pl);o.rect={};o.place((i%cols)*T+T/2,Math.floor(i/cols)*T+T/2,T);pls.push(o)}
-  var img;try{img=GLR?GLR.toCanvas(pls,{x:0,y:0,w:w,h:h},w,h,{R:[1,0,0,0,1,0,0,0,1],sun:[0,0,-1],fk:1,pxScale:1,dens:1.6,disp:true}):cpuCaustic(pls,{x:0,y:0,w:w,h:h},w,h,{cap:240000})}catch(e){return false}
-  var x=img.getContext('2d'),id=x.getImageData(0,0,w,h),d=id.data,pal=PALS[P.pal],G=hexRGB(pal.g).map(function(v){return v*255}),paper=pal.theme==='paper';
-  for(var p=0;p<d.length;p+=4){var m=paper?Math.max(G[0]-d[p],G[1]-d[p+1],G[2]-d[p+2]):Math.max(d[p]-G[0],d[p+1]-G[1],d[p+2]-G[2]);d[p+3]=Math.max(0,Math.min(255,(m-14)*1.9))}
-  x.putImageData(id,0,0);
-  var map={};for(var k=0;k<ch.length;k++){var sx=(k%cols)*T,sy=Math.floor(k/cols)*T,xl=-1,xr=-1;
-    for(var cx=Math.round(.06*T);cx<Math.round(.94*T);cx++){var mx=0;for(var cy=Math.round(.14*T);cy<Math.round(.9*T);cy+=2){var a=d[((sy+cy)*w+sx+cx)*4+3];if(a>mx)mx=a}if(mx>70){if(xl<0)xl=cx;xr=cx}}
-    if(xl<0){xl=.42*T;xr=.58*T}map[ch[k]]={sx:sx,sy:sy,xl:xl,xr:xr}}
-  CAST.img=img;CAST.map=map;CAST.paper=paper;return true;
-}
-function tinted(src,col){var t=document.createElement('canvas');t.width=src.width;t.height=src.height;var x=t.getContext('2d');x.drawImage(src,0,0);x.globalCompositeOperation='source-in';x.fillStyle=col;x.fillRect(0,0,t.width,t.height);return t}
-function castEl(el){
-  var cv=el.querySelector('canvas'),w=el.getAttribute('data-w')||'';if(!cv||!CAST.img)return;
-  var fs=parseFloat(getComputedStyle(el).fontSize)||16,cap=fs*.9,T=CAST.T,k=cap/(.5*T),y0=.1*T,y1=.94*T,hp=(y1-y0)*k,pad=.08*T,tr=cap*.14,tw=0,gl=[];
-  for(var i=0;i<w.length;i++){var m=CAST.map[w[i]];if(w[i]===' '||!m){gl.push(null);tw+=cap*.55;continue}gl.push(m);tw+=(m.xr-m.xl)*k+tr}
-  tw=Math.max(1,tw-tr);var hd=el.closest('.huge,.big');if(hd){var av=hd.clientWidth-4,full=tw+2*pad*k;if(av>40&&full>av){var fit=av/full;k*=fit;hp*=fit;tr*=fit;cap*=fit;tw*=fit}}var CW=Math.ceil(tw+2*pad*k),CH=Math.ceil(hp),r=DPR,cn=el.classList.contains('cn');if(cn)CW=CH;
-  cv.width=Math.round(CW*r);cv.height=Math.round(CH*r);cv.style.width=CW+'px';cv.style.height=CH+'px';
-  var x=cv.getContext('2d');x.setTransform(r,0,0,r,0,0);x.clearRect(0,0,CW,CH);x.globalCompositeOperation='lighter';
-  var dx=pad*k;
-  gl.forEach(function(m){if(!m){dx+=cap*.55;return}var sw=(m.xr-m.xl)+2*pad;x.drawImage(CAST.img,m.sx+m.xl-pad,m.sy+y0,sw,y1-y0,dx-pad*k,0,sw*k,hp);dx+=(m.xr-m.xl)*k+tr});
-  if(el.closest('[data-tone="pale"]')&&!CAST.paper){ // on the pale field the light prints as ink, keeping its spectral fringe
-    var mask=tinted(cv,'#000'),dark=getComputedStyle(document.documentElement).getPropertyValue('--c0')||'#000';
-    x.setTransform(1,0,0,1,0,0);x.globalCompositeOperation='source-over';x.clearRect(0,0,cv.width,cv.height);
-    x.globalAlpha=.55;x.drawImage(tinted(mask,'rgb(255,60,110)'),-1.4*r,0);x.drawImage(tinted(mask,'rgb(40,130,255)'),1.4*r,0);x.globalAlpha=1;x.drawImage(tinted(mask,dark),0,0);
-  }
-}
-function castAll(){if(!CAST.img)return;document.querySelectorAll('.cast').forEach(castEl)}
-function castTick(){var key=P.w+'|'+P.pal;if(CAST.key===key||!ready)return;if(castBuild()){CAST.key=key;document.documentElement.classList.add('cast-ready');castAll()}}
-
-/* ---------------------------------------------------------------
-   12. PAGE — chapters, bar, loader, controls, live readouts
----------------------------------------------------------------- */
-var slots={tester:$('#slot-tester'),glyphs:$('#slot-glyphs'),specimen:$('#slot-3d')};
-var hint=$('#hint'),LIVE=true;
-function killHint(){hint.style.display='none'}
-setTimeout(killHint,14000);
-function snap(slot){
-  var sc=slot.querySelector('.snap');if(!sc)return;sc.width=Math.round(W*DPR);sc.height=Math.round(H*DPR);var x=sc.getContext('2d');
-  try{x.drawImage(GLR?glc:c2d,0,0,sc.width,sc.height);x.drawImage(ov,0,0,sc.width,sc.height)}catch(e){}
-  var w=slot.querySelector('.wait');if(w)w.style.display='none';
-}
-function moveStage(v){var slot=slots[v];if(stage.parentNode===slot)return;var old=stage.parentNode;if(old&&old.classList&&old.classList.contains('slot'))snap(old);slot.appendChild(stage);setView(v)}
-function setView(v){
-  view=v;labels.innerHTML='';resize();
-  if(v==='glyphs')queueTiles();
-  if(v==='specimen'){initSpec();specDirty=true}
-  hint.firstChild.textContent=v==='specimen'?'drag: orbit · arrows: tilt glass':'drag: tilt glass · sun marker: move light';
-  dirty=true;progDirty=true;
-}
-function glyphLayout(w){
-  var pad=MOBILE?10:28,aw=w-pad*2,top=MOBILE?30:40,L={cells:[],weights:[],geo:[]};
-  var gap=MOBILE?6:16,wsz=Math.min((aw-3*gap)/4,300),wx=(aw-wsz*4)/3,wy=top+16;
-  for(var i=0;i<4;i++)L.weights.push({x:pad+i*(wsz+wx),y:wy,s:wsz,w:i});
-  var gy0=wy+wsz+(MOBILE?60:64),gsz=Math.min((aw-5*gap)/6,MOBILE?999:150),gxs=(aw-gsz*6)/5;
-  GEOROW.forEach(function(ch,i){L.geo.push({ch:ch,x:pad+i*(gsz+gxs),y:gy0,s:gsz})});
-  var cols=MOBILE?10:Math.max(12,Math.min(20,Math.round(aw/70))),rows=Math.ceil(CHARSET.length/cols),cs=aw/cols,gy=gy0+gsz+(MOBILE?48:64);
-  for(var k=0;k<CHARSET.length;k++)L.cells.push({ch:CHARSET[k],x:pad+(k%cols)*cs,y:gy+Math.floor(k/cols)*cs,s:cs});
-  L.top=top;L.gy=gy;L.gy0=gy0;L.need=Math.ceil(gy+rows*cs+pad);return L;
-}
-function layoutGlyphs(){GL_=glyphLayout(W)}
-function sizeGlyphSlot(){var w=slots.glyphs.clientWidth||W;slots.glyphs.style.height=glyphLayout(w).need+'px'}
-function glyphPlates(){
-  var a=[];
-  function wrap(pl,c){if(GLR&&!pl.tex)GLR.uploadPlate(pl);var o=Object.create(pl);o.rect={};o.place(c.x+c.s/2,c.y+c.s/2,c.s);return o}
-  GL_.weights.forEach(function(c){a.push(wrap(tilePlate(c.w,sel),c))});
-  GL_.geo.forEach(function(c){a.push(wrap(tilePlate(P.w,c.ch),c))});
-  GL_.cells.forEach(function(c){var pl=tilePlate(P.w,c.ch);pl.place(c.x+c.s/2,c.y+c.s/2,c.s);a.push(pl)});
-  return a;
+  rendered++;
 }
 function resize(){
-  var r=stage.getBoundingClientRect();W=Math.max(1,Math.round(r.width));H=Math.max(1,Math.round(r.height));
-  PR=Math.min(DPR,MOBILE?1.5:1.6);
-  [ov,c2d].forEach(function(c){c.width=Math.round(W*DPR);c.height=Math.round(H*DPR)});
+  W=Math.max(1,Math.round(window.innerWidth));H=Math.max(1,Math.round(window.innerHeight));
+  PR=Math.min(DPR,MOBILE?1.25:1.25);
+  c2d.width=Math.round(W*Math.min(DPR,1.5));c2d.height=Math.round(H*Math.min(DPR,1.5));
   if(GLR){GLR.r.setPixelRatio(1);GLR.r.setSize(Math.round(W*PR),Math.round(H*PR),false);glc.style.width=W+'px';glc.style.height=H+'px'}
-  layoutGlyphs();if(ready&&view==='tester')updateTester();dirty=true;specDirty=true;
-}
-var rsT=0;window.addEventListener('resize',function(){clearTimeout(rsT);rsT=setTimeout(function(){sizeGlyphSlot();stickTops();resize();drawOpen(true);castAll()},250)});
+  // glyph page: preview area (left column on desktop, top band on phones)
+  setGV();
 
-/* controls: the same axes appear in every chapter and stay in sync */
-function build(){
-  document.querySelectorAll('.c-w').forEach(function(box){WEIGHTS.forEach(function(w,i){var b=document.createElement('button');b.innerHTML='<span class="cast">'+w.step.toUpperCase()+'</span>';b.onclick=function(){setWeight(i)};box.appendChild(b)})});
-  document.querySelectorAll('.c-g').forEach(function(box){PALS.forEach(function(d,i){var b=document.createElement('button');b.innerHTML='<i style="background:radial-gradient(circle at 50% 45%,'+d.core+' 0,'+d.tint+' 38%,'+d.g+' 72%)"></i><span class="cast">'+d.name.toUpperCase()+'</span>';b.onclick=function(){P.pal=i;applyPal();syncUI()};box.appendChild(b)})});
-  document.querySelectorAll('.c-f').forEach(function(inp){inp.oninput=function(){P.floorK=this.value/100;syncUI();dirty=true;specDirty=true}});
+  if(ready)updateTester();
 }
-function setWeight(i){if(P.w===i)return;P.w=i;syncUI();if(view==='tester')updateTester();queueTiles();castQueue();dirty=true;specDirty=true;drawOpen(true)}
-/* one colour family, drawn from the light itself: the ground drives the whole page */
-function mixH(a,b,t){var A=hexRGB(a),B=hexRGB(b);return 'rgb('+[0,1,2].map(function(i){return Math.round((A[i]+(B[i]-A[i])*t)*255)}).join(',')+')'}
-function applyPal(){var d=PALS[P.pal],r=document.documentElement,paper=d.theme==='paper',st=r.style;
-  r.setAttribute('data-theme',d.theme);st.setProperty('--bg',d.bg);
-  var c0=paper?d.bg:mixH(d.bg,'#000000',.45),c1=d.g,c2=mixH(d.g,d.tint,paper?.07:.1),c3=paper?mixH(d.g,d.tint,.16):mixH(d.core,d.tint,.2);
-  st.setProperty('--c0',c0);st.setProperty('--c1',c1);st.setProperty('--c2',c2);st.setProperty('--c3',c3);st.setProperty('--f-acc',c1);
-  st.setProperty('--ink',paper?d.tint:d.core);st.setProperty('--lt',d.tint);st.setProperty('--ltg',hexA(d.tint,paper?.25:.55));
-  dirty=true;specDirty=true;OPEN.k1=OPEN.k2=OPEN.k3='';CAST.key=''}
-function syncUI(){
-  document.querySelectorAll('.c-w').forEach(function(box){[].forEach.call(box.children,function(b,i){b.classList.toggle('on',i===P.w)})});
-  document.querySelectorAll('.c-g').forEach(function(box){[].forEach.call(box.children,function(b,i){b.classList.toggle('on',i===P.pal)})});
-  document.querySelectorAll('.c-f').forEach(function(inp){if(document.activeElement!==inp)inp.value=Math.round(P.floorK*100)});
+var GV={x:0,y:0,w:1,h:1},GOPEN=true,DOPEN=true;
+function setOpen(g,v){if(g)GOPEN=v;else DOPEN=v;var de=document.documentElement;de.classList.toggle('gopen',GOPEN);de.classList.toggle('dopen',DOPEN);GQ.rectDirty=true;dirty=true;
+  if(!g&&!v&&VIEW==='draw')showDraw();if(g&&!v&&VIEW==='glyphs')showGlyph(GSEL);
+  var f=g?(v?gridEl.querySelector('button.on')||gridEl.querySelector('button'):$('#gtog')):(v?$('#pad'):$('#gtog'));if(f)try{f.focus({preventScroll:true})}catch(e){}}
+/* preview area: the glyph page keeps its dense original split (42% / 40%); the draw page gets more room (50% / 42%) */
+function setGV(){
+  var d=VIEW==='draw',m=MOBILE||W<=760;
+  GV={x:0,y:0,w:W,h:H};
+  document.documentElement.style.setProperty('--ph',GV.h+'px');document.documentElement.style.setProperty('--pw',(GV.w===W?0:GV.w)+'px');
 }
-var txtT=0;$('#txt').addEventListener('input',function(){clearTimeout(txtT);txtT=setTimeout(function(){if(view==='tester')updateTester()},380)});
-$('#tryBtn').onclick=function(){$('#ch-tester').scrollIntoView({behavior:'smooth'});setTimeout(function(){$('#txt').focus({preventScroll:true})},700)};
-
-/* which chapter is on screen: the live stage moves there; the bar shows its tag; reveals fire */
-var chapTag=$('#chapTag');
-/* chapters stack like cards (sticky, bottom-aligned when taller than the screen); a later card covers an earlier one */
-function stickTops(){var mob=innerWidth<=760;document.querySelectorAll('.ch').forEach(function(s){s.style.top=mob?'':Math.min(0,innerHeight-s.offsetHeight)+'px'})}
-function ranges(){var vh=innerHeight,L=[].slice.call(document.querySelectorAll('.ch')).filter(function(e){return e.offsetParent!==null||getComputedStyle(e).position==='sticky'&&e.offsetHeight>0}),m=new Map();
-  L.forEach(function(s,i){var r=s.getBoundingClientRect(),t=Math.max(40,r.top),b=Math.min(vh,r.bottom);if(i+1<L.length)b=Math.min(b,L[i+1].getBoundingClientRect().top);m.set(s,[t,b])});return m}
-function pick(){
-  var best=null,bh=0,R=ranges();
-  Object.keys(slots).forEach(function(k){var sl=slots[k],g=R.get(sl.closest('.ch')),r=sl.getBoundingClientRect(),h=g?Math.max(0,Math.min(g[1],r.bottom)-Math.max(g[0],r.top)):0;if(h>bh){bh=h;best=k}});
-  LIVE=bh>0||EMBED;if(EMBED)return;if(best&&bh>Math.min(160,innerHeight*.22))moveStage(best);
-  var tb=null,th=0;R.forEach(function(g,s){var h=Math.max(0,g[1]-g[0]);if(h>th){th=h;tb=s}});
-  var t=tb?tb.getAttribute('data-tag'):'';if(chapTag.getAttribute('data-t')!==t){chapTag.setAttribute('data-t',t);chapTag.hidden=!t;var cc=$('#chapCast'),tu=t.toUpperCase();cc.setAttribute('data-w',tu);cc.querySelector('.ft').textContent=tu;castEl(cc)}
-  var go=R.get($('#ch-open'));OPEN.vis=!!go&&go[1]>go[0];
-}
-var pickT=0;window.addEventListener('scroll',function(){if(!pickT)pickT=requestAnimationFrame(function(){pickT=0;pick()})},{passive:true});
-if('IntersectionObserver' in window){var rio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target)}})},{threshold:.15});document.querySelectorAll('.rv').forEach(function(el){rio.observe(el)})}
-else document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in')});
-
-
-/* opening specimens: ① construction ② light ③ glass, all of the same computed 'a' */
-var OPEN={k1:'',k2:'',k3:'',vis:true};
-function cvFit(cv){var w=cv.clientWidth||300,h=cv.clientHeight||w;if(cv.width!==Math.round(w*DPR)||cv.height!==Math.round(h*DPR)){cv.width=Math.round(w*DPR);cv.height=Math.round(h*DPR)}var x=cv.getContext('2d');x.setTransform(DPR,0,0,DPR,0,0);return {x:x,w:w,h:h}}
-function drawOpen(force){
-  if(EMBED)return;
-  if(force){OPEN.k1=OPEN.k2=OPEN.k3=''}
-  var pl=tilePlate(P.w,'a');
-  var k1=P.w+'|'+FONT_OK+'|'+P.pal;
-  if(OPEN.k1!==k1){OPEN.k1=k1;var c=cvFit($('#o1')),x=c.x;x.clearRect(0,0,c.w,c.h);
-    if(!OPEN.hi||OPEN.hi.k!==k1){var tt=tileTarget('a',WEIGHTS[P.w].fw,140);OPEN.hi={k:k1,c:construct(tt.t,140,140,2.2),raw:contours(tt.t,140,140).filter(function(l){return l.length>6})}}
-    var con=OPEN.hi.c,raw=OPEN.hi.raw,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;con.forEach(function(l){l.forEach(function(p){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])})});
-    var s=Math.min(c.w*.84/Math.max(1,x1-x0),c.h*.84/Math.max(1,y1-y0)),ox=c.w/2-(x0+x1)/2*s,oy=c.h/2-(y0+y1)/2*s;
-    var INK=getComputedStyle(document.documentElement).getPropertyValue('--ink')||'#fff',C0=getComputedStyle(document.documentElement).getPropertyValue('--c0')||'#000';
-    x.fillStyle=INK;x.shadowColor=getComputedStyle(document.documentElement).getPropertyValue('--ltg');x.shadowBlur=c.w/18;x.beginPath();raw.forEach(function(l){l.forEach(function(p,i){var X=ox+p[0]*s,Y=oy+p[1]*s;i?x.lineTo(X,Y):x.moveTo(X,Y)});x.closePath()});x.fill('evenodd');
-    var r=Math.max(4,c.w/50);x.shadowBlur=0;x.lineWidth=Math.max(2,c.w/110);x.strokeStyle=INK;x.fillStyle=C0;
-    con.forEach(function(l){l.forEach(function(p){x.beginPath();x.arc(ox+p[0]*s,oy+p[1]*s,r,0,6.283);x.fill();x.stroke()})});
-  }
-  var k2=pl.key+'|'+pl.ver+'|'+P.pal;
-  if(OPEN.k2!==k2&&pl.meta.it>0){OPEN.k2=k2;var c2=cvFit($('#o2')),w2=Object.create(pl),sz=Math.round(c2.w*DPR);w2.rect={};w2.place(sz/2,sz/2,sz);
-    try{var im=GLR?GLR.toCanvas([w2],{x:0,y:0,w:sz,h:sz},sz,sz,{R:[1,0,0,0,1,0,0,0,1],sun:[0,0,-1],fk:1,pxScale:1,dens:1.3,disp:true}):cpuCaustic([w2],{x:0,y:0,w:sz,h:sz},sz,sz,{cap:120000});
-      c2.x.clearRect(0,0,c2.w,c2.h);c2.x.save();c2.x.beginPath();c2.x.arc(c2.w/2,c2.h/2,c2.w/2,0,6.283);c2.x.clip();c2.x.drawImage(im,0,0,c2.w,c2.h);c2.x.restore()}catch(e){}
-  }
-  var k3=pl.key+'|'+pl.ver+'|'+P.pal;
-  if(OPEN.k3!==k3&&pl.meta.it>0){OPEN.k3=k3;var c3=cvFit($('#o3')),x3=c3.x,NX=pl.NX,NY=pl.NY,f=pl.field,hmax=1e-6;for(var q=0;q<NX*NY;q++)hmax=Math.max(hmax,f[q*4+2]);
-    x3.clearRect(0,0,c3.w,c3.h);var st=Math.max(1,Math.round(NY/30)),hk0=.55/hmax;
-    function Q(i,j){var u=i/(NX-1),v=j/(NY-1);return [(u-v)*.72,(u+v)*.42-f[(j*NX+i)*4+2]*hk0]}
-    var bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;for(var jj=0;jj<NY;jj+=st)for(var ii=0;ii<NX;ii+=2){var qq=Q(ii,jj);bx0=Math.min(bx0,qq[0]);bx1=Math.max(bx1,qq[0]);by0=Math.min(by0,qq[1]);by1=Math.max(by1,qq[1])}
-    var S=Math.min(c3.w*.9/(bx1-bx0),c3.h*.9/(by1-by0)),cx=c3.w/2-(bx0+bx1)/2*S,cy=c3.h/2-(by0+by1)/2*S,hk=hk0*S;
-    var acc=getComputedStyle(document.documentElement).getPropertyValue('--c0')||'#000',ink3=getComputedStyle(document.documentElement).getPropertyValue('--ink')||'#fff';
-    function P2(i,j){var q=Q(i,j);return [cx+q[0]*S,cy+q[1]*S]}
-    x3.lineWidth=Math.max(1.2,c3.w/260);x3.strokeStyle=ink3;x3.fillStyle=acc;
-    for(var j=0;j<NY;j+=st){x3.beginPath();for(var i=0;i<NX;i++){var p=P2(i,j);i?x3.lineTo(p[0],p[1]):x3.moveTo(p[0],p[1])}
-      var e=P2(NX-1,j),b=P2(0,j);x3.lineTo(e[0],e[1]+c3.h);x3.lineTo(b[0],b[1]+c3.h);x3.closePath();x3.fill();
-      x3.beginPath();for(var i2=0;i2<NX;i2++){var p2=P2(i2,j);i2?x3.lineTo(p2[0],p2[1]):x3.moveTo(p2[0],p2[1])}x3.stroke()}
-  }
-}
-
-/* pointer: drag tilts the glass; the sun marker moves the light; release springs back */
-var hoverCell=-1,drag=null;
-function loc(e){var r=stage.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]}
-var TMAX=.48,SMAX=.62;
-stage.addEventListener('pointerdown',function(e){
-  var p=loc(e);drag={x:p[0],y:p[1],sx:p[0],sy:p[1],t0x:OPT.tx,t0y:OPT.ty,s0x:OPT.sx,s0y:OPT.sy,moved:false};
-  if(view==='specimen'){drag.mode='orbit';SP.auto=false}
-  else{var s=sunScreen();drag.mode=(Math.hypot(p[0]-s.x,p[1]-s.y)<28||e.shiftKey)?'sun':'tilt';OPT.grab=drag.mode}
-  stage.classList.add('dragging');try{stage.setPointerCapture(e.pointerId)}catch(_){}
-});
-stage.addEventListener('pointermove',function(e){
-  var p=loc(e);
-  if(view==='glyphs'&&!drag){var hc=-1;GL_.cells.forEach(function(c,i){if(p[0]>=c.x&&p[0]<c.x+c.s&&p[1]>=c.y&&p[1]<c.y+c.s)hc=i});if(hc!==hoverCell){hoverCell=hc;dirty=true}}
-  if(!drag)return;
-  var dx=p[0]-drag.sx,dy=p[1]-drag.sy;if(Math.hypot(dx,dy)>5){drag.moved=true;killHint()}
-  if(drag.mode==='orbit'){SP.yaw-=(p[0]-drag.x)*.008;SP.pitch=Math.max(.08,Math.min(1.35,SP.pitch+(p[1]-drag.y)*.006))}
-  else if(drag.mode==='tilt'){var k=1/Math.max(260,Math.min(W,H)*.75);
-    OPT.ty=Math.max(-TMAX,Math.min(TMAX,drag.t0y+dx*k*TMAX*1.4));OPT.tx=Math.max(-TMAX,Math.min(TMAX,drag.t0x-dy*k*TMAX*1.4));OPT.vx=OPT.vy=0}
-  else if(drag.mode==='sun'){var s=sunScreen();
-    OPT.sx=Math.max(-SMAX,Math.min(SMAX,Math.atan((p[0]-s.cx)/(s.R*1.6))));OPT.sy=Math.max(-SMAX,Math.min(SMAX,Math.atan((p[1]-s.cy)/(s.R*1.6))));OPT.svx=OPT.svy=0}
-  drag.x=p[0];drag.y=p[1];dirty=true;
-});
-function hitIn(list,p){var h=null;list.forEach(function(c){if(p[0]>=c.x&&p[0]<c.x+c.s&&p[1]>=c.y&&p[1]<c.y+c.s)h=c});return h}
-function up(e){
-  if(!drag)return;var p=loc(e);
-  if(view==='glyphs'&&!drag.moved){
-    var hit=hitIn(GL_.cells,p)||hitIn(GL_.geo,p),wh=hitIn(GL_.weights,p);
-    if(wh)setWeight(wh.w);
-    if(hit&&hit.ch!==sel){sel=hit.ch;queueTiles();specDirty=true;dirty=true}
-  }
-  if(drag.mode==='orbit')setTimeout(function(){SP.auto=true},3000);
-  drag=null;OPT.grab=null;stage.classList.remove('dragging');dirty=true;
-}
-stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);
-stage.addEventListener('pointerleave',function(){if(hoverCell>=0){hoverCell=-1;dirty=true}});
-var KEYS={};
-stage.addEventListener('keydown',function(e){
-  if(e.key.indexOf('Arrow')===0){KEYS[e.key]=e.shiftKey?'sun':'tilt';e.preventDefault();killHint();return}
-  if(view==='glyphs'&&e.key.length===1&&CHARSET.indexOf(e.key)>=0){sel=e.key;queueTiles();specDirty=true;dirty=true}
-});
-stage.addEventListener('keyup',function(e){delete KEYS[e.key]});
-stage.addEventListener('blur',function(){KEYS={}});
+var rsT=0;window.addEventListener('resize',function(){clearTimeout(rsT);rsT=setTimeout(resize,250)});
 
 /* ---------------------------------------------------------------
-   13. LOOP — springs, compute progress, redraw on change
+   9. MOVEMENT — hover steers, idle drifts, everything eases
 ---------------------------------------------------------------- */
-var last=performance.now(),fps=0,frameMs=16,lastProg='',frameN=0;
-function spring(x,v,dt){var k=46,c=6.2;var a=-k*x-c*v;v+=a*dt;x+=v*dt;return [x,v]}
-/* ?motion=1: after the solve, the page tilts its own glass along a closed loop (focus -> smear -> focus).
-   A drag or arrow key hands control back to the springs; the loop restarts from focus after release. */
-var MOTION=/[?&]motion=1(&|$)/.test(location.search)&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
-var MO={ph:0,hold:0,m:0,T:4.6};
-function motionPath(t){
-  var ss=function(x){return x<0?0:x>1?1:x*x*(3-2*x)},u=ss((t-.08)/.84),e=Math.sin(Math.PI*u),E=e*e,c=Math.cos(2*Math.PI*u),s=Math.sin(2*Math.PI*u);
-  var tx=.42*s*e,ty=.45*E*(.6-.4*c);
-  return {tx:tx,ty:ty,sx:-.04*ty/.45+.04*E*s,sy:-.04*tx/.42};
-}
-function motionStep(dt){
-  if(drag||Object.keys(KEYS).length){MO.hold=1.4;MO.ph=0;MO.m=0;return false}
-  if(view!=='tester'||!TESTER||!TESTER.meta.done){MO.ph=0;MO.m=0;return false}
-  if(MO.hold>0){MO.hold-=dt;return false}
-  MO.m=Math.min(1,MO.m+dt/.6);MO.ph=(MO.ph+dt/MO.T)%1;
-  var S=motionPath(MO.ph),e=MO.m*MO.m*(3-2*MO.m);
-  ['tx','ty','sx','sy'].forEach(function(k){OPT[k]+=(S[k]-OPT[k])*e});
-  OPT.vx*=1-e;OPT.vy*=1-e;OPT.svx*=1-e;OPT.svy*=1-e;
-  return true;
-}
-function updateOptics(dt){
-  var kt=0,ks=0;Object.keys(KEYS).forEach(function(k){var m=KEYS[k],d=k==='ArrowLeft'?[0,-1]:k==='ArrowRight'?[0,1]:k==='ArrowUp'?[1,0]:[-1,0];
-    if(m==='tilt'){OPT.tx=Math.max(-TMAX,Math.min(TMAX,OPT.tx+d[0]*dt*.35));OPT.ty=Math.max(-TMAX,Math.min(TMAX,OPT.ty+d[1]*dt*.35));kt=1}
-    else{OPT.sy=Math.max(-SMAX,Math.min(SMAX,OPT.sy-d[0]*dt*.35));OPT.sx=Math.max(-SMAX,Math.min(SMAX,OPT.sx+d[1]*dt*.35));ks=1}});
-  var moving=false;
-  if(!(drag&&drag.mode==='tilt')&&!kt){var a=spring(OPT.tx,OPT.vx,dt),b=spring(OPT.ty,OPT.vy,dt);OPT.tx=a[0];OPT.vx=a[1];OPT.ty=b[0];OPT.vy=b[1];
-    if(Math.abs(OPT.tx)+Math.abs(OPT.ty)+Math.abs(OPT.vx)+Math.abs(OPT.vy)<2e-4){OPT.tx=OPT.ty=OPT.vx=OPT.vy=0}else moving=true}
-  else moving=true;
-  if(!(drag&&drag.mode==='sun')&&!ks){var c=spring(OPT.sx,OPT.svx,dt),d2=spring(OPT.sy,OPT.svy,dt);OPT.sx=c[0];OPT.svx=c[1];OPT.sy=d2[0];OPT.svy=d2[1];
-    if(Math.abs(OPT.sx)+Math.abs(OPT.sy)+Math.abs(OPT.svx)+Math.abs(OPT.svy)<2e-4){OPT.sx=OPT.sy=OPT.svx=OPT.svy=0}else moving=true}
-  else moving=true;
-  if(MOTION&&motionStep(dt))moving=true;
-  OPT.R=rotMat(OPT.tx,OPT.ty);OPT.sun=nrm([Math.tan(OPT.sx),Math.tan(OPT.sy),-1]);
-  return moving;
-}
-function progText(){
-  if(view!=='tester'||!TESTER)return '';var m=TESTER.meta;
-  return m.done?'<b>solved</b> · '+m.it+' passes · residual '+(m.res*100).toFixed(1)+'%':'<b>casting</b> · pass '+m.it+' / '+(m.iters||TESTER_IT);
-}
-function frame(now){
-  var dt=Math.min(.04,(now-last)/1000);last=now;fps+=(1/Math.max(dt,.001)-fps)*.08;frameN++;
-  var moving=updateOptics(dt);
-  if(moving)dirty=true;
-  if(progDirty){var pt=progText();if(pt!==lastProg){$('#prog').innerHTML=pt;lastProg=pt}progDirty=false}
-  if(LIVE){
-    if(view==='tester'||view==='glyphs'){
-      if(dirty){var t0=performance.now();renderFlat(moving&&frameMs>45);drawOverlay();frameMs=performance.now()-t0;dirty=false}
-    }else if(view==='specimen'){
-      var pl=specPlate(),key=pl.key+'|'+pl.ver+'|'+P.pal+'|'+P.floorK+'|'+P.w;
-      if(specDirty||SP.built!==key)buildSpec();
-      if(SP.auto&&!drag)SP.yaw+=dt*.12;
-      if(SP.ok)renderSpec();else{renderSpec2D();renderSpec()}
-    }
+var IN={u:0,v:0,on:false,last:-1e9},HW=0;
+function setPointer(e){
+  var x0=0,y0=0,w=W,h=H;
+  if(VIEW==='glyphs'&&GOPEN){ // on the specimen the light is steered within the hovered cell
+    var cel=e.target&&e.target.closest&&e.target.closest('#grid button');
+    if(cel||(e.target.closest&&e.target.closest('#gp'))){var r=gpEl.getBoundingClientRect();x0=r.left;y0=r.top;w=r.width;h=Math.min(r.height,H-r.top)}
+    else if(e.clientX<=GV.x+GV.w&&e.clientY<=GV.y+GV.h){x0=GV.x;y0=GV.y;w=GV.w;h=GV.h}
+    else{IN.u*=.5;IN.v*=.5;IN.on=true;IN.last=performance.now();return}
+  }else if(VIEW==='draw'){ // the drawing pad does not steer; the full-screen light does
+    if(DOPEN)return;
+    if(e.clientX<=GV.x+GV.w&&e.clientY<=GV.y+GV.h){x0=GV.x;y0=GV.y;w=GV.w;h=GV.h}
   }
-  if(frameN%15===0)castTick();
-  if(OPEN.vis&&frameN%20===0)drawOpen(false);
+  IN.u=Math.max(-1,Math.min(1,((e.clientX-x0)/w)*2-1));IN.v=Math.max(-1,Math.min(1,((e.clientY-y0)/h)*2-1));
+  IN.on=true;IN.last=performance.now();
+}
+window.addEventListener('pointermove',function(e){if(e.target.closest&&e.target.closest('#sw,#wt,#pn,#lock'))return;setPointer(e)},{passive:true});
+window.addEventListener('pointerdown',function(e){if(e.pointerType!=='mouse'&&!(e.target.closest&&e.target.closest('#sw,#wt,#pn,#txt,#nav,#fwd,#lock,#gp,#dp')))setPointer(e)},{passive:true});
+document.addEventListener('pointerleave',function(){IN.on=false});
+document.documentElement.addEventListener('mouseleave',function(){IN.on=false});
+window.addEventListener('pointerup',function(e){if(e.pointerType==='touch')IN.last=performance.now()-1800});
+window.addEventListener('pointercancel',function(){IN.on=false});
+window.addEventListener('blur',function(){IN.on=false});
+
+var TM=.78,SM=.82,ROT=1.05; // wider than the drag limits of E13 (.48 / .62)
+function curve(x){return (x<0?-1:1)*Math.pow(Math.abs(x),1.3)}
+function hoverTarget(){
+  var u=curve(IN.u),v=curve(IN.v),cr=Math.cos(ROT),sr=Math.sin(ROT),r=Math.min(1,Math.hypot(IN.u,IN.v));
+  // specimen: a gentler range, where panes shear and glyphs melt into light sculptures without losing the light
+  var tm=VIEW==='glyphs'?.26:TM,sm=VIEW==='glyphs'?.36:SM;
+  return {tx:-v*tm,ty:u*tm,sx:(u*cr-v*sr)*sm*(.7+.3*r),sy:(u*sr+v*cr)*sm*(.7+.3*r)};
+}
+function driftTarget(t){
+  if(RM.matches)return {tx:0,ty:0,sx:0,sy:0};
+  var e=.5-.5*Math.cos(t*2*Math.PI/26);e=e*e*(3-2*e); // swells, then eases back to focus
+  var a=VIEW==='glyphs'?.62:1;return {tx:.46*a*e*Math.sin(t*.29),ty:.5*a*e*Math.sin(t*.21+1.3),sx:.44*a*e*Math.sin(t*.16+2.1),sy:.4*a*e*Math.cos(t*.25+.4)};
+}
+var VEL={tx:0,ty:0,sx:0,sy:0},T0=performance.now();
+function updateOptics(now,dt){
+  if(FROZEN){VEL.tx=VEL.ty=VEL.sx=VEL.sy=0;return false} // held: tilt and sun stay exactly where they were
+  var active=IN.on&&now-IN.last<3200;
+  HW+=((active?1:0)-HW)*(1-Math.exp(-dt*(active?3.5:.7)));
+  var h=hoverTarget(),d=driftTarget((now-T0)/1000),moved=false;
+  var k=RM.matches?9:16,c=2*Math.sqrt(k)*.82;
+  ['tx','ty','sx','sy'].forEach(function(a){
+    var tg=h[a]*HW+d[a]*(1-HW),x=OPT[a],v=VEL[a];
+    v+=(-k*(x-tg)-c*v)*dt;x+=v*dt;OPT[a]=x;VEL[a]=v;
+    if(Math.abs(x-tg)>1e-4||Math.abs(v)>1e-4)moved=true;
+  });
+  OPT.R=rotMat(OPT.tx,OPT.ty);OPT.sun=nrm([Math.tan(OPT.sx),Math.tan(OPT.sy),-1]);
+  // keep the light framed: follow most of the bulk shift of the beam (flat-glass centre ray)
+  if(TESTER){var tr=trace(TESTER,.5,.5,0,OPT.R,OPT.sun,P.floorK,true);
+    if(tr){var fx=(tr.F[0]-TESTER.rect.cx)*.9,fy=(tr.F[1]-TESTER.rect.cy)*.9;var kf=1-Math.exp(-dt*7);OPT.ox+=(fx-OPT.ox)*kf;OPT.oy+=(fy-OPT.oy)*kf}}
+  return moved;
+}
+
+/* ---------------------------------------------------------------
+   10. GROUND + WEIGHT — E13 duotones and the letter weight, persisted
+---------------------------------------------------------------- */
+var LSK='caustic-light:ground',WSK='caustic-light:weight',sw=$('#sw'),btns=[],wtr=$('#wtr'),nav=$('#nav');
+function store(k,v){try{localStorage.setItem(k,String(v))}catch(e){}}
+function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+PALS.forEach(function(d){
+  var b=document.createElement('button');b.type='button';b.setAttribute('role','radio');b.setAttribute('aria-label',d.name+', '+d.code);b.title=d.name.toUpperCase();
+  b.innerHTML='<s style="--g:'+d.g+';--t:'+d.tint+'"></s>';b.dataset.id=d.id;
+  b.onclick=function(){setPal(d.id,true)};sw.appendChild(b);btns.push(b);
+});
+/* custom LIGHT / BACKGROUND chips override one side of the chosen pair */
+var PALID='bench',CL=null,CB=null,HEX=/^#[0-9a-f]{6}$/i;
+var LCK='caustic-light:customLight',BCK='caustic-light:customBg';
+function rgbHex(c){return '#'+c.map(function(v){var s=Math.round(Math.max(0,Math.min(1,v))*255).toString(16);return s.length<2?'0'+s:s}).join('')}
+function lum(h){var c=hexRGB(h);return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function composePal(){
+  var d=PALS.filter(function(x){return x.id===PALID})[0]||PALS[0],o={};for(var k in d)o[k]=d[k];
+  if(CB){o.g=CB;o.bg=rgbHex(hexRGB(CB).map(function(v){return v*.94}));o.theme=lum(CB)>.5?'paper':'';o.halo=o.theme==='paper'?.25:.45}
+  if(CL||CB){var L=CL||d.tint,c=hexRGB(L),mx=Math.max(c[0],c[1],c[2],1e-3);
+    if(o.theme==='paper'){o.tint=CL||(d.theme==='paper'?d.tint:'#2a5d9c');o.core=rgbHex(hexRGB(o.tint).map(function(v){return v*.4}))}
+    else if(CL){var n=c.map(function(v){return v/mx});o.tint=rgbHex(n.map(function(v){return v*.92}));o.core=rgbHex(n.map(function(v){return v+(1-v)*.62}))}
+    else if(d.theme==='paper'){o.tint=PALS[0].tint;o.core=PALS[0].core}}
+  return o;
+}
+function applyPal(){
+  PAL=composePal();var r=document.documentElement;r.setAttribute('data-theme',PAL.theme);r.style.setProperty('--bg',PAL.bg);
+  var custom=!!(CL||CB);
+  btns.forEach(function(b,i){var on=!custom&&b.dataset.id===PALID;b.setAttribute('aria-checked',on?'true':'false');b.tabIndex=on||(custom&&b.dataset.id===PALID)?0:-1});
+  cLi.value=CL||PAL.tint;cBi.value=CB||PAL.g;cLc.classList.toggle('on',!!CL);cBc.classList.toggle('on',!!CB);
+  cLc.style.setProperty('--c',cLi.value);cBc.style.setProperty('--c',cBi.value);
+  [[cLc,cLi.value],[cBc,cBi.value]].forEach(function(a){var c=hexRGB(a[1]);a[0].style.setProperty('--k',(.2126*c[0]+.7152*c[1]+.0722*c[2])>.5?'#000':'#fff')});
+  dirty=true;if(GLYPH)GLYPH.recolour();if(SILK&&SILK.recolour)SILK.recolour();if(SYS&&SYS.recolour)SYS.recolour();
+}
+function setPal(id,persist){PALID=id;CL=null;CB=null;if(persist){store(LSK,id);store(LCK,'');store(BCK,'')}applyPal()}
+function chip(label,key){
+  var l=document.createElement('label');l.className='chip';l.title=label==='LIGHT'?'Custom light colour':'Custom ground colour';
+  var mk=document.createElement('i');mk.innerHTML=label==='LIGHT'?'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3"/></svg>':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 11l3.6-3.4 2.8 2.6 2.1-1.9L14 11.4"/><circle cx="10.6" cy="5.6" r="1"/></svg>';mk.setAttribute('aria-hidden','true');l.appendChild(mk);
+  var i=document.createElement('input');i.type='color';i.setAttribute('aria-label','Custom '+label.toLowerCase()+' colour');
+  l.appendChild(i);sw.appendChild(l);return [l,i];
+}
+var _c=chip('LIGHT'),cLc=_c[0],cLi=_c[1];_c=chip('BACKGROUND');var cBc=_c[0],cBi=_c[1];
+cLi.addEventListener('input',function(){CL=cLi.value;store(LCK,CL);applyPal()});
+cBi.addEventListener('input',function(){CB=cBi.value;store(BCK,CB);applyPal()});
+sw.addEventListener('keydown',function(e){
+  var i=btns.indexOf(document.activeElement);if(i<0)return;
+  var d=e.key==='ArrowRight'||e.key==='ArrowDown'?1:e.key==='ArrowLeft'||e.key==='ArrowUp'?-1:0;if(!d)return;
+  e.preventDefault();var j=(i+d+btns.length)%btns.length;btns[j].focus();btns[j].click();
+});
+var GLYPH=null,SILK=null,fwdEl=$('#fwd');
+PALID=load(LSK)||'bench';(function(){var l=load(LCK),b=load(BCK);if(HEX.test(l||''))CL=l;if(HEX.test(b||''))CB=b})();applyPal();
+
+function weightName(v){return v<300?'Thin':v<450?'Light':v<650?'Regular':'Bold'}
+var wtT=0;
+function setWeight(v,persist){
+  v=Math.max(200,Math.min(900,Math.round(v/10)*10));wtr.value=v;wtr.setAttribute('aria-valuetext',weightName(v)+' '+v);var wo=$('#wtv');if(wo)wo.textContent=v;
+  if(persist)store(WSK,v);if(v===WT)return;WT=v;
+  clearTimeout(wtT);wtT=setTimeout(function(){if(ready){updateTester();GLYPH.reset(false)}},220);
+}
+wtr.addEventListener('input',function(){setWeight(+wtr.value,true)});
+(function(){var v=parseInt(load(WSK),10);setWeight(isFinite(v)?v:860,false)})();
+
+/* typing: any printable key outside a control writes into the word field */
+var txtT=0;txt.addEventListener('input',function(){clearTimeout(txtT);txtT=setTimeout(updateTester,380)});
+txt.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key==='Escape')txt.blur()});
+window.addEventListener('keydown',function(e){
+  var a=document.activeElement;
+  if(VIEW==='silk'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&(!a||a===document.body||a===stage)){ // page 1 keys
+    if(e.key===' '){SILK.clear();e.preventDefault();return}            // Space: start anew
+    if(e.key==='z'||e.key==='Z'){SILK.undo();e.preventDefault();return} // Z: undo
+  }
+  if(VIEW!=='main'||a===txt||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(a&&a.closest&&a.closest('#sw,#nav,#stage,#lock,#fwd')&&(e.key===' '||e.key==='Enter'))return;
+  if(e.key.length===1&&/[\x20-\x7E -ſ]/.test(e.key)){txt.focus();if(!txt.dataset.typed){txt.value='';txt.dataset.typed='1'}}
+});
+
+/* ---------------------------------------------------------------
+   10b. GLYPH SPECIMEN — every glyph cast in light
+   Small per-glyph plates are solved in a worker pool and drawn as
+   thumbnails as they finish; the hovered glyph is re-solved at high
+   resolution and cast live, steered by the same hover light.
+---------------------------------------------------------------- */
+var GLYPH_SRC='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'+
+  '.,:;!?¡¿\'"‘’“”‚„‹›«»()[]{}-–—_/\\|@#$%&*+=<>~^`'+
+  '§¶†‡•·…©®™°±×÷€£¥¢µªº'+
+  'ÀÁÂÄÃÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÖÕØŒÙÚÛÜÝŸÞ'+
+  'ĆČĐĘŁŃŚŠŹŻŽ'+
+  'àáâäãåæçèéêëìíîïðñòóôöõøœùúûüýÿþß'+
+  'ćčđęłńśšźżž';
+var GN=MOBILE?32:40,GHN=MOBILE?72:96,TH=MOBILE?64:88,HIPL={},PREV=null;
+var gridEl=$('#grid'),gph=$('#gph');
+var GQ={chars:[],cells:{},queue:[],pool:[],gen:0,done:0,started:false,built:false,building:false,th:[]};
+function glyphTarget(ch,N){
+  var SS=3,side=N*SS;rc.width=side;rc.height=side;rx.setTransform(1,0,0,1,0,0);rx.clearRect(0,0,side,side);
+  var cr=capRatio(WT),cap=side*.44,sz=cap/cr;rx.font=fontStr(WT,sz);
+  var m=rx.measureText(ch),l=m.actualBoundingBoxLeft||0,r=m.actualBoundingBoxRight||m.width,asc=m.actualBoundingBoxAscent||cap,ds=m.actualBoundingBoxDescent||0;
+  var k=Math.min(1,side*.78/Math.max(1,l+r),side*.8/Math.max(1,asc+ds));
+  if(k<1){sz*=k;cap*=k;rx.font=fontStr(WT,sz);m=rx.measureText(ch);l=m.actualBoundingBoxLeft||0;r=m.actualBoundingBoxRight||m.width;asc=m.actualBoundingBoxAscent||cap;ds=m.actualBoundingBoxDescent||0}
+  var x=side/2-(r-l)/2,y=side*.5+cap*.5;
+  if(y-asc<side*.1)y=side*.1+asc;if(y+ds>side*.9)y=side*.9-ds;
+  rx.textBaseline='alphabetic';
+  drawGlyphs(function(st){st?rx.strokeText(ch,x,y):rx.fillText(ch,x,y)},WT,sz);
+  return {t:pool(N,N,SS),capCells:cap/SS};
+}
+function glyphPlate(key,ch,N){
+  var g=glyphTarget(ch,N),pl=new Plate(key,N,N,g.t,WEIGHTS[P.w].n,g.capCells);
+  pl.hpC=Math.max(pl.hpC,TESTER_HP*N);return pl;
+}
+function supported(ch){
+  if(FONT_OK){
+    rx.font='400 40px '+UNB+',monospace';var a=rx.measureText(ch).width;
+    rx.font='400 40px '+UNB+',serif';var b=rx.measureText(ch).width;
+    return a>0&&Math.abs(a-b)<.01;
+  }
+  rc.width=48;rc.height=48;rx.setTransform(1,0,0,1,0,0);rx.clearRect(0,0,48,48);rx.font='400 30px '+FALLBACK;rx.fillStyle='#fff';rx.fillText(ch,8,36);
+  var d=rx.getImageData(0,0,48,48).data;for(var i=3;i<d.length;i+=4)if(d[i]>40)return true;return false;
+}
+function gKey(ch){return 'g|'+ch+'|'+WT+(FONT_OK?'F':'f')+GN}
+function buildGrid(){
+  if(GQ.built||GQ.building)return;GQ.building=true;
+  var go=function(){
+    if(GQ.built)return;GQ.built=true;GQ.building=false;
+    GQ.chars=Array.from(GLYPH_SRC).filter(supported);gridEl.innerHTML='';GQ.cells={};
+    GQ.chars.forEach(function(ch,i){
+      var b=document.createElement('button');b.type='button';b.setAttribute('aria-label','Glyph '+ch+' (U+'+ch.codePointAt(0).toString(16).toUpperCase()+')');
+      var c=document.createElement('canvas');c.width=TH;c.height=TH;b.appendChild(c);
+      var lab=document.createElement('i');lab.textContent=ch;lab.setAttribute('aria-hidden','true');b.appendChild(lab);
+      var hT=0;
+      b.addEventListener('pointerleave',function(){clearTimeout(hT)});
+      b.addEventListener('click',function(){pick(ch)});
+      gridEl.appendChild(b);
+      GQ.cells[ch]={b:b,c:c,Lf:null,key:null,i:i};placeholder(ch);
+    });
+    GLYPH.reset(false);
+    if(VIEW==='glyphs')showGlyph(GSEL);
+  };
+  try{if(FONT_OK&&document.fonts&&document.fonts.load){
+    Promise.race([document.fonts.load('400 40px '+UNB,GLYPH_SRC),new Promise(function(r){setTimeout(r,2500)})]).then(go,go)}else go()}catch(e){go()}
+}
+function placeholder(ch){
+  var cell=GQ.cells[ch];if(!cell||cell.Lf)return;var c=cell.c,x=c.getContext('2d');
+  x.setTransform(1,0,0,1,0,0);if(GLR)x.clearRect(0,0,TH,TH);else{x.fillStyle=PAL.g;x.fillRect(0,0,TH,TH)}
+  x.fillStyle=PAL.theme==='paper'?'rgba(21,42,74,.14)':'rgba(232,236,238,.08)';x.font=fontStr(WT,TH*.42);x.textAlign='center';x.textBaseline='middle';x.fillText(ch,TH/2,TH/2);
+}
+function pick(ch,keep){
+  if(GQ.cells[GSEL])GQ.cells[GSEL].b.classList.remove('on');
+  GSEL=ch;if(GQ.cells[ch])GQ.cells[ch].b.classList.add('on');
+  if(VIEW==='glyphs'){showGlyph(ch);if(!keep)setOpen(true,false)}
+}
+function newPoolWorker(){
+  var o={w:null,job:null};
+  function bind(){o.w.onmessage=function(e){var d=e.data,j=o.job;if(!j||d.key!==j.pl.key||!d.done)return;o.job=null;
+      j.pl.setField(d.f,d.NX,d.NY);j.pl.meta.done=true;j.pl.meta.it=d.it;if(j.gen===GQ.gen)solvedGlyph(j);pump()};
+    o.w.onerror=function(){o.w=new FakeWorker();bind();if(o.job)o.w.postMessage(o.job.msg)}}
+  o.w=newWorker();bind();return o;
+}
+function poolSize(){var h=navigator.hardwareConcurrency||4;return MOBILE?1:VIEW==='glyphs'?Math.min(3,Math.max(1,h-1)):1}
+function pump(){
+  while(GQ.pool.length<poolSize())GQ.pool.push(newPoolWorker());
+  for(var i=0;i<GQ.pool.length&&i<poolSize();i++){var o=GQ.pool[i];if(o.job)continue;
+    var ch=null;
+    if(GQ.cells[GSEL]&&GQ.queue.indexOf(GSEL)>=0)ch=GSEL;else ch=GQ.queue[0];
+    if(ch==null)break;GQ.queue.splice(GQ.queue.indexOf(ch),1);
+    var key=gKey(ch),cache=HIPL[key];
+    if(cache&&cache.meta.done){solvedGlyph({ch:ch,pl:cache,gen:GQ.gen});i--;continue}
+    var pl=cache||glyphPlate(key,ch,GN);HIPL[key]=pl;
+    o.job={ch:ch,pl:pl,gen:GQ.gen,msg:{key:key,nx:GN,ny:GN,t:pl.t,floor:FLOOR_SPILL,floor0:.35,decay:.84,ior:pl.ior,cs:1,T:pl.tC,Hp:pl.hpC,iters:TESTER_IT,snap:0}};
+    o.w.postMessage(o.job.msg);
+  }
+}
+function solvedGlyph(j){
+  var cell=GQ.cells[j.ch];if(cell)cell.pl=j.pl;
+  if(GLR&&cell){cell.b.classList.add('live');cell.b.classList.remove('stale');cell.Lf=1;GQ.done++;GQ.rectDirty=true;dirty=true;progress()}else GQ.th.push(j);if(PREV&&PREV.ch===j.ch)showGlyph(j.ch)}
+/* thumbnail: the glyph's plate cast with level glass and an overhead sun, on the CPU */
+var LEVEL=rotMat(0,0),ZEN=[0,0,-1];
+function thumb(j){
+  var cell=GQ.cells[j.ch];if(!cell)return;var pl=j.pl,rc0={cx:pl.rect.cx,cy:pl.rect.cy,W:pl.rect.W,H:pl.rect.H};
+  pl.place(0,0,100);var Lf=cpuLight(pl,{x:-54,y:-54,w:108,h:108},TH,TH,(GN*3)*(GN*3),LEVEL,ZEN,3);
+  pl.rect.cx=rc0.cx;pl.rect.cy=rc0.cy;pl.rect.W=rc0.W;pl.rect.H=rc0.H;
+  cell.Lf=Lf;cell.key=pl.key;cpuColour(Lf,cell.c);cell.b.classList.remove('stale');GQ.done++;
+}
+function progress(){
+  var n=GQ.chars.length;gph.textContent=n?('GLYPHS '+Math.min(GQ.done,n)+' / '+n):'GLYPHS';
+}
+GLYPH={
+  start:function(){if(!GQ.started){GQ.started=true;buildGrid()}else pump()},
+  reset:function(rebuild){
+    GQ.gen++;GQ.th=[];GQ.done=0;
+    GQ.pool=GQ.pool.filter(function(o){if(o.job){try{o.w.terminate()}catch(e){}return false}return true});
+    if(rebuild&&GQ.built){GQ.built=false;buildGrid();return}
+    GQ.queue=GQ.chars.slice();
+    GQ.chars.forEach(function(ch){var c=GQ.cells[ch];if(c.Lf){c.b.classList.add('stale');c.Lf=c.Lf===1?2:c.Lf}else placeholder(ch)});
+    if(GQ.started)pump();progress();
+  },
+  recolour:function(){GQ.chars.forEach(function(ch){var c=GQ.cells[ch];if(c.Lf&&c.Lf!==1)cpuColour(c.Lf,c.c);else if(!c.Lf)placeholder(ch)})}
+};
+/* live specimen: every solved tile is cast by the GPU with the shared tilt and sun, so the whole grid
+   moves together between legible glyphs (focus) and sheared panes of abstract light (pointer far out, or the idle drift) */
+var TILE_MX=40,gpEl=$('#gp');GQ.rectDirty=true;GQ.rects=[];
+gpEl.addEventListener('scroll',function(){GQ.rectDirty=true;dirty=true},{passive:true});
+window.addEventListener('resize',function(){GQ.rectDirty=true});
+function tileRects(){
+  var pr=gpEl.getBoundingClientRect(),top=pr.top+(MOBILE||W<=760?4:40),out=[];
+  GQ.chars.forEach(function(ch){var c=GQ.cells[ch];if(!c||!c.pl)return;var r=c.b.getBoundingClientRect();
+    if(r.top<top-r.height*.2||r.bottom>pr.bottom+r.height*.2||r.right<pr.left||r.left>pr.right)return;
+    out.push({c:c,cx:r.left+r.width/2,cy:r.top+r.height/2,w:r.width})});
+  if(out.length)TILE_MX=Math.max(24,Math.min(52,Math.round(out[0].w*PR/1.8)));
+  GQ.rects=out;GQ.rectDirty=false;
+}
+var _tp=new Plate('probe',8,8,new Float32Array(64),WEIGHTS[P.w].n,3.5);
+function liveTiles(vw){
+  if(!GLR||!GQ.built)return [];if(GQ.rectDirty)tileRects();
+  var out=[],sx=0,sy=0;
+  GQ.rects.forEach(function(t,i){
+    var pl=t.c.pl,W0=t.w*.86;
+    if(i===0){ // bulk shift of a flat pane at this size (same for every tile: equal throw per cell)
+      _tp.nx=pl.nx;_tp.ny=pl.ny;_tp.hpC=pl.hpC;_tp.tC=pl.tC;_tp.place(0,0,W0);
+      var tr=trace(_tp,.5,.5,0,OPT.R,OPT.sun,P.floorK,true);if(tr){sx=tr.F[0]*.88;sy=tr.F[1]*.88}}
+    pl.place(t.cx+vw.x-sx,t.cy+vw.y-sy,W0);out.push(pl);
+  });
+  return out;
+}
+/* the large preview: high-resolution plate, shown from its first useful snapshot; the small plate stands in before that */
+function showGlyph(ch){
+  if(!ready)return;
+  var hk='H|'+ch+'|'+WT+(FONT_OK?'F':'f')+GHN,hp=HIPL[hk];
+  if(!hp){hp=glyphPlate(hk,ch,GHN);HIPL[hk]=hp}
+  if(!hp.meta.done)solve(hp);
+  var S=Math.min(GV.w,GV.h)*(GV.w===W?.74:.78),cx=GV.x+GV.w/2,cy=GV.y+GV.h/2+(GV.w===W?8:0); // glyph preview: the earlier, denser specimen layout
+  hp.place(cx,cy,S);
+  var sp=GQ.cells[ch]&&GQ.cells[ch].pl||HIPL[gKey(ch)],small=null;
+  if(sp&&sp.meta.done){small=Object.create(sp);small.rect={cx:0,cy:0,W:1,H:1};small.place(cx,cy,S)}
+  PREV={ch:ch,hp:hp,small:small};
+  TESTER=(hp.meta.it>=24||!small)?hp:small;dirty=true;
+}
+function route(){var h=location.hash;setView(h==='#glyphs'?'glyphs':h==='#draw'?'draw':h==='#word'?'main':h==='#system'?'sys':'silk')} // 1 silk (default) · 2 word · 3 glyphs · 4 draw
+/* page navigation: one capsule; [ and ] step between pages when no field is focused */
+var PAGES=[['silk','#silk','DRAW LIGHT'],['main','#word','WORD'],['glyphs','#glyphs','GLYPHS'],['draw','#draw','SHAPE'],['sys','#system','SYSTEM']];
+function pageIndex(){for(var i=0;i<PAGES.length;i++)if(PAGES[i][0]===VIEW)return i;return 0}
+function goPage(d){var i=Math.max(0,Math.min(PAGES.length-1,pageIndex()+d));if(PAGES[i][0]!==VIEW)location.hash=PAGES[i][1]}
+function syncPageNav(){
+  var i=pageIndex(),pv=$('#pprev'),nx=$('#pnext');$('#pname').innerHTML='<b>'+(i+1)+' / '+PAGES.length+'</b>'+PAGES[i][2];
+  pv.disabled=i===0;nx.disabled=i===PAGES.length-1;
+  pv.title=i>0?'Previous page: '+PAGES[i-1][2].toLowerCase()+' ( [ )':'First page';nx.title=i<PAGES.length-1?'Next page: '+PAGES[i+1][2].toLowerCase()+' ( ] )':'Last page';
+  pv.setAttribute('aria-label',pv.title);nx.setAttribute('aria-label',nx.title);
+}
+$('#pprev').addEventListener('click',function(){goPage(-1)});$('#pnext').addEventListener('click',function(){goPage(1)});
+window.addEventListener('keydown',function(e){var a=document.activeElement;if(a&&(a.tagName==='INPUT'&&a.type==='text'))return;
+  if(e.key==='['){goPage(-1);e.preventDefault()}else if(e.key===']'){goPage(1);e.preventDefault()}},true);
+/* phones: weight and pane fold away behind one toggle */
+$('#adj').addEventListener('click',function(){var on=this.getAttribute('aria-expanded')!=='true';this.setAttribute('aria-expanded',on?'true':'false');document.documentElement.classList.toggle('adj',on)});
+function de0(){return document.documentElement}
+function setView(v){
+  if(v==='glyphs'&&VIEW!=='glyphs'){GOPEN=true;de0().classList.add('gopen')}if(v==='draw'&&VIEW!=='draw'){DOPEN=true;de0().classList.add('dopen')}
+  VIEW=v;var g=v==='glyphs',dv=v==='draw',sv=v==='silk',de=document.documentElement;setGV();de.classList.toggle('g',g||dv);de.classList.toggle('gv',g);de.classList.toggle('dv',dv);
+  de.classList.toggle('sv',sv);de.classList.toggle('wv',v==='main');de.classList.toggle('yv',v==='sys');if(v==='sys')SYS.show();else SYS.hide();
+  de.classList.toggle('glive',!!GLR);GQ.rectDirty=true;
+  var back={main:['#silk','Back to drawing'],glyphs:['#word','Back to the word'],draw:['#glyphs','Back to the glyphs']}[v],fw={silk:['#word','Cast a word'],main:['#glyphs','Glyph set'],glyphs:['#draw','Draw a shape']}[v];
+  if(back){nav.setAttribute('href',back[0]);nav.setAttribute('aria-label',back[1])}
+  if(fw){fwdEl.setAttribute('href',fw[0]);fwdEl.setAttribute('aria-label',fw[1])}
+  syncPageNav();
+  if(document.activeElement===txt&&v!=='main')txt.blur();
+  if(g){GLYPH.start();pick(GSEL,true)}else if(sv){PREV=null;dirty=true}else if(v==='sys'){PREV=null}else{PREV=null;if(ready)updateTester()}
+  dirty=true;
+}
+window.addEventListener('hashchange',route);
+gridEl.addEventListener('keydown',function(e){
+  var bs=[].slice.call(gridEl.children),i=bs.indexOf(document.activeElement);if(i<0)return;
+  var cols=Math.max(1,getComputedStyle(gridEl).gridTemplateColumns.split(' ').length);
+  var d={ArrowRight:1,ArrowLeft:-1,ArrowDown:cols,ArrowUp:-cols}[e.key];if(!d)return;
+  e.preventDefault();var j=Math.max(0,Math.min(bs.length-1,i+d));bs[j].focus();
+});
+
+/* ---------------------------------------------------------------
+   10c. HOLD + PANE + DRAW
+   Click (or Space/Enter on the stage) holds the light where it is.
+   The pane slider fades the flat-glass light and pane edges in the compositor.
+   The drawing page turns a sketch into the caustic target.
+---------------------------------------------------------------- */
+var lockB=$('#lock'),pnr=$('#pnr'),PSK='caustic-light:pane';
+function setFrozen(f){
+  FROZEN=!!f;document.documentElement.classList.toggle('frozen',FROZEN);
+  lockB.setAttribute('aria-pressed',FROZEN?'true':'false');lockB.setAttribute('aria-label',FROZEN?'Release the light':'Hold the light');
+  if(!FROZEN){IN.on=true;IN.last=performance.now();HW=Math.max(HW,.5)} // release: ease from the held angle back to the pointer
+  dirty=true;
+}
+stage.addEventListener('click',function(){if(VIEW!=='silk')setFrozen(!FROZEN)});
+stage.addEventListener('keydown',function(e){if(VIEW!=='silk'&&(e.key===' '||e.key==='Enter')){e.preventDefault();setFrozen(!FROZEN)}});
+lockB.addEventListener('click',function(){setFrozen(!FROZEN)});
+
+function setPane(v,persist){
+  PANE=Math.max(0,Math.min(1,+v||0));pnr.value=PANE;pnr.setAttribute('aria-valuetext',Math.round(PANE*100)+'%');var po=$('#pnv');if(po)po.textContent=Math.round(PANE*100)+'%';
+  if(persist)store(PSK,PANE);dirty=true;if(GLYPH)GLYPH.recolour();
+}
+pnr.addEventListener('input',function(){setPane(pnr.value,true)});
+(function(){var v=parseFloat(load(PSK));setPane(isFinite(v)?v:1,false)})();
+
+$('#brush').addEventListener('input',function(){$('#brv').textContent=this.value});
+var pad=$('#pad'),pctx=pad.getContext('2d',{willReadFrequently:true}),dguide=$('#dguide'),gctx=dguide.getContext('2d',{willReadFrequently:true}),brush=$('#brush'),dpEl=$('#dp'),DSHOW=false;
+var PADN=480,DN=MOBILE?72:96;
+var DR={strokes:[],cur:null,ver:0,cast:0,plate:null,next:null,timer:0,
+  state:function(){var p=DR.next||DR.plate;return {strokes:DR.strokes.length,ver:DR.ver,cast:DR.cast,key:p?p.key:'',solved:p?p.meta.it:0,done:p?p.meta.done:false,shown:DR.plate?DR.plate.key:''}}};
+/* the pad starts empty: nothing is drawn until the visitor draws */
+function strokePaths(c,list,col){
+  c.lineCap='round';c.lineJoin='round';c.strokeStyle=col;c.fillStyle=col;
+  list.forEach(function(s){c.lineWidth=s.w;c.beginPath();
+    if(s.pts.length===1){c.arc(s.pts[0][0],s.pts[0][1],s.w/2,0,Math.PI*2);c.fill();return}
+    s.pts.forEach(function(p,i){i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])});c.stroke()});
+}
+function fgCol(){return (getComputedStyle(document.documentElement).getPropertyValue('--fg')||'#fff').trim()}
+function redraw(){
+  pctx.setTransform(1,0,0,1,0,0);pctx.clearRect(0,0,PADN,PADN);strokePaths(pctx,DR.strokes.concat(DR.cur?[DR.cur]:[]),fgCol());
+  if(!DR.strokes.length&&!DR.cur){pctx.save();pctx.globalAlpha=.4;pctx.fillStyle=fgCol();pctx.font='600 15px '+FALLBACK;pctx.textAlign='center';pctx.textBaseline='middle';pctx.fillText('D R A W   H E R E',PADN/2,PADN/2);pctx.restore()}
+  dguide.width=dguide.height=240;gctx.setTransform(.5,0,0,.5,0,0);gctx.clearRect(0,0,PADN,PADN);strokePaths(gctx,DR.strokes,fgCol());
+}
+function drawTarget(N){
+  var SS=3,side=N*SS,k=side/PADN;rc.width=side;rc.height=side;rx.setTransform(1,0,0,1,0,0);rx.clearRect(0,0,side,side);
+  rx.setTransform(k,0,0,k,0,0);strokePaths(rx,DR.strokes,'#fff');rx.setTransform(1,0,0,1,0,0);
+  return pool(N,N,SS);
+}
+function cast(){
+  clearTimeout(DR.timer);var t=drawTarget(DN),sum=0;for(var i=0;i<t.length;i++)sum+=t[i];if(sum<.5)return; // nothing drawn: keep the last light
+  var key='D|'+DR.ver+'|'+DN;if((DR.next&&DR.next.key===key)||(!DR.next&&DR.plate&&DR.plate.key===key))return;
+  var pl=new Plate(key,DN,DN,t,WEIGHTS[P.w].n,DN*.44);pl.hpC=Math.max(pl.hpC,TESTER_HP*DN);DR.cast++;
+  if(!DR.plate)DR.plate=pl;else DR.next=pl; // the previous light stays up until the new glass has taken shape
+  if(VIEW==='draw')showDraw();
+}
+function sizePad(){
+  var r=dpEl.getBoundingClientRect(),m=r.width<=520,s=Math.max(160,Math.min(600,r.width-(m?40:112),r.height-(m?230:220)));pad.style.width=s+'px';pad.style.height=s+'px';
+}
+function showDraw(){
+  if(!ready)return;sizePad();redraw();if(!DR.plate)cast();if(!DR.plate){TESTER=null;dirty=true;return}
+  var S=Math.min(GV.w,GV.h)*(GV.w===W?.66:.62),cx=GV.x+GV.w/2,cy=GV.y+GV.h/2+(GV.w===W?14:0);
+  [DR.plate,DR.next].forEach(function(p){if(p)p.place(cx,cy,S)});
+  var j=DR.next||DR.plate;if(!j.meta.done)solve(j);
+  TESTER=DR.plate;dirty=true;
+}
+function drawTick(){
+  if(DR.next&&DR.next.meta.it>=18){DR.plate=DR.next;DR.next=null;TESTER=DR.plate;dirty=true}
+  var p=DR.plate;if(!p)return;var r=p.rect;
+  dguide.style.left=(r.cx-r.W/2-OPT.ox)+'px';dguide.style.top=(r.cy-r.H/2-OPT.oy)+'px';dguide.style.width=r.W+'px';dguide.style.height=r.H+'px';
+  dguide.classList.toggle('show',DSHOW||!!DR.next||!p.meta.done);
+}
+function padPt(e){var r=pad.getBoundingClientRect();return [(e.clientX-r.left)/r.width*PADN,(e.clientY-r.top)/r.height*PADN]}
+pad.addEventListener('pointerdown',function(e){e.preventDefault();try{pad.setPointerCapture(e.pointerId)}catch(_){}
+  DR.cur={w:+brush.value,pts:[padPt(e)]};clearTimeout(DR.timer);redraw()});
+pad.addEventListener('pointermove',function(e){if(!DR.cur)return;var p=padPt(e),l=DR.cur.pts[DR.cur.pts.length-1];
+  if(Math.hypot(p[0]-l[0],p[1]-l[1])<1.5)return;DR.cur.pts.push(p);redraw()});
+function endStroke(){if(!DR.cur)return;DR.strokes.push(DR.cur);DR.cur=null;DR.ver++;redraw();clearTimeout(DR.timer);DR.timer=setTimeout(cast,700)}
+pad.addEventListener('pointerup',endStroke);pad.addEventListener('pointercancel',endStroke);
+$('#dundo').addEventListener('click',function(){if(!DR.strokes.length)return;DR.strokes.pop();DR.ver++;redraw();clearTimeout(DR.timer);DR.timer=setTimeout(cast,500)});
+$('#dclear').addEventListener('click',function(){DR.strokes=[];DR.ver++;clearTimeout(DR.timer);DR.plate=null;DR.next=null;if(VIEW==='draw'){TESTER=null;dirty=true}redraw()});
+$('#dcast').addEventListener('click',function(){if(!DR.strokes.length){pad.focus();return}cast();setOpen(false,false)});
+$('#gtog').addEventListener('click',function(){setOpen(VIEW==='glyphs',true)});
+window.addEventListener('keydown',function(e){if(e.key==='Escape'&&((VIEW==='glyphs'&&!GOPEN)||(VIEW==='draw'&&!DOPEN))){setOpen(VIEW==='glyphs',true);e.preventDefault()}});
+$('#dshow').addEventListener('click',function(){DSHOW=!DSHOW;this.setAttribute('aria-pressed',DSHOW?'true':'false')});
+
+/* ---------------------------------------------------------------
+   10d. PAGE 1 — DRAWING WITH LIGHT
+   Each stroke is one thread: an ordered list of points. While the
+   pointer is down, one point is added per frame with the pointer's
+   velocity. Every step each point is pushed along a noise flow field
+   (plus a decaying share of its input velocity, with friction), ages,
+   and is pulled toward its neighbour by a spring, so the thread
+   drifts and contracts. After every step the whole thread is stroked
+   as a smooth hairline onto a persistent canvas, additively and at
+   very low opacity, so the motion sweeps out translucent veils.
+   Symmetry copies about the screen centre: rotations, a mirror
+   (default on) and spiral copies. Colours come from the light pair.
+---------------------------------------------------------------- */
+SILK=(function(){
+  /* 3D gradient noise with octaves (own implementation) */
+  var PERM=new Uint8Array(512);(function(){var p=[],i,j,t,s=1234567;for(i=0;i<256;i++)p[i]=i;
+    for(i=255;i>0;i--){s=(s*16807)%2147483647;j=s%(i+1);t=p[i];p[i]=p[j];p[j]=t}for(i=0;i<512;i++)PERM[i]=p[i&255]})();
+  function fade(t){return t*t*t*(t*(t*6-15)+10)}
+  function grad(h,x,y,z){h&=15;var u=h<8?x:y,v=h<4?y:(h===12||h===14)?x:z;return ((h&1)?-u:u)+((h&2)?-v:v)}
+  function lerp(a,b,t){return a+(b-a)*t}
+  function noise3(x,y,z){
+    var X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);
+    var u=fade(x),v=fade(y),w=fade(z),A=PERM[X]+Y,AA=PERM[A]+Z,AB=PERM[A+1]+Z,B=PERM[X+1]+Y,BA=PERM[B]+Z,BB=PERM[B+1]+Z;
+    return lerp(lerp(lerp(grad(PERM[AA],x,y,z),grad(PERM[BA],x-1,y,z),u),lerp(grad(PERM[AB],x,y-1,z),grad(PERM[BB],x-1,y-1,z),u),v),
+                lerp(lerp(grad(PERM[AA+1],x,y,z-1),grad(PERM[BA+1],x-1,y,z-1),u),lerp(grad(PERM[AB+1],x,y-1,z-1),grad(PERM[BB+1],x-1,y-1,z-1),u),v),w);
+  }
+  function fbm(x,y,z){var s=0,a=1,n=0;for(var o=0;o<8;o++){s+=a*(noise3(x,y,z)*.5+.5);n+=a;a*=.65;x*=2;y*=2;z*=2}return s/n}
+  /* settings */
+  var SKEY='caustic-light:silk',set={mirror:true,rot:1,spiral:false};
+  try{var sv=JSON.parse(localStorage.getItem(SKEY)||'null');if(sv){set.mirror=sv.mirror!==false;set.rot=SYMS.indexOf(sv.rot)>=0?sv.rot:1;set.spiral=!!sv.spiral}}catch(e){}
+  function save(){try{localStorage.setItem(SKEY,JSON.stringify(set))}catch(e){}}
+  var K={angle:5*Math.PI,space:.02,time:.005,force:RM.matches?.35:1,vel:.3,velDecay:.98,friction:.975,life:150,rigid:.2,rest:0};
+  /* canvas */
+  var cv=document.createElement('canvas');cv.id='silkc';cv.setAttribute('aria-hidden','true');stage.appendChild(cv);
+  var cx2=cv.getContext('2d'),DPRs=Math.min(2,window.devicePixelRatio||1),CW=0,CH=0,ground=null;
+  function fillGround(){cx2.save();cx2.setTransform(1,0,0,1,0,0);cx2.globalCompositeOperation='source-over';cx2.globalAlpha=1;cx2.fillStyle=PAL.g;cx2.fillRect(0,0,cv.width,cv.height);cx2.restore();ground=PAL.g}
+  function size(){
+    var w=Math.round(W*DPRs),h=Math.round(H*DPRs);if(w===cv.width&&h===cv.height)return;
+    var old=null;if(cv.width>2){old=document.createElement('canvas');old.width=cv.width;old.height=cv.height;old.getContext('2d').drawImage(cv,0,0)}
+    cv.width=w;cv.height=h;CW=W;CH=H;fillGround();if(old)cx2.drawImage(old,(w-old.width)/2,(h-old.height)/2);snaps=[];
+  }
+  var silks=[],cur=null,ptr={x:0,y:0,lx:0,ly:0,down:false},snaps=[],started=false,hasInk=false,frameN=0;
+  var intro={state:'wait',frame:0,silk:null};
+  function Silk(o){
+    this.pts=[];this.time=0;this.done=false;this.rot=o.rot;this.mirror=o.mirror;this.spiral=o.spiral;this.opacity=o.opacity;
+    this.dpf=o.dpf;this.colourMode=o.colourMode||'speed';this.cx=o.cx;this.cy=o.cy;this.step=0;this.speed=0;
+  }
+  Silk.prototype.add=function(x,y,vx,vy){this.pts.push({x:x,y:y,px:x,py:y,vx:vx,vy:vy,l:K.life});this.speed=Math.hypot(vx,vy)};
+  Silk.prototype.update=function(){
+    var P=this.pts,i,p;this.time++;
+    while(P.length&&P[0].l<=0)P.shift();
+    for(i=0;i<P.length;i++){p=P[i];
+      var a=K.angle*fbm(p.x*K.space+1e6,p.y*K.space+1e6,this.time*K.time);
+      a+=Math.atan2(p.y-this.cy,p.x-this.cx); // flow turns with the symmetry, so every copy moves alike
+      var ax=K.force*Math.cos(a)+K.vel*p.vx,ay=K.force*Math.sin(a)+K.vel*p.vy;p.vx*=K.velDecay;p.vy*=K.velDecay;
+      // position step: the remembered position is refreshed right after the move, so each step moves by the force alone (no carried momentum)
+      p.x+=(p.x-p.px)*K.friction+ax;p.y+=(p.y-p.py)*K.friction+ay;p.px=p.x;p.py=p.y;p.l--;
+      if(i){var q=P[i-1],dx=q.x-p.x,dy=q.y-p.y,d=Math.sqrt(dx*dx+dy*dy); // spring to the previous point: the thread contracts as it drifts
+        if(d>K.rest+.01){var f=K.rigid*(K.rest-d)/d,fx=f*dx,fy=f*dy;p.x-=fx;q.x+=fx;p.y-=fy;q.y+=fy}}
+    }
+  };
+  function mix(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]}
+  function colours(){var paper=PAL.theme==='paper',base=hexRGB(PAL.tint),hi=paper?hexRGB(PAL.core):mix(hexRGB(PAL.core),[1,1,1],.35);return {base:base,hi:hi,paper:paper}}
+  function rgba(c,a){return 'rgba('+Math.round(c[0]*255)+','+Math.round(c[1]*255)+','+Math.round(c[2]*255)+','+a.toFixed(4)+')'}
+  function tracePath(P,c,s,cxp,cyp,m,sc){ // smooth curve through the points, in one symmetric copy
+    cx2.beginPath();
+    function X(p){var x=(p.x-cxp)*m*sc,y=(p.y-cyp)*sc;return [cxp+x*c-y*s,cyp+x*s+y*c]}
+    var a=X(P[0]);cx2.moveTo(a[0],a[1]);
+    for(var i=1;i<P.length-1;i++){var b=X(P[i]),n=X(P[i+1]);cx2.quadraticCurveTo(b[0],b[1],(b[0]+n[0])/2,(b[1]+n[1])/2)}
+    var e=X(P[P.length-1]);cx2.lineTo(e[0],e[1]);
+  }
+  Silk.prototype.draw=function(fringe){
+    var P=this.pts;if(P.length<2)return;var C=colours(),last=P[P.length-1],alpha=this.opacity*(last.l/K.life),col;
+    if(this.colourMode==='time'){col=mix(C.hi,C.base,Math.min(1,this.time/500))}
+    else{var t=Math.max(0,Math.min(1,(this.speed-10)/20));col=mix(C.base,C.hi,Math.pow(t,1.5))}
+    cx2.setTransform(DPRs,0,0,DPRs,0,0);cx2.lineWidth=1;cx2.lineJoin='round';cx2.lineCap='round';
+    cx2.globalCompositeOperation=C.paper?'source-over':'lighter';
+    var R=this.rot,copies=this.spiral?4:1;
+    for(var k=0;k<copies;k++){var sc=Math.sqrt(1-k/copies*.85),extra=.75*Math.PI*k/copies;
+      for(var r=0;r<R;r++){var ang=r*2*Math.PI/R+extra,c=Math.cos(ang),s=Math.sin(ang);
+        for(var m=1;m>=(this.mirror?-1:1);m-=2){
+          tracePath(P,c,s,this.cx,this.cy,m,sc);cx2.strokeStyle=rgba(col,alpha*(C.paper?.7:1));cx2.stroke();
+          if(fringe&&!C.paper){ // Diamond fringe: faint red and blue hairlines just off the thread
+            cx2.save();cx2.translate(.55,0);cx2.strokeStyle=rgba([1,.12,.05],alpha*.35);cx2.stroke();cx2.translate(-1.1,0);cx2.strokeStyle=rgba([.1,.25,1],alpha*.35);cx2.stroke();cx2.restore()}
+        }}}
+    hasInk=true;
+  };
+  function newSilk(o){var s=new Silk(o);silks.push(s);return s}
+  function start(){if(started)return;started=true;var a=$('#intro'),b=$('#hint');if(a)a.classList.add('gone');if(b)b.classList.add('gone')}
+  function snap(){var c=document.createElement('canvas');c.width=cv.width;c.height=cv.height;c.getContext('2d').drawImage(cv,0,0);snaps.push(c);if(snaps.length>8)snaps.shift()}
+  var api={
+    settings:set,
+    tick:function(now,dt){
+      if(VIEW!=='silk')return false;size();frameN++;
+      /* intro bloom: a thread grown from one point at the centre, six rotations and a mirror */
+      if(intro.state==='wait'&&frameN>25){intro.state='grow';intro.silk=newSilk({rot:6,mirror:true,spiral:false,opacity:.016,dpf:2,colourMode:'time',cx:W/2,cy:H/2});
+        var a=$('#intro');if(a)a.classList.add('on');setTimeout(function(){var b=$('#hint');if(b&&!started)b.classList.add('on')},1200);
+        if(RM.matches){for(var f=0;f<400;f++){if(f<224&&f%2===0)intro.silk.add(W/2+5,H/2-5,0,0);intro.silk.update();intro.silk.draw(false)}intro.state='done';intro.silk.done=true;intro.silk.pts=[]}}
+      if(intro.state==='grow'){intro.frame++;if(intro.frame%2===0)intro.silk.add(W/2+5,H/2-5,0,0);if(intro.frame>=224){intro.state='done';intro.silk.done=true}}
+      /* the pointer adds one point per frame to the current thread */
+      if(cur&&ptr.down){cur.add(ptr.x,ptr.y,ptr.x-ptr.lx,ptr.y-ptr.ly);ptr.lx=ptr.x;ptr.ly=ptr.y}
+      var busy=false;
+      for(var i=silks.length-1;i>=0;i--){var s=silks[i],n=s.dpf;
+        for(var j=0;j<n;j++){s.update();s.draw(j===0)}
+        if(s.pts.length)busy=true;else if(s.done){silks.splice(i,1)}}
+      return false; // drawn here; the glass renderer has nothing to do on this page
+    },
+    begin:function(x,y){
+      if(VIEW!=='silk')return;start();size();snap();
+      ptr.down=true;ptr.x=ptr.lx=x;ptr.y=ptr.ly=y;
+      cur=newSilk({rot:set.rot,mirror:set.mirror,spiral:set.spiral,opacity:.09,dpf:5,cx:W/2,cy:H/2});
+    },
+    move:function(x,y){ptr.x=x;ptr.y=y},
+    end:function(){ptr.down=false;if(cur)cur.done=true;cur=null},
+    clear:function(){silks=[];if(intro.state==='grow')intro.state='done';cur=null;ptr.down=false;snaps=[];fillGround();hasInk=false},
+    undo:function(){var c=snaps.pop();if(!c)return false;if(cur){cur.done=true;cur=null;ptr.down=false}
+      var last=silks.filter(function(s){return s!==intro.silk}).pop();if(last){last.pts=[];last.done=true}
+      cx2.save();cx2.setTransform(1,0,0,1,0,0);cx2.globalCompositeOperation='copy';cx2.drawImage(c,0,0);cx2.restore();return true},
+    /* a new light pair re-tints what is already drawn: each pixel's light is re-mapped onto the new ground and colours */
+    recolour:function(){
+      if(!cv.width||!ground||ground===PAL.g&&!hasInk){fillGround();return}
+      var og=hexRGB(ground),ng=hexRGB(PAL.g),C=colours(),id=cx2.getImageData(0,0,cv.width,cv.height),d=id.data,oldPaper=(og[0]+og[1]+og[2])>1.5;
+      for(var i=0;i<d.length;i+=4){var dr=d[i]/255-og[0],dg=d[i+1]/255-og[1],db=d[i+2]/255-og[2];
+        var t=oldPaper?Math.max(0,-(dr+dg+db)/3)*2.2:Math.max(dr,dg,db);if(t<.004){d[i]=ng[0]*255;d[i+1]=ng[1]*255;d[i+2]=ng[2]*255;continue}
+        t=Math.min(1,t);var c;
+        if(C.paper){c=mix(ng,C.base,Math.min(1,t*1.4));c=mix(c,C.hi,Math.max(0,t-.6)/.4)}
+        else{c=mix(ng,C.base,Math.min(1,t*1.6));c=mix(c,C.hi,Math.max(0,t-.45)/.55)}
+        d[i]=c[0]*255;d[i+1]=c[1]*255;d[i+2]=c[2]*255}
+      cx2.putImageData(id,0,0);ground=PAL.g;snaps=[];
+    },
+    start:start,composite:function(){},lit:function(){return 1},ink:function(){return hasInk},
+    state:function(){var n=0;silks.forEach(function(s){n+=s.pts.length});return {threads:silks.length,strokes:silks.filter(function(s){return s!==intro.silk}).length,points:n,drawing:!!cur,intro:intro.state,started:started,mirror:set.mirror,rot:set.rot,spiral:set.spiral,snaps:snaps.length}}
+  };
+  /* controls, in the page's own UI style */
+  var box=document.createElement('div');box.id='silk';box.className='ui';box.setAttribute('role','group');box.setAttribute('aria-label','Light drawing');
+  function btn(label,aria,fn,pressed){var b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-label',aria);if(pressed!=null)b.setAttribute('aria-pressed',pressed?'true':'false');b.addEventListener('click',function(e){e.stopPropagation();fn(b)});box.appendChild(b);return b}
+  btn('MIRROR','Mirror symmetry',function(b){set.mirror=!set.mirror;b.setAttribute('aria-pressed',set.mirror?'true':'false');save()},set.mirror);
+  var symG=document.createElement('span');symG.className='syms';symG.setAttribute('role','group');symG.setAttribute('aria-label','Rotational symmetry');box.appendChild(symG);
+  var rb=SYMS.map(function(n){return btn(String(n),n===1?'No rotational symmetry (1)':n+'-fold rotational symmetry',function(){set.rot=n;rb.forEach(function(x,i){x.setAttribute('aria-pressed',SYMS[i]===n?'true':'false')});save()},set.rot===n)});
+  rb.forEach(function(b){b.title=b.getAttribute('aria-label');symG.appendChild(b)});
+  (function(){var g=document.createElement('span');g.className='gap';g.setAttribute('aria-hidden','true');box.appendChild(g)})();
+  btn('SPIRAL','Spiral copies toward the centre',function(b){set.spiral=!set.spiral;b.setAttribute('aria-pressed',set.spiral?'true':'false');save()},set.spiral);
+  (function(){var g=document.createElement('span');g.className='gap';g.setAttribute('aria-hidden','true');box.appendChild(g)})();
+  btn('NEW','Start anew (Space)',function(){api.clear()}).title='Start anew (Space)';
+  btn('UNDO','Undo last stroke (Z)',function(){api.undo()}).title='Undo last stroke (Z)';
+  box.querySelectorAll('button').forEach(function(b){if(!b.title)b.title=b.getAttribute('aria-label')});
+  document.body.appendChild(box);
+  /* a pointer click should not leave a control focused: Space and Z then still reach the drawing */
+  [box,$('#sw')].forEach(function(el){el.addEventListener('pointerup',function(){setTimeout(function(){var a=document.activeElement;if(a&&el.contains(a)&&a.tagName==='BUTTON')a.blur()},0)})});
+  /* the whole page is the drawing surface */
+  var pid=null;
+  stage.addEventListener('pointerdown',function(e){
+    if(VIEW!=='silk'||(e.pointerType==='mouse'&&e.button!==0))return;
+    pid=e.pointerId;try{stage.setPointerCapture(pid)}catch(_){}api.begin(e.clientX,e.clientY);
+  });
+  stage.addEventListener('pointermove',function(e){if(pid===e.pointerId)api.move(e.clientX,e.clientY)});
+  function up(e){if(pid===e.pointerId){api.end();pid=null}}
+  stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);
+  api.fbm=fbm;api.K=K;
+  return api;
+})();
+
+/* ---------------------------------------------------------------
+   10e. PAGE 5 — SYSTEM MAP
+   One poster, a 3 x 3 grid that fits the screen, that explains the
+   whole machine. The charts are not illustrations: on first open the
+   page runs the real solver on a small glyph, the real noise field and
+   the real thread model, and draws what they return. It is drawn in
+   the chosen light / ground pair and redrawn when the pair changes.
+   A live panel reads the running session.
+---------------------------------------------------------------- */
+var SYS=(function(){
+  var sec=$('#sys'),host=$('#sysv'),built=false,zoom=1,CW=600,CH=375,COLS=3,VW=CW*3,VH=CH*3,liveT=0,DATA=null;
+  var FF="'Open Sans',Arial,Helvetica,sans-serif",mc=document.createElement('canvas').getContext('2d');
+  var RED='#ff4a3d',BLU='#4d7dff',INK='#fff',CORE='#fff',BG='#000';
+  var o=[];function add(s){o.push(s)}
+  function f(n){return Math.round(n*10)/10}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function tw(s,sz,w,it){mc.font=(it?'italic ':'')+(w||600)+' '+sz+'px '+FF;return mc.measureText(s).width}
+  /* text: large type in the core colour, small type and lines in the light's tint */
+  function T(x,y,s,sz,q){q=q||{};add('<text x="'+f(x)+'" y="'+f(y)+'" font-size="'+sz+'" font-weight="'+(q.w||600)+'"'+(q.it?' font-style="italic"':'')+
+    (q.a?' text-anchor="'+q.a+'"':'')+' fill="'+(q.fill||(sz>=15?CORE:INK))+'"'+(q.ls?' letter-spacing="'+q.ls+'"':'')+(q.id?' id="'+q.id+'"':'')+'>'+esc(s)+'</text>')}
+  function wrap(s,sz,w,mw,it){var ws=s.split(' '),ls=[],c='';ws.forEach(function(x){var t=c?c+' '+x:x;if(tw(t,sz,w,it)>mw&&c){ls.push(c);c=x}else c=t});if(c)ls.push(c);return ls}
+  function Para(x,y,s,sz,mw,q){q=q||{};var w=q.w||400,ls=wrap(s,sz,w,mw,q.it),lh=sz*1.34;ls.forEach(function(l,i){T(x,y+i*lh,l,sz,{w:w,it:q.it,fill:q.fill})});return y+ls.length*lh}
+  function L(x1,y1,x2,y2,q){q=q||{};add('<line x1="'+f(x1)+'" y1="'+f(y1)+'" x2="'+f(x2)+'" y2="'+f(y2)+'" stroke="'+(q.c||INK)+'" stroke-width="'+(q.sw||1.2)+'"'+
+    (q.d?' stroke-dasharray="'+q.d+'"':'')+(q.op?' opacity="'+q.op+'"':'')+(q.arr?' marker-end="url(#ar)"':'')+'/>')}
+  function Pth(d,q){q=q||{};add('<path d="'+d+'" fill="'+(q.fill||'none')+'" stroke="'+(q.c||INK)+'" stroke-width="'+(q.sw||1.2)+'"'+(q.d?' stroke-dasharray="'+q.d+'"':'')+
+    (q.op!=null?' opacity="'+q.op+'"':'')+(q.arr?' marker-end="url(#ar)"':'')+'/>')}
+  function R(x,y,w,h,q){q=q||{};add('<rect x="'+f(x)+'" y="'+f(y)+'" width="'+f(w)+'" height="'+f(h)+'" fill="'+(q.fill||'none')+'"'+(q.c!==null?' stroke="'+(q.c||INK)+'" stroke-width="'+(q.sw||1.4)+'"':'')+(q.d?' stroke-dasharray="'+q.d+'"':'')+(q.op?' opacity="'+q.op+'"':'')+'/>')}
+  function C(cx,cy,r,q){q=q||{};add('<circle cx="'+f(cx)+'" cy="'+f(cy)+'" r="'+f(r)+'" fill="'+(q.fill||'none')+'"'+(q.c!==null?' stroke="'+(q.c||INK)+'" stroke-width="'+(q.sw||1.2)+'"':'')+(q.d?' stroke-dasharray="'+q.d+'"':'')+(q.op!=null?' opacity="'+q.op+'"':'')+'/>')}
+  function poly(pts,q){q=q||{};add('<polygon points="'+pts.map(function(p){return f(p[0])+','+f(p[1])}).join(' ')+'" fill="'+(q.fill||BG)+'" stroke="'+(q.c||INK)+'" stroke-width="'+(q.sw||1.3)+'"/>')}
+  /* nodes in the reference's vocabulary: labelled boxes, filled title blocks, diamonds, hexagons */
+  function Box(x,y,s,sz,q){q=q||{};var w=q.wd||(tw(s,sz,q.w||600)+sz*.9),h=q.h||sz*1.62;
+    R(x,y,w,h,{fill:BG,c:q.fill?CORE:INK,sw:q.fill?2.4:(q.sw||1.4)});if(q.fill&&h>=40)R(x+4,y+4,w-8,h-8,{c:CORE,sw:.8});T(x+w/2,y+h/2+sz*.35,s,sz,{w:q.w||600,a:'middle',fill:CORE});
+    if(q.sub)T(x,y+h+12,q.sub,10,{w:400});
+    return {x:x,y:y,w:w,h:h,cx:x+w/2,cy:y+h/2,r:x+w,b:y+h}}
+  function Dia(cx,cy,r,lines,q){q=q||{};poly([[cx,cy-r],[cx+r,cy],[cx,cy+r],[cx-r,cy]],{fill:BG,c:q.fill?CORE:INK,sw:q.fill?2.4:1.3});
+    var sz=q.sz||9.5,lh=sz*1.22,y0=cy-(lines.length-1)*lh/2+sz*.35;lines.forEach(function(l,i){T(cx,y0+i*lh,l,sz,{w:i===0?700:400,a:'middle',fill:i===0||q.fill?CORE:INK})})}
+  function Hex(cx,cy,r,lines,q){q=q||{};var p=[];for(var i=0;i<6;i++){var a=Math.PI/3*i;p.push([cx+r*Math.cos(a),cy+r*Math.sin(a)])}poly(p,{fill:BG});
+    var sz=q.sz||10,lh=sz*1.22,y0=cy-(lines.length-1)*lh/2+sz*.35;lines.forEach(function(l,i){T(cx,y0+i*lh,l,sz,{w:i===0?700:400,a:'middle',fill:i===0?CORE:INK})})}
+  function axis(x,y,w,h,q){q=q||{};L(x,y+h,x+w,y+h,{sw:1});L(x,y,x,y+h,{sw:1});
+    (q.xt||[]).forEach(function(t){var px=x+t[0]*w;L(px,y+h,px,y+h+4,{sw:1});T(px,y+h+14,t[1],9,{w:400,a:'middle'})});
+    (q.yt||[]).forEach(function(t){var py=y+h-t[0]*h;L(x-4,py,x,py,{sw:1});T(x-7,py+3,t[1],9,{w:400,a:'end'})});
+    if(q.xl)T(x+w,y+h+27,q.xl,9.5,{w:400,it:true,a:'end'});if(q.yl)T(x,y-8,q.yl,9.5,{w:400,it:true})}
+  function cell(c,r,band){var k=r*3+c;add('<g transform="translate('+(k%COLS)*CW+' '+Math.floor(k/COLS)*CH+')">');if(band)T(CW-18,24,band,10,{w:700,a:'end',ls:'.12em'})}
+  function endc(){add('</g>')}
+
+  /* ---------- live data: the real models, run small (once; colour changes only redraw) ---------- */
+  function simThread(K,fbm,frames,cx,cy,startX,startY,seed){
+    var pts=[],hist=[],t=0;
+    for(var fr=0;fr<frames;fr++){
+      if(fr<frames*.45){var u=fr/(frames*.45),x=seed<0?startX+u*420:startX+Math.cos(u*2.6+seed)*u*120,y=seed<0?startY+Math.sin(u*7)*46:startY+Math.sin(u*2.6+seed)*u*90;
+        var pv=pts[pts.length-1];pts.push({x:x,y:y,px:x,py:y,vx:pv?(x-pv.x):0,vy:pv?(y-pv.y):0,l:K.life})}
+      for(var st=0;st<5;st++){t++;
+        while(pts.length&&pts[0].l<=0)pts.shift();
+        for(var i=0;i<pts.length;i++){var p=pts[i],a=K.angle*fbm(p.x*K.space+1e6,p.y*K.space+1e6,t*K.time)+Math.atan2(p.y-cy,p.x-cx);
+          var ax=Math.cos(a)+K.vel*p.vx,ay=Math.sin(a)+K.vel*p.vy;p.vx*=K.velDecay;p.vy*=K.velDecay;
+          p.x+=(p.x-p.px)*K.friction+ax;p.y+=(p.y-p.py)*K.friction+ay;p.px=p.x;p.py=p.y;p.l--;
+          if(i){var q=pts[i-1],dx=q.x-p.x,dy=q.y-p.y,d=Math.sqrt(dx*dx+dy*dy);if(d>K.rest+.01){var k=K.rigid*(K.rest-d)/d;p.x-=k*dx;q.x+=k*dx;p.y-=k*dy;q.y+=k*dy}}}
+        if(pts.length>1&&st===4)hist.push({p:pts.map(function(p){return [p.x,p.y]}),l:pts[pts.length-1].l/K.life})}
+    }
+    return hist;
+  }
+  function curve(P,tf){if(P.length<2)return '';var a=tf(P[0]),d='M'+f(a[0])+' '+f(a[1]);
+    for(var i=1;i<P.length-1;i++){var b=tf(P[i]),n=tf(P[i+1]);d+='Q'+f(b[0])+' '+f(b[1])+' '+f((b[0]+n[0])/2)+' '+f((b[1]+n[1])/2)}
+    var e=tf(P[P.length-1]);return d+'L'+f(e[0])+' '+f(e[1])}
+  function runSolver(){
+    var N=24,g=glyphTarget('A',N),pl=new Plate('sys',N,N,g.t,WEIGHTS[P.w].n,g.capCells);pl.hpC=Math.max(pl.hpC,TESTER_HP*N);
+    var api=makeSolverAPI(),job=api.createJob({key:'sys',nx:N,ny:N,t:g.t,floor:FLOOR_SPILL,floor0:.35,decay:.84,ior:pl.ior,cs:1,T:pl.tC,Hp:pl.hpC,iters:TESTER_IT}),res=[],t0=performance.now();
+    for(var i=0;i<TESTER_IT;i++){var r=job.step();res.push(r.res)}
+    var F=job.field(),Pm=job.P();return {N:N,t:g.t,res:res,F:F,P:Array.prototype.slice.call(Pm),ms:performance.now()-t0}
+  }
+  function data(){
+    if(DATA)return DATA;var K=SILK.K,fbm=SILK.fbm;
+    DATA={S:runSolver(),veil:simThread(K,fbm,70,0,0,60,10,-1),ros:simThread(K,fbm,40,0,0,30,-8,.4).slice(-36),tq:performance.now()*.001};
+    return DATA;
+  }
+
+  function build(){
+    o=[];var K=SILK.K,fbm=SILK.fbm,W5=WEIGHTS[P.w],dn=(W5.n-1)/W5.V*1.35,D=data(),S=D.S,NX=S.F.NX,NY=S.F.NY;
+    COLS=innerWidth<=760?1:3;VW=CW*COLS;VH=CH*9/COLS;INK=PAL.tint;BG=PAL.bg;CORE=INK;RED=INK;BLU=INK; /* one colour: the chosen light */
+    add('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+VW+' '+VH+'" preserveAspectRatio="xMidYMid meet" font-family="'+FF.replace(/'/g,'&#39;')+'" role="img" aria-labelledby="sys-title sys-desc">');
+    add('<title id="sys-title">How Caustic Light works</title><desc id="sys-desc">A three by three system map: the thread model behind drawing with light, the inverse solver that shapes the glass, and the optics that cast the light.</desc>');
+    add('<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+INK+'"/></marker></defs>');
+    R(0,0,VW,VH,{fill:BG,c:null});
+    /* grid: dashed cells, one solid double trunk */
+    for(var gc=1;gc<COLS;gc++)L(CW*gc,0,CW*gc,VH,{d:'7 5',sw:1});for(var gr=1;gr<9/COLS;gr++)L(0,CH*gr,VW,CH*gr,{d:'7 5',sw:COLS===1&&gr%3===0?2:1});
+
+    /* ===== 1 · THREAD ===== */
+    cell(0,0,'1 · DRAW LIGHT');
+    T(24,44,'Caustic Light',28,{w:700});T(24,66,'A map of the machine: five pages, one light',13,{w:400,it:true});
+    Para(24,92,'Page 1 lets light flow along a thread you draw. Pages 2 to 4 solve a sheet of diamond glass whose surface bends a uniform sun into the shape asked for. Every chart here is drawn from the running code.',10.5,262);
+    var th=Box(24,166,'Thread',40,{fill:true,w:700});T(th.x,th.y-6,'Page 1',8.5,{w:700,fill:CORE});T(th.r+10,th.y+26,'one stroke',10,{w:600});T(th.r+10,th.y+40,'= one thread',10,{w:400});
+    /* decay over one life */
+    var dx0=40,dy0=262,dw=226,dh=72;T(24,252,'Decay over one life',11,{w:700,fill:CORE});T(136,252,'(150 steps)',9,{w:400});
+    axis(dx0,dy0,dw,dh,{xt:[[0,'0'],[.5,'75'],[1,'150']],yt:[[0,'0'],[1,'1']]});
+    function plot(fn,q){var d='';for(var s2=0;s2<=150;s2+=3){d+=(s2?'L':'M')+f(dx0+s2/150*dw)+' '+f(dy0+dh-fn(s2)*dh)}Pth(d,q)}
+    plot(function(s){return 1-s/150},{sw:1.8,c:CORE});plot(function(s){return Math.pow(.98,s)},{sw:1.2,d:'5 3'});plot(function(s){return Math.pow(.975,s)},{sw:1,d:'1.5 2.5'});
+    [['opacity (life)','',1.8],['input ×0.98','5 3',1.2],['friction ×0.975','1.5 2.5',1]].forEach(function(g,k){var x=24+k*86;L(x,360,x+18,360,{sw:g[2],d:g[1]||null,c:k?INK:CORE});T(x+23,363,g[0],9,{w:k?400:600})});
+    /* force triangle */
+    var tx=448,ty=44;poly([[tx,ty],[tx+140,ty+232],[tx-140,ty+232]],{fill:BG,c:CORE,sw:2.4});poly([[tx,ty+13],[tx+130,ty+225],[tx-130,ty+225]],{fill:'none',c:CORE,sw:.8});
+    Hex(tx,ty+108,37,['Flow','field','force 1'],{sz:9.5});Hex(tx-50,ty+184,37,['Input','velocity','×0.3'],{sz:9.5});Hex(tx+50,ty+184,37,['Spring','to neighbour','k 0.2'],{sz:9.5});
+    T(tx,ty+256,'Three forces act on every point',10.5,{w:700,a:'middle',fill:CORE});
+    Para(tx-140,ty+278,'The flow pushes, borrowed pointer speed fades, friction damps, and each point is pulled to the one before it: the thread drifts and contracts.',9.5,280);
+    endc();
+
+    /* ===== 2 · FLOW FIELD ===== */
+    cell(1,0,'1 · DRAW LIGHT');
+    var qs=196,qn=13,qx=24,qy=60;var bq=Box(qx,18,'Flow field',17,{});T(bq.r+10,34,'(live)',9.5,{w:400,it:true});
+    R(qx,qy,qs,qs,{sw:.8,op:.6});var qd='';
+    for(var j=0;j<qn;j++)for(var i=0;i<qn;i++){var px=qx+(i+.5)*qs/qn,py=qy+(j+.5)*qs/qn,wx=(i-qn/2)*34,wy=(j-qn/2)*34,
+      a=K.angle*fbm(wx*K.space+1e6,wy*K.space+1e6,D.tq*K.time*60)+Math.atan2(wy,wx),l=qs/qn*.42;
+      qd+='M'+f(px-Math.cos(a)*l)+' '+f(py-Math.sin(a)*l)+'L'+f(px+Math.cos(a)*l)+' '+f(py+Math.sin(a)*l);C(px+Math.cos(a)*l,py+Math.sin(a)*l,1.3,{fill:INK,c:null})}
+    Pth(qd,{sw:1});C(qx+qs/2,qy+qs/2,4,{c:CORE,sw:1.4});
+    Para(qx,qy+qs+18,'θ = 5π · fbm(x·0.02, y·0.02, t·0.005) + angle around the centre, so every symmetric copy flows alike.',9.5,qs);
+    var ox=270,oy=58,ow=150,oh=78;T(ox,40,'Noise octaves',11,{w:700,fill:CORE});T(ox+92,40,'(8 · ×0.65)',9,{w:400});
+    axis(ox,oy,ow,oh,{yt:[[0,'0'],[1,'1']]});
+    for(var oc=0;oc<8;oc++){var am=Math.pow(.65,oc),bw=ow/8;R(ox+oc*bw+3,oy+oh-am*oh,bw-6,am*oh,{fill:BG,c:oc===0?CORE:INK,sw:oc===0?2:1});T(ox+oc*bw+bw/2,oy+oh+13,String(oc+1),8.5,{w:400,a:'middle'})}
+    Para(ox+ow+18,oy+10,'Each octave doubles the frequency and keeps 65% of the amplitude.',9,128,{it:true});
+    /* one stroke, as the veil it sweeps */
+    var vx0=270,vy0=214,vw=306,vh=118,hs=D.veil,bx;
+    (function(){var xs=[],ys=[];hs.forEach(function(h){h.p.forEach(function(q){xs.push(q[0]);ys.push(q[1])})});xs.sort(function(a,b){return a-b});ys.sort(function(a,b){return a-b});
+      var lo=Math.floor(xs.length*.01),hi=Math.ceil(xs.length*.99)-1;bx=[xs[lo],ys[lo],xs[hi],ys[hi]]})();
+    var vk=Math.min(vw/(bx[2]-bx[0]),vh/(bx[3]-bx[1])),vfit=function(q){return [vx0+(vw-(bx[2]-bx[0])*vk)/2+(q[0]-bx[0])*vk,vy0+(q[1]-bx[1])*vk]};
+    var bo=Box(vx0,172,'One stroke',13,{});T(bo.r+10,186,'every 5th step, alpha ∝ life',9,{w:400,it:true});
+    hs.forEach(function(h,k){if(k%2)return;Pth(curve(h.p,vfit),{sw:.6,op:Math.max(.06,h.l*.6)})});
+    T(CW-24,362,'('+hs.length+' snapshots of one simulated stroke)',9,{w:400,a:'end'});
+    endc();
+
+    /* ===== 3 · SYMMETRY + EVERY FRAME ===== */
+    cell(2,0,'1 · DRAW LIGHT');
+    var bs=Box(24,16,'Symmetry',17,{});T(bs.r+10,32,'(mirror on · spiral ×4 · intro 6 × 2)',9.5,{w:400,it:true});
+    SYMS.forEach(function(n,k){var col=k%4,row=(k/4)|0,cx=84+col*144,cy=104+row*116,sc=.27,d='';
+      for(var r=0;r<n;r++){var ang=r*2*Math.PI/n,c=Math.cos(ang),s=Math.sin(ang);
+        for(var m=1;m>=-1;m-=2)D.ros.forEach(function(h,hi){if(hi%3)return;d+=curve(h.p,function(p){var x=p[0]*m*sc,y=p[1]*sc;return [cx+x*c-y*s,cy+x*s+y*c]})})}
+      Pth(d,{sw:.5,op:.6});C(cx,cy,44,{sw:.6,d:'2 3',op:.6});
+      T(cx-58,cy-30,String(n),15,{w:700});T(cx,cy+56,n+' × 2 = '+(2*n)+' copies',8.5,{w:400,a:'middle'})});
+    T(24,300,'Every frame',11,{w:700,fill:CORE});
+    [['Pointer','down'],['1 point','per frame'],['5 steps','per frame'],['Hairline','1 px'],['Additive','“lighter”'],['Canvas','persistent']].forEach(function(s,i){var x=56+i*98;if(i)L(x-98+31,336,x-31,336,{arr:true,sw:1});Dia(x,336,30,s,{fill:i===5,sz:8.5})});
+    endc();
+
+    /* ===== 4 · GLASS INPUTS ===== */
+    cell(0,1,'2 – 4 · GLASS');
+    var gl=Box(24,22,'Glass',40,{fill:true,w:700});T(gl.x,gl.y-6,'Pages 2 – 4',8.5,{w:700,fill:CORE});
+    T(gl.r+12,gl.y+28,'INVERSE CAUSTIC',11,{w:700,ls:'.08em',fill:CORE});T(gl.r+12,gl.y+44,'the target is known; the glass is solved',9.5,{w:400,it:true});
+    var gN=GQ.chars.length||Array.from(GLYPH_SRC).length;
+    var b1=Box(24,110,'Word',15,{sub:'Unbounded 200 – 900'}),b2=Box(24,164,'Glyphs',15,{sub:gN+' glyphs · '+GN+'² cells'}),b3=Box(24,218,'Shape',15,{sub:'brush 4 – 60 · '+DN+'² cells'});
+    [b1,b2,b3].forEach(function(b,k){T(b.r+8,b.cy+4,String(k+2),10,{w:700,fill:CORE})});
+    var rzx=300,rzy=178;Dia(rzx,rzy,52,['Rasterise','supersample 3×','pool to N × N']);
+    [b1,b2,b3].forEach(function(b){L(b.r+22,b.cy,rzx-56,rzy,{arr:true,sw:1})});
+    var tb=Box(400,164,'Target',17,{});L(rzx+52,rzy,tb.x-4,tb.cy,{arr:true});L(tb.r,tb.cy,CW-4,tb.cy,{arr:true});T(tb.x,tb.b+13,'brightness map',9.5,{w:400,it:true});
+    var src=Array.from(GLYPH_SRC),acc=src.filter(function(c){return /[À-ÿĀ-ž]/.test(c)&&!/[×÷]/.test(c)}).length,cats=[['Capitals',26],['Lowercase',26],['Figures',10],['Punctuation & signs',src.length-62-acc],['Accented',acc]];
+    var ix=24,iy=292,iw=552;T(ix,iy-10,'Glyph inventory',11,{w:700,fill:CORE});T(ix+102,iy-10,'('+src.length+' drawn · '+gN+' in the face)',9,{w:400});
+    var cxp=ix;cats.forEach(function(c,k){var w=c[1]/src.length*iw;R(cxp,iy,w,16,{fill:BG,c:CORE,sw:k%2?1:2});L(cxp+.5,iy+16,cxp+.5,iy+22+(k%2)*22,{sw:.8});
+      T(cxp+3,iy+31+(k%2)*22,c[0]+' ('+c[1]+')',9,{w:600});cxp+=w});
+    endc();
+
+    /* ===== 5 · TARGET + MESH ===== */
+    cell(1,1,'2 – 4 · GLASS');
+    var ms=206,mx=40,my=54,cl=ms/S.N;Box(mx,16,'Target, glyph A',13,{});
+    for(var j2=0;j2<S.N;j2++)for(var i2=0;i2<S.N;i2++){var v=S.t[j2*S.N+i2];C(mx+(i2+.5)*cl,my+(j2+.5)*cl,v>.02?Math.sqrt(v)*cl*.48:.6,v>.02?{c:CORE,sw:.9}:{fill:INK,c:null,op:.5})}
+    T(mx,my+ms+14,S.N+' × '+S.N+' cells · dot area = brightness',9,{w:400});
+    var gx=330,sx=ms/(NX-1),md='';Box(gx,16,'Relaxed mesh',13,{});
+    for(var j3=0;j3<NY;j3++)for(var i3=0;i3<NX;i3++){var id=j3*NX+i3;md+=(i3?'L':'M')+f(gx+S.P[id*2]*sx)+' '+f(my+S.P[id*2+1]*sx)}
+    for(var i4=0;i4<NX;i4++)for(var j4=0;j4<NY;j4++){var id2=j4*NX+i4;md+=(j4?'L':'M')+f(gx+S.P[id2*2]*sx)+' '+f(my+S.P[id2*2+1]*sx)}
+    Pth(md,{sw:.7});L(mx+ms+12,my+ms/2,gx-12,my+ms/2,{arr:true});T(gx,my+ms+14,'each cell stretched until its area = its light',9,{w:400});
+    Para(mx,my+ms+46,'“Light in equals area: a patch of glass that must light a bright floor pixel is simply made larger, and the mesh is relaxed until every cell carries what it owes.”',11,500,{it:true});
+    T(mx,362,'— Solver notes, section 1',9.5,{w:400});
+    endc();
+
+    /* ===== 6 · WORKER + CONVERGENCE ===== */
+    cell(2,1,'2 – 4 · GLASS');
+    var bw2=Box(24,16,'Web Worker',17,{});T(bw2.r+10,32,'(off the main thread · posts every 3rd iteration)',9.5,{w:400,it:true});
+    var wy=106;[['1 Transport','DCT Poisson','lap φ = t − a'],['2 Snell','bisection ×40','slope per point'],['3 Integrate','Poisson again','height field'],['4 Residual','curl the glass','cannot honour']].forEach(function(s,i){
+      var x=80+i*138;if(i)L(x-138+52,wy,x-52,wy,{arr:true});Dia(x,wy,52,s,{fill:i===2,sz:9})});
+    var mxr=Math.max.apply(null,S.res),mnr=Math.max(1e-6,Math.min.apply(null,S.res)),lg=function(v){return (Math.log(v)-Math.log(mnr))/Math.max(1e-6,Math.log(mxr)-Math.log(mnr))};
+    T(24,188,'Convergence',11,{w:700,fill:CORE});T(104,188,'(glyph A · '+TESTER_IT+' iterations · '+Math.round(S.ms)+' ms here · relief '+S.F.relief.toFixed(2)+' cells · curl '+(S.F.curl*100).toFixed(1)+'%)',9,{w:400,it:true});
+    var cx0=64,cy0=214,cw2=500,ch2=104;axis(cx0,cy0,cw2,ch2,{xt:[[0,'1'],[.5,String(TESTER_IT/2)],[1,String(TESTER_IT)]],yt:[[1,mxr.toExponential(1)],[0,mnr.toExponential(1)]],xl:'iteration'});
+    var rd='';S.res.forEach(function(v,i){var X=cx0+i/(S.res.length-1)*cw2,Y=cy0+ch2*(1-lg(v));rd+=(i?'L':'M')+f(X)+' '+f(Y);if(i%3===2)C(X,Y,1.5,{fill:CORE,c:null})});Pth(rd,{sw:1.5,c:CORE});
+    T(24,366,'● a frame the worker sends back · transport residual on a log scale',9,{w:400,it:true});
+    endc();
+
+    /* ===== 7 · OPTICS ===== */
+    cell(0,2,'ALL PAGES · LIGHT');
+    Box(24,36,'Optics',38,{wd:552,h:58,w:700});R(24,94,276,28,{fill:BG});R(300,94,276,28,{fill:BG});
+    T(162,113,'Refraction',14,{w:400,a:'middle',fill:CORE});T(438,113,'Dispersion',14,{w:400,a:'middle',fill:CORE});
+    T(24,146,'Glass',11,{w:700,fill:CORE});T(60,146,'(index n vs Abbe number V)',9,{w:400});
+    var sx0=54,sy0=168,sw0=200,sh0=140;axis(sx0,sy0,sw0,sh0,{xt:[[0,'30'],[.5,'50'],[1,'70']],yt:[[0,'1.2'],[.5,'1.9'],[1,'2.6']],xl:'V →',yl:'n'});
+    WEIGHTS.forEach(function(w,k){var X=sx0+(w.V-30)/40*sw0,Y=sy0+sh0-(w.n-1.2)/1.4*sh0,on=k===P.w,lf=k===1;
+      if(on){C(X,Y,12,{sw:1});C(X,Y,19,{sw:.6,d:'2 2'})}poly([[X,Y-5],[X+5,Y],[X,Y+5],[X-5,Y]],{fill:BG,c:on?CORE:INK,sw:on?2:1.3});
+      T(X+(lf?-9:9),Y+(lf?-8:4),w.name,9.5,{w:700,a:lf?'end':null,fill:on?CORE:INK});T(X+(lf?-9:9),Y+(lf?4:15),'n '+w.n+' · V '+w.V,8.5,{w:400,a:lf?'end':null})});
+    var tbl=[['Glass','n','V','spread']].concat(WEIGHTS.map(function(w){return [w.name,String(w.n),String(w.V),((w.n-1)/w.V*1.35).toFixed(4)]}));
+    tbl.forEach(function(r,k){var Y=172+k*24,on=k&&k-1===P.w;r.forEach(function(c,ci){T(318+ci*64,Y,c,10,{w:!k||on?700:400,fill:on||!k?CORE:INK})});L(318,Y+8,576,Y+8,{sw:k?.4:1,op:k?.6:1})});
+    T(318,312,'Spread per pass = (n − 1) / V × 1.35',10,{w:700,fill:CORE});T(318,327,'Diamond: ('+W5.n+' − 1) / '+W5.V+' × 1.35 = ±'+dn.toFixed(4),9.5,{w:400});
+    T(24,362,'The word, glyph and shape pages all cast through Diamond.',9.5,{w:400,it:true});
+    endc();
+
+    /* ===== 8 · CROSS-SECTION ===== */
+    cell(1,2,'ALL PAGES · LIGHT');
+    var rx0=48,rw=504,row=Math.round(NY/2),gTop=104,gTh=30,flo=286,hmn=Infinity,hmx=-Infinity;
+    for(var z=0;z<NX*NY;z++){var hz=S.F.f[z*4+2];if(hz<hmn)hmn=hz;if(hz>hmx)hmx=hz}
+    var hk=gTh*.8/Math.max(1e-6,hmx-hmn),prof=[];for(var i6=0;i6<NX;i6++)prof.push({h:(S.F.f[(row*NX+i6)*4+2]-hmn)*hk});
+    C(CW/2,206,168,{sw:.8,op:.6,d:'2 4'});
+    var bc=Box(24,16,'Cross-section',17,{});T(bc.r+10,32,'(row '+row+' of the solved glass, sun from above)',9.5,{w:400,it:true});
+    var gd='M'+f(rx0)+' '+f(gTop+gTh);prof.forEach(function(p,k){gd+='L'+f(rx0+k/(NX-1)*rw)+' '+f(gTop+gTh-p.h-10)});gd+='L'+f(rx0+rw)+' '+f(gTop+gTh)+'Z';
+    T(rx0,58,'uniform sun',9.5,{w:700,fill:CORE});
+    var yB=gTop+gTh,row0=row*NX;
+    for(var i8=0;i8<NX;i8++){var xi=rx0+i8/(NX-1)*rw,yTop=gTop+gTh-prof[i8].h-10,land=rx0+S.P[(row0+i8)*2]/(NX-1)*rw,dev=land-xi;
+      L(xi,66,xi,yTop,{sw:.7,op:.5});
+      [[RED,(W5.n-dn*4-1)/(W5.n-1),.6,'1 2.5'],[BLU,(W5.n+dn*4-1)/(W5.n-1),.6,'1 2.5'],[CORE,1,.95]].forEach(function(c){L(xi,yB,xi+dev*c[1],flo,{c:c[0],sw:.9,op:c[2],d:c[3]})})}
+    Pth(gd,{fill:BG,c:CORE,sw:1.8});T(rx0+rw,gTop-6,'diamond',9.5,{w:700,a:'end',fill:CORE});
+    L(rx0-8,flo,rx0+rw+8,flo,{sw:2,c:CORE});T(rx0+rw,flo-6,'floor',9.5,{w:700,a:'end',fill:CORE});
+    for(var i9=0;i9<S.N;i9++){var tv=S.t[Math.min(S.N-1,row)*S.N+i9];R(rx0+i9/S.N*rw+1,flo+6,rw/S.N-2,Math.max(1,tv*20),{c:CORE,sw:.9})}
+    T(rx0,flo+42,'▲ target brightness, same row',9,{w:600});T(rx0+rw,flo+42,'dotted edges: n ∓ spread, drawn ×4',9,{w:400,it:true,a:'end'});
+    Para(rx0,flo+60,'Where the sculpted face tilts, rays bend together and pile up into the bright stroke of the letter.',9.5,rw);
+    endc();
+
+    /* ===== 9 · RENDER + LIVE ===== */
+    cell(2,2,'ALL PAGES · LIGHT');
+    var br=Box(24,16,'Renderer',17,{});T(br.r+10,32,'(photon mesh per channel, added)',9.5,{w:400,it:true});
+    [['Rays','520 k desk','200 k phone'],['Adaptive Q','0.3 – 1.0','by frame time'],['Floor','135 %','framing'],['Afterglow','trails while','light moves'],['Halo','¼-res blur','two passes']].forEach(function(s,i){Dia(68+i*116,96,43,s,{fill:i===0,sz:9})});
+    Pth('M68 139 L68 156 L532 156 L532 139',{sw:1});L(300,156,300,170,{arr:true,sw:1});
+    Box(222,172,'Composite → screen',13,{fill:true});
+    [['Hover','tilts the sun'],['Click','holds the light'],['Pane','0 – 100 %']].forEach(function(s,i){var x=34+i*186;Dia(x,226,12,[''],{});T(x+20,223,s[0],10,{w:700,fill:CORE});T(x+20,236,s[1],9,{w:400})});
+    T(24,268,'Live',11,{w:700,fill:CORE});C(58,264,3.5,{fill:RED,c:null});T(68,268,'this session, every 0.5 s',9,{w:400,it:true});
+    [['strokes','sys-a'],['points alive','sys-b'],['glyphs solved','sys-c'],['word glass','sys-d'],['frame','sys-e'],['rays last drawn','sys-f']].forEach(function(r,k){var x=24+(k%3)*190,y=290+((k/3)|0)*34;
+      T(x,y,'—',13,{w:700,id:r[1],fill:CORE});T(x,y+12,r[0],8.5,{w:400})});
+    PAGES.forEach(function(p,k){var x=24+k*112,y=342,on=k===4;R(x,y,100,24,{fill:BG,c:on?CORE:INK,sw:on?2.4:1.2});T(x+7,y+16,(k+1)+'  '+p[2],9,{w:700,fill:on?CORE:INK});if(k)L(x-11,y+12,x-2,y+12,{arr:true,sw:1})});
+    endc();
+    add('</svg>');
+    host.innerHTML=o.join('');built=true;applyZoom();live(true);
+  }
+  function applyZoom(){var sv=host.firstChild;if(!sv)return;
+    var tall=COLS===1;sec.classList.toggle('tall',tall);
+    if(tall){sv.style.width=Math.round(host.clientWidth*zoom)+'px';sv.style.height='auto'}
+    else if(zoom===1){sv.style.width='100%';sv.style.height='100%'}else{sv.style.width=Math.round(host.clientWidth*zoom)+'px';sv.style.height=Math.round(host.clientHeight*zoom)+'px'}
+    sec.classList.toggle('zoomed',zoom!==1);var zv=$('#sysz');if(zv)zv.textContent=Math.round(zoom*100)+'%'}
+  function set(id,v){var e=document.getElementById(id);if(e&&e.textContent!==v)e.textContent=v}
+  function live(force){var now=performance.now();if(!force&&now-liveT<500)return;liveT=now;var s=SILK.state();
+    set('sys-a',String(s.strokes));set('sys-b',String(s.points));set('sys-c',GQ.done+' / '+(GQ.chars.length||'—'));
+    set('sys-d',TESTER?(TESTER.meta.it+' it'+(TESTER.meta.done?' · done':'')):'—');set('sys-e',frameMs.toFixed(1)+' ms · Q '+Q.toFixed(2));set('sys-f',lastRays?Math.round(lastRays/1000)+' k':'—')}
+  /* fits the screen; zoom in with the buttons or ctrl/⌘ + wheel, then drag to pan */
+  var drag=null;
+  sec.addEventListener('pointerdown',function(e){if(zoom===1||e.pointerType!=='mouse'||e.button!==0)return;drag={x:e.clientX,y:e.clientY,l:host.scrollLeft,t:host.scrollTop};sec.classList.add('drag')});
+  window.addEventListener('pointermove',function(e){if(!drag)return;host.scrollLeft=drag.l-(e.clientX-drag.x);host.scrollTop=drag.t-(e.clientY-drag.y)});
+  window.addEventListener('pointerup',function(){drag=null;sec.classList.remove('drag')});
+  function zoomBy(k,cx,cy){var z=Math.max(1,Math.min(4,zoom*k));if(Math.abs(z-zoom)<1e-3)return;var r=host.getBoundingClientRect();cx=cx==null?r.width/2:cx-r.left;cy=cy==null?r.height/2:cy-r.top;
+    var ax=(host.scrollLeft+cx)/zoom,ay=(host.scrollTop+cy)/zoom;zoom=z<1.02?1:z;applyZoom();host.scrollLeft=ax*zoom-cx;host.scrollTop=ay*zoom-cy}
+  sec.addEventListener('wheel',function(e){if(!(e.ctrlKey||e.metaKey))return;e.preventDefault();zoomBy(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY)},{passive:false});
+  $('#syszi').addEventListener('click',function(){zoomBy(1.4)});$('#syszo').addEventListener('click',function(){zoomBy(1/1.4)});
+  $('#sysz').addEventListener('click',function(){zoom=1;applyZoom()});
+  window.addEventListener('resize',function(){if(!built)return;if((innerWidth<=760?1:3)!==COLS&&VIEW==='sys')draw();else applyZoom()});
+  function draw(){try{build()}catch(e){host.textContent='The system map could not be drawn: '+e.message}}
+  return {show:function(){if(!built)draw();else applyZoom();sec.setAttribute('aria-hidden','false')},
+    hide:function(){sec.setAttribute('aria-hidden','true')},tick:function(){if(built)live(false)},
+    recolour:function(){if(built)draw()},build:build};
+})();
+/* ---------------------------------------------------------------
+   11. LOOP
+---------------------------------------------------------------- */
+var TIMES={tick:0,render:0},last=performance.now(),dirty=true,lastVer=-1,lastPl=null,settle=0,TRAIL=1;
+function frame(now){
+  var dt=Math.min(.1,(now-last)/1000);last=now;
+  var moving=updateOptics(now,dt);
+  var _t0=performance.now();if(VIEW!=='sys'&&SILK.tick(now,dt))moving=true; // drawing light keeps flowing
+  TIMES.tick=performance.now()-_t0;
+  if(PREV&&PREV.small&&TESTER===PREV.small&&PREV.hp.meta.it>=24){TESTER=PREV.hp;dirty=true}
+  if(TESTER&&(TESTER.ver!==lastVer||TESTER!==lastPl)){lastVer=TESTER.ver;lastPl=TESTER;dirty=true}
+  // glyph specimen: start in idle time once the word has settled; thumbnails drawn within a small per-frame budget
+  if(ready&&!GQ.started&&((TESTER&&TESTER.meta.done)||now-bootT>5000))GLYPH.start();
+  if(GQ.th.length){var tb=performance.now();while(GQ.th.length&&performance.now()-tb<(VIEW==='glyphs'?12:6)){var jb=GQ.th.shift();if(jb.gen===GQ.gen)thumb(jb)}progress()}
+  if(VIEW==='draw')drawTick();
+  if(dirty)settle=10;
+  // afterglow: while the light moves, each frame lays over the last so the rays leave soft trails
+  TRAIL=(moving&&!RM.matches&&!(VIEW==='silk'&&SILK.ink()))?Math.min(1,.42+dt*2.2):Math.min(1,TRAIL+.18);
+  if(VIEW==='sys'){SYS.tick(now);moving=false;settle=0}
+  if(moving||settle>0){settle--;
+    var t0=performance.now();render();TIMES.render=performance.now()-t0;frameMs+=(performance.now()-t0-frameMs)*.2;dirty=false;
+    // adaptive ray resolution: keep motion smooth on slow GPUs
+    if(frameMs>30)Q=Math.max(.3,Q*.94);else if(frameMs<14)Q=Math.min(1,Q*1.03);
+  }
   requestAnimationFrame(frame);
 }
 
-window.__e13={moveStage:moveStage,P:P,OPT:OPT,sel:function(c){sel=c;queueTiles();specDirty=true;dirty=true},setWeight:setWeight,
-  setPal:function(i){P.pal=i;applyPal();syncUI()},gl:function(){return !!GLR},tester:function(){return TESTER&&TESTER.meta},view:function(){return view},
-  tiles:function(){var d=0;CHARSET.split('').forEach(function(ch){var p=TILES[P.w][ch];if(p&&p.meta.done)d++});return d},SP:SP};
+window.__caustic={times:function(){return TIMES},dbg:function(){var f=TESTER.field,n=0;for(var i=0;i<f.length;i++)if(!isFinite(f[i]))n++;return {nan:n,len:f.length,NX:TESTER.NX,rect:TESTER.rect,hpC:TESTER.hpC,tC:TESTER.tC,res:TESTER.meta.res,curl:TESTER.meta.curl}},P:P,OPT:OPT,IN:IN,pals:PALS,setPal:setPal,setWeight:function(v){setWeight(v,false)},
+  glyphs:function(){return {total:GQ.chars.length,done:GQ.done,queued:GQ.queue.length,sel:GSEL,built:GQ.built}},
+  state:function(){return {glass:P.glass,n:WEIGHTS[P.w].n,floorK:P.floorK,rays:P.rays,disp:P.disp,target:P.target,
+    silk:SILK.state(),pal:PAL.id,ground:PAL.g,frozen:FROZEN,pane:PANE,draw:DR.state(),bg:PAL.bg,tint:PAL.tint,weight:WT,fontOK:FONT_OK,view:VIEW,
+    hoverW:HW,tilt:[OPT.tx,OPT.ty],sun:[OPT.sx,OPT.sy],gl:!!GLR,solved:TESTER?TESTER.meta.it:0,done:TESTER?TESTER.meta.done:false,
+    rendered:rendered,Q:Q,rays_drawn:lastRays,plate:TESTER?TESTER.key:'',text:TL?TL.lines.join(' '):''}}};
 
-/* embed: the series home sends its tester line */
-(function(){var m=/[?&]t=([^&]*)/.exec(location.search);if(m)try{$('#txt').value=decodeURIComponent(m[1]).toUpperCase().slice(0,28)}catch(_){}})();
-window.addEventListener('message',function(e){var d=e.data;if(d&&typeof d.regulaText==='string'){$('#txt').value=d.regulaText.slice(0,28).toUpperCase()||'CAUSTIC';clearTimeout(txtT);txtT=setTimeout(function(){if(view==='tester')updateTester()},300)}});
-
-/* boot: wait briefly for the master font, then start casting */
-var ready=false;
+var ready=false,bootT=0;
 function boot(){
-  if(ready)return;ready=true;
-  FONT_OK=!!(document.fonts&&document.fonts.check&&document.fonts.check('400 40px Unbounded'));
-  syncUI();applyPal();resize();updateTester();queueTiles();enqueue(tilePlate(P.w,'a'),'G',95,TILE_IT);castQueue();drawOpen(true);
-  requestAnimationFrame(function(){if(window.LDR)LDR.ready()});
+  if(ready)return;ready=true;bootT=performance.now();
+  FONT_OK=!!(document.fonts&&document.fonts.check&&document.fonts.check('800 40px Unbounded'));
+  resize();route();
 }
-castInit();build();castInit();syncUI();applyPal();sizeGlyphSlot();stickTops();
-slots.tester.appendChild(stage);
-(function(){var r=stage.getBoundingClientRect();W=Math.max(1,Math.round(r.width));H=Math.max(1,Math.round(r.height))})();
-pick();
+resize();
 requestAnimationFrame(frame);
 try{
-  if(document.fonts&&document.fonts.load){Promise.race([document.fonts.load('400 40px Unbounded'),new Promise(function(r){setTimeout(r,1800)})]).then(boot,boot)}else boot();
+  if(document.fonts&&document.fonts.load){Promise.race([document.fonts.load('860 40px Unbounded'),new Promise(function(r){setTimeout(r,1500)})]).then(boot,boot)}else boot();
 }catch(e){boot()}
-setTimeout(boot,2200);
+setTimeout(boot,1900);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
-  var ok=document.fonts.check('400 40px Unbounded');
-  if(ready&&ok&&!FONT_OK){FONT_OK=true;TESTERS={};CONS={};if(view==='tester')updateTester();queueTiles();drawOpen(true)}
-});
+  var ok=document.fonts.check('800 40px Unbounded');
+  if(ready&&ok&&!FONT_OK){FONT_OK=true;TESTERS={};HIPL={};GLYPH.reset(true);updateTester()}});
 })();
 </script>
 </body>
 </html>
+
+</body></html>
